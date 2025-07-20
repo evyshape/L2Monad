@@ -1,0 +1,7 @@
+colorlog
+mss
+numpy
+PyAutoGUI
+pyclick
+PyGetWindow
+pywin32
