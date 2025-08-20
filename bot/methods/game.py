@@ -830,7 +830,7 @@ async def claim_daily(profile) -> bool:
                     for (x_c, y_c) in grouped_claims:
                         await profile.mouse.click(window_info, x_c, y_c)
                         await asyncio.sleep(0.5)
-                        await skip_vitlity(profile)
+                        await skip_vitlity(profile, "claim")
                     return ["claimed"]
                 return []
 
@@ -958,17 +958,9 @@ async def claim_clan(profile) -> bool:
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
-    while True:
-        found_clan_3 = await wait_and_click("clan_3", timeout=2)
-        found_clan_4 = await wait_and_click("clan_4", timeout=2)
-
-        if found_clan_3:
-            if found_clan_4:
-                await asyncio.sleep(0.5)
-                await wait_and_click("clan_4", timeout=1)
-            continue
-        else:
-            break
+    if not await wait_and_click("clan_3", timeout=3):
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
 
     if await wait_and_click("clan_5", timeout=2):
         if await wait_and_click("clan_6", timeout=2):
@@ -1100,11 +1092,11 @@ async def claim_battle_pass(profile) -> bool:
         if await profile.check_pixel(xy_sbor2, rgb_sbor2, timeout=1):
             await profile.mouse.click(window_info, *xy_sbor2)
             await asyncio.sleep(1)
-            await skip_vitlity(profile)
+            await skip_vitlity(profile, "claim")
         elif await profile.check_pixel(xy_sbor22, rgb_sbor22, timeout=1):
             await profile.mouse.click(window_info, *xy_sbor22)
             await asyncio.sleep(1)
-            await skip_vitlity(profile)
+            await skip_vitlity(profile, "claim")
         else:
             log("Собирать нечего, проверяю следующую вкладку", window_id)
 
