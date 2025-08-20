@@ -4,7 +4,7 @@ from profiles.base import BaseProfile
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.events.checker import EventsChecker
 from bot.methods.base import parseCBT
-from bot.methods.other import MouseEvents
+from bot.methods.other import MouseEvents, screenshot_window
 from bot.methods.game import energo_mode, check_rip, wait_teleport, buy_in_shop, \
     teleport_to_random_spot, check_energo_mode, respawn, check_town, check_autohunt, \
     buy_loot, claim_mail, check_energo_mode, energo_mode, claim_daily, \
@@ -121,7 +121,8 @@ class PvPDodge(BaseProfile):
                 return True
         else:
             self.events_checker.stop_monitoring(window_id)
-            log("Чини, не трогаю окно 1 час", window_id)
+            path = screenshot_window(self.window_info)
+            log(f"Чини, не трогаю окно 1 час | {path}", window_id)
             await asyncio.sleep(3600)
 
     async def buying(self):
@@ -195,6 +196,14 @@ class PvPDodge(BaseProfile):
 
     async def bank_restore(self):
         window_id, window = next(iter(self.window_info.items()))
+        self.events_checker.stop_monitoring(window_id)
+        rip, btn = await check_rip(self)
+        if rip:
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+            self.runtime_data.current_state = "death"
+            return
+
         self.runtime_data.current_state = "shopping"
         xy, rgb = parseCBT("home_scroll_button_energomode")
         if xy is None:
@@ -210,12 +219,13 @@ class PvPDodge(BaseProfile):
             if buy:
                 to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
                 if to_spot:
+                    self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
                     self.runtime_data.current_state = "combat"
                     return True
             else:
-                log(f"bad result? {result}", window_id)
+                log(f"bad result? {result} / buy", window_id)
         else:
-            log(f"bad result? {result}", window_id)
+            log(f"bad result? {result} / else", window_id)
 
     async def mail(self):
         window_id, window = next(iter(self.window_info.items()))

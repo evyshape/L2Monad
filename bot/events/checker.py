@@ -40,15 +40,15 @@ class EventsChecker:
         while profile.running:
             checks = 0
             #print(1)
-            for _ in range(10):  # 10 проверок
+            for _ in range(13):
                 found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7)
                 #print(found)
                 if found:
                     checks += 1
                     
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(1)
 
-            if checks >= 8:
+            if checks >= 10:
                 now = time.monotonic()
                 last_events = self._last_event_time.setdefault(window_id, {})
                 last_time = last_events.get("hp_bank", 0)

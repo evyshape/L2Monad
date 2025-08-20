@@ -1,6 +1,7 @@
 import json
 import math
 from bot.methods.base import parseCBT
+from bot.methods.other import screenshot_window
 from clogger import log
 import random
 import asyncio
@@ -16,7 +17,7 @@ async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):
     if mode == "skip":
         tag = "cancel_button_vitality"
     elif mode == "claim":
-        tag = "cancel_button_vitality"  # TODO: заменить на серую кнопку, если появится
+        tag = "yes_button_vitality"
     else:
         return False
 
@@ -65,6 +66,22 @@ async def safe_tp(profile) -> bool:
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
 
     return False
+
+async def check_lvl_up(profile) -> bool:
+    window_id = next(iter(profile.window_info))
+    xy, rgb = parseCBT("lvl_up_black")
+
+    log("Чекаю лвл ап залупу", window_id)
+    lvl_up_visible = await profile.check_pixel(xy, rgb, timeout=0.5)
+
+    if lvl_up_visible:
+        log("Лвл ап вылез, закрываю", window_id)
+        xy_close, rgb_close = parseCBT("lvl_up_close")
+        await profile.mouse.click(profile.window_info, *xy_close)
+        return True
+    else:
+        log(f"Вероятно лвл апа не было {lvl_up_visible}", window_id)
+        return False
 
 async def energo_mode(profile, state: str) -> bool:
     window_id, window = next(iter(profile.window_info.items()))
@@ -265,20 +282,30 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4) -> bool
     return False
 
 async def respawn(profile):
+    rip_energo = False
     emode = await check_energo_mode(profile)
     if emode:
+        energokill = parseCBT("you_were_killed_energomode")
+        xy, rgb = energokill
+        rip_energo = await profile.check_pixel(xy, rgb, timeout=2)
         await energo_mode(profile, "off")
+        await asyncio.sleep(2)
 
-    death_found, btn = await check_rip(profile)
-    if death_found and btn != "":
-        xy1, rgb1 = parseCBT(btn)
+    if rip_energo:
+        xy1, rgb1 = parseCBT("respawn_village")
         await profile.mouse.click(profile.window_info, xy1[0], xy1[1], fast=True)
-        tped = await wait_teleport(profile)
-        if tped:
-            if emode:
-                await energo_mode(profile, "on")
-                await asyncio.sleep(1)
+        await asyncio.sleep(5)
+        if emode:
+            await energo_mode(profile, "on")
+            await asyncio.sleep(1)
         return True
+    else:
+        xy1, rgb1 = parseCBT("respawn_village")
+        await profile.mouse.click(profile.window_info, xy1[0], xy1[1], fast=True)
+        await asyncio.sleep(2)
+        return True
+
+    screenshot_window(profile.window_info)
     return False
 
 async def check_rip(profile) -> bool:
@@ -290,12 +317,12 @@ async def check_rip(profile) -> bool:
     async def check(cbt: str) -> bool:
         #log(f"Чекаю {cbt}", window_id)
         xy, rgb = parseCBT(cbt)
-        return await profile.check_pixel(xy, rgb, timeout=0.1)
+        return await profile.check_pixel(xy, rgb, timeout=0.2)
 
     results = await asyncio.gather(*(check(cbt) for cbt in cbts))
     for cbt, found in zip(cbts, results):
         if found:
-            #log(f"Детектнул {cbt}", window_id)
+            log(f"Детектнул {cbt}", window_id)
             return True, cbt
 
     return False, ""
@@ -667,18 +694,18 @@ async def claim_mail(profile) -> bool:
     if red_dot_ex and claim_ex:
         if not await wait_and_click("claim_all_mail", timeout=1):
             await wait_and_click("npc_global_quit_button", timeout=1)
-            log(f"Не удалось нажать Claim All", window_id)
+            log(f"Не удалось нажать Claim All (почта)", window_id)
             return False
 
         start_time = time.time()
         while time.time() - start_time < 120:
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
 
             red_dot_ex = await check_clr("red_dot_mail")
             cancel_ex = await check_clr("cancel_button_vitality")
 
             if cancel_ex:
-                await wait_and_click("cancel_button_vitality", timeout=1)
+                await wait_and_click("cancel_button_vitality", timeout=2)
                 await wait_and_click("npc_global_quit_button", timeout=1)
                 log(f"Лимит опыта, ливнул", window_id)
                 claimed = False
@@ -888,9 +915,9 @@ async def claim_achiv(profile) -> bool:
         return False
 
     while True:
-        found_claim = await wait_and_click("achiv_claim_1", timeout=1)
+        found_claim = await wait_and_click("achiv_claim_1", timeout=2)
         await asyncio.sleep(0.2)
-        found_accept = await wait_and_click("achiv_claim_accept", timeout=1)
+        found_accept = await wait_and_click("achiv_claim_accept", timeout=2)
 
         if not found_claim:
             claimed = True

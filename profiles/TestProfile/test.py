@@ -1,6 +1,6 @@
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import buy_loot
+from bot.methods.game import check_rip
 from clogger import log
 import asyncio
 from bot.windows.runtime import RuntimeData
@@ -21,7 +21,7 @@ class Test(BaseProfile):
     async def main_loop(self):
         window_id = next(iter(self.window_info))
         try:
-            result = await buy_loot(self)
+            result = await check_rip(self)
             if result:
                 log(result)
 
