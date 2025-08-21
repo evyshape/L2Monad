@@ -108,10 +108,10 @@ class PvPDodge(BaseProfile):
             if buyed:
                 log("Что-то выкупил..", window_id)
             log("Пробую идти к бакалейщику", window_id)
-            result = await go_stash(self)
-            result1 = await buy_in_shop(self)
-            result2 = await sell_buyer(self)
-            if result:
+            stash_ok, in_town, npcs = await go_stash(self)
+            shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+            buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+            if stash_ok:
                 log("Успешно скупился!", window_id)
             log("Тпаюсь на спот и ставлю автобой", window_id)
             to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
@@ -139,10 +139,11 @@ class PvPDodge(BaseProfile):
         if energo:
             await energo_mode(self, "off")
 
-        buy = await buy_in_shop(self)
-        result = await go_stash(self)
-        result2 = await sell_buyer(self)
-        if buy:
+        stash_ok, in_town, npcs = await go_stash(self)
+        shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+        buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+
+        if stash_ok:
             log("Закупился успешно, вероятно...", window_id)
 
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
@@ -213,10 +214,11 @@ class PvPDodge(BaseProfile):
         await self.mouse.click(self.window_info, click_x, click_y)
         result = await wait_teleport(self)
         if result:
-            buy = await buy_in_shop(self)
-            result = await go_stash(self)
-            result2 = await sell_buyer(self)
-            if buy:
+            stash_ok, in_town, npcs = await go_stash(self)
+            shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+            buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+
+            if stash_ok:
                 to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
                 if to_spot:
                     self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
@@ -337,9 +339,9 @@ class PvPDodge(BaseProfile):
                 await asyncio.sleep(1)
             tp = await safe_tp(self)
             if tp:
-                result = await go_stash(self)
-                result1 = await buy_in_shop(self)
-                result2 = await sell_buyer(self)
+                stash_ok, in_town, npcs = await go_stash(self)
+                shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+                buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
                 to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
                 if to_spot:
                     self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)

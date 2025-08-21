@@ -26,11 +26,11 @@ class Buyer(BaseProfile):
             if tp:
                 wait = await wait_teleport(self)
                 if wait:
-                    result0 = await go_stash(self)
-                    result1 = await buy_in_shop(self)
-                    result2 = await sell_buyer(self)
-                    if result0:
-                        log(f"{result0}", window_id)
+                    stash_ok, in_town, npcs = await go_stash(self)
+                    shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+                    buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+                    if stash_ok:
+                        log(f"{stash_ok}", window_id)
                         await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
                     else:
                         log(f"Не смог закупиться", window_id)

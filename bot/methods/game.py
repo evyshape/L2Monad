@@ -55,6 +55,7 @@ async def check_energo_mode(profile) -> bool:
     return True
 
 async def safe_tp(profile) -> bool:
+    window_id = next(iter(profile.window_info))
     targets = [
         parseCBT("home_scroll_button_energomode"),
         parseCBT("home_scroll_button_no_energomode"),
@@ -65,6 +66,7 @@ async def safe_tp(profile) -> bool:
             await asyncio.sleep(2)
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
 
+    log("Были либо в стане либо нет свитков, не тпнулся =(", window_id)
     return False
 
 async def check_lvl_up(profile) -> bool:
@@ -332,7 +334,7 @@ async def check_rip(profile) -> bool:
     return False, ""
 
 
-async def get_npc_positions(profile, thr=6) -> Optional[Dict[str, str]]:
+async def get_npc_positions(profile, thr=8) -> Optional[Dict[str, str]]:
     """
     profile — это объект ес че, вызывайте напрямую из обьекта бота
     """
@@ -434,93 +436,71 @@ async def check_town(profile) -> tuple[bool, dict | None]:
     return False, None
 
 
-async def buy_in_shop(profile) -> bool:
+async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
     window_id = next(iter(profile.window_info))
     log(f"Запускаю закупку у бакалейщика", window_id)
-    in_town, npcs = await check_town(profile)
 
-    if 'shop' not in npcs:
-        return False
+    if in_town is None or npcs is None:
+        in_town, npcs = await check_town(profile)
 
-    shop_npc_key = npcs['shop']
-    if shop_npc_key == "no_data":
-        return False
+    if 'shop' not in npcs or npcs['shop'] == "no_data":
+        return False, in_town, npcs
 
-    xy, rgb = parseCBT(shop_npc_key)
+    xy, rgb = parseCBT(npcs['shop'])
     if xy is None:
-        return False
+        return False, in_town, npcs
 
-    x, y = xy
-    await profile.mouse.click(profile.window_info, x, y)
+    await profile.mouse.click(profile.window_info, *xy)
 
-    shop_button_name = "npc_shop_button_1"
-    xy_btn, rgb_btn = parseCBT(shop_button_name)
-    if xy_btn is None:
-        return False
-
-    attempts = 0
-    while not await profile.check_pixel(xy_btn, rgb_btn, timeout=1, thr=7):
-        await asyncio.sleep(0.05)
-        attempts += 1
-        if attempts >= 200:
-            return False
-
-    await asyncio.sleep(1.2)
     shop_buttons = ["npc_shop_button_1", "npc_shop_button_2", "npc_shop_button_3"]
     for button_name in shop_buttons:
         xy_btn, rgb_btn = parseCBT(button_name)
         if xy_btn is None:
-            return False
+            return False, in_town, npcs
 
         pixel_found = await profile.check_pixel(xy_btn, rgb_btn, timeout=3)
         if pixel_found:
-            x, y = xy_btn
             await asyncio.sleep(0.1)
-            await profile.mouse.click(profile.window_info, x, y)
+            await profile.mouse.click(profile.window_info, *xy_btn)
         else:
-            if button_name in ["npc_shop_button_2", "npc_shop_button_3"]:
-                continue
-            else:
-                return False
+            if button_name == "npc_shop_button_1":
+                return False, in_town, npcs
+            continue
 
-    quit_button = "npc_global_quit_button"
-    xy_quit, rgb_quit = parseCBT(quit_button)
-    if xy_quit is None:
-        return False
+    xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
+    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=3):
+        await profile.mouse.click(profile.window_info, *xy_quit)
+        return True, in_town, npcs
 
-    pixel_found = await profile.check_pixel(xy_quit, rgb_quit, timeout=3)
-    if pixel_found:
-        x, y = xy_quit
-        await profile.mouse.click(profile.window_info, x, y)
-    else:
-        return False
+    return False, in_town, npcs
 
-    return True
 
-async def go_stash(profile) -> bool:
+async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
     window_id = next(iter(profile.window_info))
     log(f"Открываю склад", window_id)
-    in_town, npcs = await check_town(profile)
+
+    if in_town is None or npcs is None:
+        in_town, npcs = await check_town(profile)
 
     if 'stash' not in npcs or npcs['stash'] == "no_data":
-        return False
+        return False, in_town, npcs
 
     xy, rgb = parseCBT(npcs['stash'])
     if xy is None:
-        return False
+        return False, in_town, npcs
 
     await profile.mouse.click(profile.window_info, *xy)
 
     stash_ui_xy, stash_ui_rgb = parseCBT("npc_stash_button_1")
     if stash_ui_xy is None:
-        return False
+        return False, in_town, npcs
 
     for _ in range(200):
         if await profile.check_pixel(stash_ui_xy, stash_ui_rgb, timeout=1, thr=7):
             break
         await asyncio.sleep(0.05)
     else:
-        return False
+        return False, in_town, npcs
 
     await asyncio.sleep(1.2)
     for button in ["npc_stash_button_1", "npc_stash_button_2"]:
@@ -529,55 +509,49 @@ async def go_stash(profile) -> bool:
             await asyncio.sleep(0.1)
             await profile.mouse.click(profile.window_info, *xy_btn)
         elif button == "npc_stash_button_1":
-            return False
+            return False, in_town, npcs
 
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
     if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=3):
         await profile.mouse.click(profile.window_info, *xy_quit)
-        return True
+        return True, in_town, npcs
 
-    return False
+    return False, in_town, npcs
 
-async def sell_buyer(profile) -> bool:
+
+async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
     window_id = next(iter(profile.window_info))
     log(f"Продаю хлам скупщику", window_id)
-    in_town, npcs = await check_town(profile)
+
+    if in_town is None or npcs is None:
+        in_town, npcs = await check_town(profile)
 
     if 'buyer' not in npcs or npcs['buyer'] == "no_data":
-        return False
+        return False, in_town, npcs
 
     xy, rgb = parseCBT(npcs['buyer'])
     if xy is None:
-        return False
+        return False, in_town, npcs
 
     await profile.mouse.click(profile.window_info, *xy)
 
-    buyer_ui_xy, buyer_ui_rgb = parseCBT("npc_buyer_button_1")
-    if buyer_ui_xy is None:
-        return False
-
-    for _ in range(200):
-        if await profile.check_pixel(buyer_ui_xy, buyer_ui_rgb, timeout=1, thr=7):
-            break
-        await asyncio.sleep(0.05)
-    else:
-        return False
-
-    await asyncio.sleep(1.2)
-    for button in ["npc_buyer_button_1", "npc_buyer_button_2", "npc_buyer_button_3"]:
+    buyer_buttons = ["npc_buyer_button_1", "npc_buyer_button_2", "npc_buyer_button_3"]
+    for button in buyer_buttons:
         xy_btn, rgb_btn = parseCBT(button)
         if xy_btn and await profile.check_pixel(xy_btn, rgb_btn, timeout=3):
             await asyncio.sleep(0.1)
             await profile.mouse.click(profile.window_info, *xy_btn)
-        elif button not in ["npc_buyer_button_2", "npc_buyer_button_3"]:
-            return False
+        elif button == "npc_buyer_button_1":
+            return False, in_town, npcs
+        else:
+            continue
 
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
     if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=3):
         await profile.mouse.click(profile.window_info, *xy_quit)
-        return True
+        return True, in_town, npcs
 
-    return False
+    return False, in_town, npcs
 
 async def buy_loot(profile) -> bool:
     window_info = profile.window_info
