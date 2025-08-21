@@ -61,7 +61,7 @@ async def safe_tp(profile) -> bool:
     ]
 
     for xy, rgb in targets:
-        if await profile.check_pixel(xy, rgb, timeout=2):
+        if await profile.check_pixel(xy, rgb, timeout=5):
             await asyncio.sleep(2)
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
 
@@ -160,8 +160,12 @@ async def schedule(profile, state) -> bool:
         log("Пробую запустить расписание", window_id)
         tag = "schedule_start"
     if state == "off":
-        log("Пробую остановить расписан", window_id)
-        tag = "schedule_stop"
+        log("Пробую остановить расписание", window_id)
+        tp = await safe_tp(profile)
+        tp1 = await wait_teleport(profile)
+        if tp1:
+            await energo_mode(profile, "on")
+            return True
 
     if await check_energo_mode(profile):
         await energo_mode(profile, "off")
@@ -328,7 +332,7 @@ async def check_rip(profile) -> bool:
     return False, ""
 
 
-async def get_npc_positions(profile) -> Optional[Dict[str, str]]:
+async def get_npc_positions(profile, thr=6) -> Optional[Dict[str, str]]:
     """
     profile — это объект ес че, вызывайте напрямую из обьекта бота
     """
@@ -340,7 +344,7 @@ async def get_npc_positions(profile) -> Optional[Dict[str, str]]:
         xy, rgb = parseCBT(f"npc_list_{j}")
         #log(f"Пробую чекнуть npc_list_{j}", window_id)
 
-        result = await profile.check_pixel(xy, rgb, timeout=DELAY_CHECK_NPC_POSITIONS, thr=3, wsize="1x1")
+        result = await profile.check_pixel(xy, rgb, timeout=DELAY_CHECK_NPC_POSITIONS, thr=thr, wsize="1x1")
 
         if result:
             log(f"Детектнул позиции, {j}", window_id)
@@ -702,7 +706,7 @@ async def claim_mail(profile) -> bool:
             await asyncio.sleep(2)
 
             red_dot_ex = await check_clr("red_dot_mail")
-            cancel_ex = await check_clr("cancel_button_vitality")
+            cancel_ex = await check_clr("yes_button_vitality")
 
             if cancel_ex:
                 await wait_and_click("cancel_button_vitality", timeout=2)
@@ -962,17 +966,20 @@ async def claim_clan(profile) -> bool:
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
-    if await wait_and_click("clan_5", timeout=2):
-        if await wait_and_click("clan_6", timeout=2):
-            await asyncio.sleep(0.1)
-            await wait_and_click("npc_global_quit_button", timeout=2)
-            await asyncio.sleep(0.3)
-            return True
-        else:
-            await wait_and_click("npc_global_quit_button", timeout=5)
-            return False
+    if not await wait_and_click("clan_5", timeout=3):
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
+        
+    if not await wait_and_click("clan_6", timeout=3):
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
 
-    return False
+    if not await wait_and_click("npc_global_quit_button", timeout=3):
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
+
+    await asyncio.sleep(0.3)
+    return True
 
 async def claim_battle_pass(profile) -> bool:
     window_info = profile.window_info

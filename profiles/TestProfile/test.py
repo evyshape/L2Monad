@@ -1,6 +1,6 @@
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_rip
+from bot.methods.game import check_rip, get_npc_positions
 from clogger import log
 import asyncio
 from bot.windows.runtime import RuntimeData
@@ -21,7 +21,7 @@ class Test(BaseProfile):
     async def main_loop(self):
         window_id = next(iter(self.window_info))
         try:
-            result = await check_rip(self)
+            result = await get_npc_positions(self, 6)
             if result:
                 log(result)
 
