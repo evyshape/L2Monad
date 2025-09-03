@@ -451,6 +451,7 @@ async def check_town(profile) -> tuple[bool, dict | None]:
 
 
 async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
+
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -467,7 +468,7 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
     if xy_btn1 is None:
         return False, in_town, npcs
 
-    for _ in range(200):
+    for i in range(200):
         if await profile.check_pixel(xy_btn1, rgb_btn1, timeout=0.1):
             await asyncio.sleep(0.45)
             await profile.mouse.click(profile.window_info, *xy_btn1)
@@ -485,7 +486,7 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
 
         xy_no_adena, rgb_no_adena = parseCBT("npc_shop_button_no_adena")
         if xy_no_adena:
-            for _ in range(20):
+            for j in range(5):
                 if await profile.check_pixel(xy_no_adena, rgb_no_adena, timeout=0.1):
                     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
                     xy_ok, rgb_ok = parseCBT("npc_shop_button_no_adena_confirm")
@@ -493,7 +494,8 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
                         await profile.mouse.click(profile.window_info, *xy_ok)
                         await asyncio.sleep(0.25)
                         await profile.mouse.click(profile.window_info, *xy_quit)
-                    return False, in_town, npcs
+                    #todo tg uved here
+                    return True, in_town, npcs
                 await asyncio.sleep(0.1)
 
     xy_btn3, rgb_btn3 = parseCBT("npc_shop_button_3")
@@ -507,6 +509,7 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
         return True, in_town, npcs
 
     return False, in_town, npcs
+
 
 async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
     if in_town is None or npcs is None:
