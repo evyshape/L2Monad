@@ -6,7 +6,7 @@ from profiles.base import BaseProfile
 from bot.methods.base import parseCBT
 from bot.events.enums import MonitorType
 from clogger import log
-from bot.methods.game import check_rip
+from bot.methods.game import check_rip, find_quiver
 
 class EventsChecker:
     def __init__(self):
@@ -35,7 +35,14 @@ class EventsChecker:
                 await asyncio.sleep(0.05)
 
     async def _monitor_hp_bank(self, window_id: str, profile: BaseProfile) -> None:
-        xy, rgb = parseCBT("hp_bank_in_energo")
+        if profile.runtime_data.has_quiver is None:
+            quiver_status = await find_quiver(profile)
+            profile.runtime_data.has_quiver = quiver_status
+
+        if profile.runtime_data.has_quiver is True:
+            xy, rgb = parseCBT("q_hp_bank_in_energo")
+        if profile.runtime_data.has_quiver is False:
+            xy, rgb = parseCBT("hp_bank_in_energo")
 
         while profile.running:
             checks = 0
@@ -58,6 +65,39 @@ class EventsChecker:
                     log(f"Хп банка ивент отправлен в {window_id}", self.tname)
                     last_events["hp_bank"] = now
 
+
+            await asyncio.sleep(5)
+
+    async def _monitor_soska(self, window_id: str, profile: BaseProfile) -> None:
+        if profile.runtime_data.has_quiver is None:
+            quiver_status = await find_quiver(profile)
+            profile.runtime_data.has_quiver = quiver_status
+
+        if profile.runtime_data.has_quiver is True:
+            xy, rgb = parseCBT("q_soska_in_energo")
+        if profile.runtime_data.has_quiver is False:
+            xy, rgb = parseCBT("soska_in_energo")
+
+        while profile.running:
+            checks = 0
+            # print(1)
+            for _ in range(13):
+                found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7)
+                # print(found)
+                if found:
+                    checks += 1
+
+                await asyncio.sleep(1)
+
+            if checks >= 10:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get("soska", 0)
+                # print(2)
+                if now - last_time >= 60:
+                    EventsManager.send_event(window_id, {"type": "soska"})
+                    log(f"Соска ивент отправлен в {window_id}", self.tname)
+                    last_events["soska"] = now
 
             await asyncio.sleep(5)
 
@@ -186,6 +226,8 @@ class EventsChecker:
                 tasks.append(asyncio.create_task(self._monitor_rewards(window_id, profile)))
             elif monitor_type == MonitorType.SCHEDULE:
                 tasks.append(asyncio.create_task(self._monitor_schedule_schedule(window_id, profile)))
+            elif monitor_type == MonitorType.SOSKA:
+                tasks.append(asyncio.create_task(self._monitor_soska(window_id, profile)))
 
         self.tasks[window_id] = tasks
 

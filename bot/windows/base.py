@@ -132,9 +132,13 @@ class BaseSettings:
             end = datetime.strptime(end_str, "%H:%M").replace(
                 year=now.year, month=now.month, day=now.day
             )
+
+            if end <= start:
+                end += timedelta(days=1)
+
             return start <= now <= end
         except Exception as e:
-            raise ValueError(f"Ошибка в SCHEDULE_SCHEDULE: {self.SCHEDULE_SCHEDULE} — {e}")
+            raise ValueError( f"Ошибка в SCHEDULE_SCHEDULE: {self.SCHEDULE_SCHEDULE} — {e}")
 
 default_values = {
     "REGION": "JP",

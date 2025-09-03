@@ -198,23 +198,36 @@ async def schedule(profile, state) -> bool:
 
     return False
 
-async def wait_teleport(profile) -> bool:
+async def find_quiver(profile) -> bool:
+    xy1, rgb1 = parseCBT("q_quiver")
+    window_id = next(iter(profile.window_info))
+    if await check_energo_mode(profile):
+        quiver = await profile.check_pixel(xy1, rgb1, timeout=2, thr=2, wsize="1x1")
+        #print(quiver)
+        if quiver:
+            return False
+        else:
+            return True
+
+    return None
+
+async def wait_teleport(profile, need: int = 8) -> bool:
     xy1, rgb1 = parseCBT("zalupka_gui")
     window_id = next(iter(profile.window_info))
     success = 0
     await asyncio.sleep(1)
 
-    for _ in range(8):
+    for _ in range(need):
         await asyncio.sleep(0.25)
         teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME)
         if teleported:
             success += 1
 
-    if success >= 7:
-        log("tped succ", window_id)
+    if success >= 6:
+        log(f"tped succ | {success}/{need}", window_id)
         return True
     else:
-        log("tped failed", window_id)
+        log(f"tped failed | {success}/{need}", window_id)
         return False
 
 async def check_autohunt(profile) -> bool:
@@ -236,18 +249,19 @@ async def check_autohunt(profile) -> bool:
         log("no hunt", window_id)
         return False
 
-async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4) -> bool:
+async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=True) -> bool:
     await asyncio.sleep(0.2)
     window_id = next(iter(profile.window_info))
     spot = random.randint(from_, to_)
 
     log(f"Пробую тпнуться на спот №{spot}", window_id)
 
-    if await check_energo_mode(profile):
-        log(f"Был в энерго, вырубаю перед тп", window_id)
-        await energo_mode(profile, "off")
+    if not fast:
+        if await check_energo_mode(profile):
+            log(f"Был в энерго, вырубаю перед тп", window_id)
+            await energo_mode(profile, "off")
 
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.05)
 
     steps = [
         "spot_teleport_call_button",
@@ -437,9 +451,6 @@ async def check_town(profile) -> tuple[bool, dict | None]:
 
 
 async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
-    window_id = next(iter(profile.window_info))
-    log(f"Запускаю закупку у бакалейщика", window_id)
-
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -452,33 +463,52 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
 
     await profile.mouse.click(profile.window_info, *xy)
 
-    shop_buttons = ["npc_shop_button_1", "npc_shop_button_2", "npc_shop_button_3"]
-    for button_name in shop_buttons:
-        xy_btn, rgb_btn = parseCBT(button_name)
-        if xy_btn is None:
-            return False, in_town, npcs
+    xy_btn1, rgb_btn1 = parseCBT("npc_shop_button_1")
+    if xy_btn1 is None:
+        return False, in_town, npcs
 
-        pixel_found = await profile.check_pixel(xy_btn, rgb_btn, timeout=3)
-        if pixel_found:
-            await asyncio.sleep(0.1)
-            await profile.mouse.click(profile.window_info, *xy_btn)
-        else:
-            if button_name == "npc_shop_button_1":
-                return False, in_town, npcs
-            continue
+    for _ in range(200):
+        if await profile.check_pixel(xy_btn1, rgb_btn1, timeout=0.1):
+            await asyncio.sleep(0.45)
+            await profile.mouse.click(profile.window_info, *xy_btn1)
+            break
+        await asyncio.sleep(0.05)
+    else:
+        return False, in_town, npcs
+
+    xy_btn2, rgb_btn2 = parseCBT("npc_shop_button_2")
+    if xy_btn2 is None:
+        return False, in_town, npcs
+
+    if await profile.check_pixel(xy_btn2, rgb_btn2, timeout=1.5):
+        await profile.mouse.click(profile.window_info, *xy_btn2)
+
+        xy_no_adena, rgb_no_adena = parseCBT("npc_shop_button_no_adena")
+        if xy_no_adena:
+            for _ in range(20):
+                if await profile.check_pixel(xy_no_adena, rgb_no_adena, timeout=0.1):
+                    xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
+                    xy_ok, rgb_ok = parseCBT("npc_shop_button_no_adena_confirm")
+                    if xy_ok and await profile.check_pixel(xy_ok, rgb_ok, timeout=1):
+                        await profile.mouse.click(profile.window_info, *xy_ok)
+                        await asyncio.sleep(0.25)
+                        await profile.mouse.click(profile.window_info, *xy_quit)
+                    return False, in_town, npcs
+                await asyncio.sleep(0.1)
+
+    xy_btn3, rgb_btn3 = parseCBT("npc_shop_button_3")
+    if xy_btn3 and await profile.check_pixel(xy_btn3, rgb_btn3, timeout=1.5):
+        await profile.mouse.click(profile.window_info, *xy_btn3)
 
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
-    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=3):
+    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=4):
         await profile.mouse.click(profile.window_info, *xy_quit)
+        await asyncio.sleep(0.25)
         return True, in_town, npcs
 
     return False, in_town, npcs
 
-
 async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
-    window_id = next(iter(profile.window_info))
-    log(f"Открываю склад", window_id)
-
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -491,38 +521,37 @@ async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
 
     await profile.mouse.click(profile.window_info, *xy)
 
-    stash_ui_xy, stash_ui_rgb = parseCBT("npc_stash_button_1")
-    if stash_ui_xy is None:
-        return False, in_town, npcs
-
-    for _ in range(200):
-        if await profile.check_pixel(stash_ui_xy, stash_ui_rgb, timeout=1, thr=7):
-            break
-        await asyncio.sleep(0.05)
-    else:
-        return False, in_town, npcs
-
-    await asyncio.sleep(1.2)
-    for button in ["npc_stash_button_1", "npc_stash_button_2"]:
+    stash_buttons = ["npc_stash_button_1", "npc_stash_button_2"]
+    for i, button in enumerate(stash_buttons):
         xy_btn, rgb_btn = parseCBT(button)
-        if xy_btn and await profile.check_pixel(xy_btn, rgb_btn, timeout=3):
-            await asyncio.sleep(0.1)
-            await profile.mouse.click(profile.window_info, *xy_btn)
-        elif button == "npc_stash_button_1":
-            return False, in_town, npcs
+        if xy_btn is None:
+            if i == 0:
+                return False, in_town, npcs
+            continue
+
+        if i == 0:
+            for _ in range(200):
+                if await profile.check_pixel(xy_btn, rgb_btn, timeout=0.1, thr=7):
+                    await asyncio.sleep(0.45)
+                    await profile.mouse.click(profile.window_info, *xy_btn)
+                    break
+                await asyncio.sleep(0.05)
+            else:
+                return False, in_town, npcs
+        else:
+            if await profile.check_pixel(xy_btn, rgb_btn, timeout=1.5):
+                await profile.mouse.click(profile.window_info, *xy_btn)
 
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
-    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=3):
+    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=4):
         await profile.mouse.click(profile.window_info, *xy_quit)
+        await asyncio.sleep(0.25)
         return True, in_town, npcs
 
     return False, in_town, npcs
 
 
 async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
-    window_id = next(iter(profile.window_info))
-    log(f"Продаю хлам скупщику", window_id)
-
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -536,19 +565,30 @@ async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict
     await profile.mouse.click(profile.window_info, *xy)
 
     buyer_buttons = ["npc_buyer_button_1", "npc_buyer_button_2", "npc_buyer_button_3"]
-    for button in buyer_buttons:
+    for i, button in enumerate(buyer_buttons):
         xy_btn, rgb_btn = parseCBT(button)
-        if xy_btn and await profile.check_pixel(xy_btn, rgb_btn, timeout=3):
-            await asyncio.sleep(0.1)
-            await profile.mouse.click(profile.window_info, *xy_btn)
-        elif button == "npc_buyer_button_1":
-            return False, in_town, npcs
-        else:
+        if xy_btn is None:
+            if i == 0:
+                return False, in_town, npcs
             continue
 
+        if i == 0:
+            for _ in range(200):
+                if await profile.check_pixel(xy_btn, rgb_btn, timeout=0.1):
+                    await asyncio.sleep(0.45)
+                    await profile.mouse.click(profile.window_info, *xy_btn)
+                    break
+                await asyncio.sleep(0.05)
+            else:
+                return False, in_town, npcs
+        else:
+            if await profile.check_pixel(xy_btn, rgb_btn, timeout=1.5):
+                await profile.mouse.click(profile.window_info, *xy_btn)
+
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
-    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=3):
+    if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=4):
         await profile.mouse.click(profile.window_info, *xy_quit)
+        await asyncio.sleep(0.25)
         return True, in_town, npcs
 
     return False, in_town, npcs
@@ -659,10 +699,11 @@ async def claim_mail(profile) -> bool:
         await energo_mode(profile, "off")
 
     if not await wait_and_click("main_menu_gui", timeout=7):
-        #log(f"Не удалось открыть главное меню", window_id)
+        log(f"Не удалось открыть главное меню", window_id)
         return False
 
     if not await wait_and_click("red_dot_mail_menu", timeout=1, thr=10):
+        await wait_and_click("main_menu_gui", timeout=1)
         log(f"Не найден значок почты", window_id)
         return False
 
@@ -714,17 +755,18 @@ async def claim_daily(profile) -> bool:
         if await profile.check_pixel(xy, rgb, timeout=timeout, thr=thr):
             x, y = xy
             await profile.mouse.click(window_info, x, y)
+            log(f"[wait_and_click] Клик по {tag} на {xy}", window_id)
             return True
+        log(f"[wait_and_click] Не найден {tag}", window_id)
         return False
 
     async def kuchkovator(points, radius=12):
         if not points:
+            log("[kuchkovator] Нет точек для группировки, мб вкладка говно", window_id)
             return []
-
         grouped = []
         points = sorted(points, key=lambda c: (c[1], c[0]))
         group = [points[0]]
-
         for pt in points[1:]:
             if any((pt[0] - g[0])**2 + (pt[1] - g[1])**2 <= radius**2 for g in group):
                 group.append(pt)
@@ -732,26 +774,31 @@ async def claim_daily(profile) -> bool:
                 avg_x = int(sum(p[0] for p in group) / len(group))
                 avg_y = int(sum(p[1] for p in group) / len(group))
                 grouped.append((avg_x, avg_y))
+                log(f"[kuchkovator] Кучковка: {(avg_x, avg_y)}", window_id)
                 group = [pt]
-
         avg_x = int(sum(p[0] for p in group) / len(group))
         avg_y = int(sum(p[1] for p in group) / len(group))
         grouped.append((avg_x, avg_y))
+        log(f"[kuchkovator] Финал кучковка: {(avg_x, avg_y)}", window_id)
         return grouped
 
     async def find_daily_tabs():
         x_search = DAILY["y_vkladki"]
         red_rgb = tuple(map(int, DAILY["red_dot_clr"][0].split(', ')))
-
         hits = []
+        log("[find_daily_tabs] Ищем вкладки", window_id)
         with mss.mss() as sct:
             monitor = {"left": left + x_search, "top": top, "width": 1, "height": height}
             screenshot = np.array(sct.grab(monitor))
-            for y in range(0, height, 1):
+            for y in range(height):
                 pixel_bgr = screenshot[y, 0][:3]
                 pixel_rgb = pixel_bgr[::-1]
                 if all(abs(int(pixel_rgb[i]) - red_rgb[i]) <= 16 for i in range(3)):
                     hits.append(y)
+        if not hits:
+            log("[find_daily_tabs] Красной точки нет, скип", window_id)
+        else:
+            log(f"[find_daily_tabs] Нашел {len(hits)} красных точек", window_id)
 
         buttons = []
         if hits:
@@ -765,7 +812,6 @@ async def claim_daily(profile) -> bool:
                     group = [y]
             avg = int(sum(group) / len(group))
             buttons.append(avg)
-
         x_s = x_search - 14
         return [[f"{x_s}, {y}", "no"] for y in buttons]
 
@@ -780,7 +826,6 @@ async def claim_daily(profile) -> bool:
                 monitor = {"left": left, "top": top, "width": width, "height": height}
                 screenshot = np.array(sct.grab(monitor))
             img_rgb = screenshot[:, :, :3][:, :, ::-1]
-
             for y_start, y_end in [
                 (DAILY["start_button_1"], DAILY["end_button_1"]),
                 (DAILY["start_button_2"], DAILY["end_button_2"]),
@@ -790,83 +835,88 @@ async def claim_daily(profile) -> bool:
                         pixel = img_rgb[y, x]
                         if all(abs(int(pixel[i]) - target_rgb[i]) <= thre for i in range(3)):
                             hits.append((x, y))
-
             hits.sort(key=lambda c: (c[1], c[0]))
             return hits, screenshot
 
         while True:
-            await asyncio.sleep(3)
-            almaz_positions, screenshot = colorfinder(almaz_rgb, 1)
-            if len(almaz_positions) == 2:
+            await asyncio.sleep(1)
+
+            claim_positions, _ = colorfinder(claim_rgb, 10)
+            almaz_positions, _ = colorfinder(almaz_rgb, 2)
+            monetka_positions, _ = colorfinder(monetka_rgb, 2)
+
+            if len(almaz_positions) >= 2:
+                log("[find_daily] На вкладке 2 алмаза — пропускаем", window_id)
                 return []
 
-            monetka_positions, _ = colorfinder(monetka_rgb, 2)
-            if not monetka_positions:
-                claim_positions, _ = colorfinder(claim_rgb, 10)
-                if claim_positions:
-                    grouped_claims = await kuchkovator(claim_positions)
+            if len(almaz_positions) == 1:
+                safe_claims = []
+                for (x_c, y_c) in claim_positions:
+                    if abs(x_c - almaz_positions[0][0]) > 20 or abs(y_c - almaz_positions[0][1]) > 20:
+                        safe_claims.append((x_c, y_c))
+                if safe_claims:
+                    grouped_claims = await kuchkovator(safe_claims)
                     for (x_c, y_c) in grouped_claims:
+                        log(f"[find_daily] Собираю награду тут: {(x_c, y_c)}", window_id)
                         await profile.mouse.click(window_info, x_c, y_c)
                         await asyncio.sleep(0.5)
                         await skip_vitlity(profile, "claim")
-                    return ["claimed"]
+                log("[find_daily] Скипаю 1 алмаз", window_id)
                 return []
 
-            for (x_m, y_m) in monetka_positions:
-                await profile.mouse.click(window_info, x_m, y_m)
-                if not await wait_and_click("monetka_proverka"):
-                    continue
-                if not await wait_and_click("confirm_buy_daily"):
-                    continue
+            if monetka_positions:
+                for (x_m, y_m) in monetka_positions:
+                    log(f"[find_daily] Кликаем на монетку {(x_m, y_m)}", window_id)
+                    await profile.mouse.click(window_info, x_m, y_m)
+                    if not await wait_and_click("monetka_proverka"):
+                        continue
+                    if not await wait_and_click("confirm_buy_daily"):
+                        continue
+                    log("[find_daily] Вкладка куплена за монеты успешно!", window_id)
+                    await asyncio.sleep(1)
+                    return await find_daily()
 
-                timeout = 5
-                start_time = time.time()
-                claimed = False
-                while time.time() - start_time < timeout:
-                    _, screenshot = colorfinder(almaz_rgb, 2)
-                    img_rgb = screenshot[:, :, :3][:, :, ::-1]
+            if claim_positions:
+                grouped_claims = await kuchkovator(claim_positions)
+                for (x_c, y_c) in grouped_claims:
+                    log(f"[find_daily] Собираю тутс: {(x_c, y_c)}", window_id)
+                    await profile.mouse.click(window_info, x_c, y_c)
+                    await asyncio.sleep(0.5)
+                    await skip_vitlity(profile, "claim")
+                return ["claimed"]
 
-                    if 0 <= y_m < height and 0 <= x_m < width:
-                        pixel = img_rgb[y_m, x_m]
-                        if all(abs(int(pixel[i]) - claim_rgb[i]) <= 2 for i in range(3)):
-                            await profile.mouse.click(window_info, x_m, y_m)
-                            claimed = True
-                            break
-                    await asyncio.sleep(0.1)
-
-                if claimed:
-                    break
             return []
 
     if await check_energo_mode(profile):
         await energo_mode(profile, "off")
 
     await wait_and_click("main_menu_gui", timeout=1)
-
     if not await wait_and_click("red_dot_daily_rewards", timeout=2):
+        log("[claim_daily] Не нашел красной точки, скипаю", window_id)
+        await wait_and_click("main_menu_gui", timeout=1)
         return False
-
     await asyncio.sleep(1)
 
     tabs = await find_daily_tabs()
     summary = 0
-
     if tabs:
         for tab in tabs:
             await asyncio.sleep(1)
             if len(tab) >= 2:
                 x, y = map(int, tab[0].split(", "))
+                log(f"[claim_daily] Перешел на вкладку: {(x, y)}", window_id)
                 await profile.mouse.click(window_info, x, y)
                 result = await find_daily()
                 if result:
                     summary += 1
-
-        if await wait_and_click("npc_global_quit_button", timeout=2):
-            return summary > 0
+        await wait_and_click("npc_global_quit_button", timeout=2)
+        log(f"[claim_daily] Всего слутал: {summary}", window_id)
+        return summary > 0
     else:
         await wait_and_click("npc_global_quit_button", timeout=1)
+        log("[claim_daily] Ниче не слутал", window_id)
+        return False
 
-    return False
 
 async def claim_achiv(profile) -> bool:
     claimed = False
@@ -938,6 +988,8 @@ async def claim_clan(profile) -> bool:
 
     if not await wait_and_click("clan_3", timeout=3):
         await wait_and_click("npc_global_quit_button", timeout=5)
+        await asyncio.sleep(0.5)
+        await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
     if not await wait_and_click("clan_5", timeout=3):
@@ -963,12 +1015,16 @@ async def claim_battle_pass(profile) -> bool:
         xy, rgb = parseCBT(tag)
         if await profile.check_pixel(xy, rgb, timeout=timeout):
             x, y = xy
-            await profile.mouse.click(window_info, x, y)
+            if tag == "battle_pass_red_dot_gui":
+                y += 7
+                x -= 5
+            await profile.mouse.click(window_info, x, y, fast=True)
             return True
         return False
 
-    async def find_BP_1(t=5, step=5, distance=30):
+    async def find_BP_1(t=25, step=5, distance=30):
         await asyncio.sleep(0.5)
+
         window_id, window = next(iter(window_info.items()))
         left, top = window["Position"]
         width = window["Width"]
@@ -978,11 +1034,15 @@ async def claim_battle_pass(profile) -> bool:
         hits = []
         with mss.mss() as sct:
             monitor = {"left": left, "top": top + y_search, "width": width, "height": 1}
+            log(f"{monitor}", window_id)
             screenshot = np.array(sct.grab(monitor))[:, :, :3][:, :, ::-1]
+
             for x in range(0, width, step):
                 pixel_rgb = screenshot[0, x]
                 if all(abs(int(pixel_rgb[i]) - red_rgb[i]) <= t for i in range(3)):
                     hits.append(x)
+
+            log(f"{hits}", window_id)
 
         buttons = []
         if hits:
@@ -991,10 +1051,15 @@ async def claim_battle_pass(profile) -> bool:
                 if x - group[-1] <= distance:
                     group.append(x)
                 else:
-                    buttons.append(int(sum(group) / len(group)))
+                    avg = int(sum(group) / len(group))
+                    buttons.append(avg)
                     group = [x]
-            buttons.append(int(sum(group) / len(group)))
-        return [[f"{x}, {y_search}", "no"] for x in buttons]
+            avg = int(sum(group) / len(group))
+            buttons.append(avg)
+
+        result = [[f"{x}, {y_search}", "no"] for x in buttons]
+        log(f"final {result}", window_id)
+        return result
 
     async def find_BP_2(t=8, step=3, distance=20):
         window_id, window = next(iter(window_info.items()))
@@ -1043,6 +1108,7 @@ async def claim_battle_pass(profile) -> bool:
         await wait_and_click("npc_global_quit_button", 5)
         return False
 
+    await asyncio.sleep(1)
     log("Пробую чекнуть вкладочки бп", window_id)
     tabs = await find_BP_1()
     log(f"Обнаружил вкладок бп: {len(tabs)}, начинаю чекать...", window_id)

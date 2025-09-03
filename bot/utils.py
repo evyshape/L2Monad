@@ -23,6 +23,7 @@ def findAllWindows():
         if nick != "No":
             window_info[nick] = info
         else:
-            log(f"Не будем обрабатывать окно без ника ({window.title})")
+            log(f"Не будем обрабатывать окно без ника ({window.title})", level="ERROR")
+
     log(len(window_info))
     return window_info

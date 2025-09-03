@@ -100,15 +100,14 @@ class BaseProfile(ABC):
         log(f"Обработчик события: {event}", window_id)
 
     async def _event_listener(self) -> None:
-        """
-        Асинхронный обработчик
-        """
-        while self.running:
-            try:
+        try:
+            while True:
                 event = await self.event_queue.get()
                 await self.handle_event(event)
-            except asyncio.CancelledError:
-                break
+        except asyncio.CancelledError:
+            log(f"[{self.tname}] Остановил слушалку")
+        finally:
+            log(f"[{self.tname}] Слушалка стопнулась")
 
     async def check_pixel(self, xy: Tuple[int, int],
                           rgb: Union[Tuple[int, int, int], str], timeout: float = 0.2,

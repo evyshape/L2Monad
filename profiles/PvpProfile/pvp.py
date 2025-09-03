@@ -32,7 +32,7 @@ class PvPDodge(BaseProfile):
 
     @property
     def profile_version(self) -> str:
-        return "1.4.5"
+        return "1.4.9"
 
     @property
     def get_monitors(self) -> list:
@@ -41,6 +41,8 @@ class PvPDodge(BaseProfile):
             monitors.append(MonitorType.PVP)
         if self.settings.DEATH_CHECKER:
             monitors.append(MonitorType.DEATH)
+        if self.settings.SOSKA_CHECKER:
+            monitors.append(MonitorType.SOSKA)
         if self.settings.HP_BANK_CHECKER:
             monitors.append(MonitorType.HP_BANK)
         if self.settings.SCHEDULE_BUYING != "":
@@ -394,6 +396,8 @@ class PvPDodge(BaseProfile):
             await self.rewards()
         elif etype == "schedule":
             await self.schedule_schedule()
+        elif etype == "soska":
+            await self.bank_restore()
         else:
             log(f"Что за нах: {etype}", window_id)
 

@@ -11,6 +11,7 @@ class RuntimeData:
     spot_time: Optional[str] = None               # время когда надо тп на рандом спот
     dodge_attempts: int = 0                       # попытки сдоджить пвп
     last_dodge: Optional[str] = None              # ластовая попытка доджа пвп
+    has_quiver: bool | None = None                # имеет ли колчан? двигаются корды всех гуи элементов в энерго
 
     #todo
     npc_list_spot1: Optional[Dict[str, str]] = None
