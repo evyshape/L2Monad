@@ -5,3 +5,5 @@ PyAutoGUI
 pyclick
 PyGetWindow
 pywin32
+keyboard
+PyQt5
