@@ -2,8 +2,9 @@ import asyncio
 import threading
 from bot.manager import BotManager
 from bot.utils import findAllWindows, getProfiles
-from bot.windows.settings_loader import load_settings
+from bot.windows.settings_loader import load_settings, save_settings
 from bot.windows.base import BaseSettings, default_values
+from clogger import log
 
 class ProfileController:
     _instance = None
@@ -20,7 +21,14 @@ class ProfileController:
     def start_windows(self, profile_class, nicks):
         for nick in nicks:
             window_info = findAllWindows()[nick]
-            settings = load_settings(nick) or BaseSettings(**default_values)
+            settings = load_settings(nick)
+            if not settings:
+                log(f"[{nick}] Нет настроек, создаём из базы...", nick)
+                settings = BaseSettings(**default_values)
+                save_settings(nick, settings)
+            else:
+                log(f"[{nick}] Успешно подтянул настройки...", nick)
+
             asyncio.run_coroutine_threadsafe(
                 self.bot_manager.start_bot(profile_class, nick, window_info, settings),
                 self.loop
