@@ -1,16 +1,18 @@
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_rip, get_npc_positions
+from bot.methods.game import find_quiver, teleport_to_random_spot, check_energo_mode, energo_mode
+from bot.methods.other import screenshot_window
 from clogger import log
 import asyncio
 from bot.windows.runtime import RuntimeData
 
 class Test(BaseProfile):
     def __init__(self, window_info, settings=None):
+        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
-        self.mouse = MouseEvents()  # мышильда
+        self.mouse = MouseEvents()
         self._child_tasks = []
-        self.runtime_data = RuntimeData(current_state="null")
+        self.tgbot = TgBot()
 
     def profile_version(self):
         return "2.2.8"
@@ -21,17 +23,38 @@ class Test(BaseProfile):
     async def main_loop(self):
         window_id = next(iter(self.window_info))
         try:
-            result = await get_npc_positions(self, 6)
+            energo = await check_energo_mode(self)
+            if energo:
+                await energo_mode(self, "off")
+            result = await teleport_to_random_spot(self, to_=1)
             if result:
-                log(result)
+                self.tgbot.send_notification(
+                    level="info",
+                    text="Тест гавно отработало на изи",
+                    nickname=window_id,
+                )
+
+                self.tgbot.send_notification(
+                    level="warning",
+                    text="Тест гавно отработало на изи 2",
+                    nickname=window_id,
+                )
+
+                self.tgbot.send_notification(
+                    level="error",
+                    text="Тест гавно отработало на изи 3",
+                    nickname=window_id,
+                )
 
         except asyncio.CancelledError:
-            log(f"Профиль остановлен вручную, оу ноу...", window_id)
+            log("Профиль остановлен вручную", window_id)
             raise
 
     async def on_stop(self):
-        await super().on_stop()
         for task in self._child_tasks:
-            log("Ликвидировал дочерний таск")
             task.cancel()
         await asyncio.gather(*self._child_tasks, return_exceptions=True)
+        await super().on_stop()
+
+    def is_running(self):
+        return self.running

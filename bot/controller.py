@@ -1,0 +1,43 @@
+import asyncio
+import threading
+from bot.manager import BotManager
+from bot.utils import findAllWindows, getProfiles
+from bot.windows.settings_loader import load_settings
+from bot.windows.base import BaseSettings, default_values
+
+class ProfileController:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.bot_manager = BotManager()
+            cls._instance.loop = asyncio.new_event_loop()
+            cls._instance.profiles = getProfiles()
+            threading.Thread(target=cls._instance.loop.run_forever, daemon=True).start()
+        return cls._instance
+
+    def start_windows(self, profile_class, nicks):
+        for nick in nicks:
+            window_info = findAllWindows()[nick]
+            settings = load_settings(nick) or BaseSettings(**default_values)
+            asyncio.run_coroutine_threadsafe(
+                self.bot_manager.start_bot(profile_class, nick, window_info, settings),
+                self.loop
+            )
+
+    def stop_windows(self, nicks):
+        for nick in nicks:
+            asyncio.run_coroutine_threadsafe(
+                self.bot_manager.stop_bot(nick),
+                self.loop
+            )
+
+    def get_runtime_info(self, nick):
+        bot = self.bot_manager.get_bot(nick)
+        if not bot:
+            return None
+        return getattr(bot, "runtime_data", None)
+
+    def is_running(self, nick):
+        return self.bot_manager.is_running(nick)

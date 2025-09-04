@@ -17,14 +17,15 @@ from datetime import datetime, timedelta
 
 class PvPDodge(BaseProfile):
     def __init__(self, window_info, settings=None):
+        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
         self.events_checker = EventsChecker()
         self.mouse = MouseEvents()
         self._event_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
         self._event_worker_task: Optional[asyncio.Task] = None
         self._current_event_task: Optional[asyncio.Task] = None
-        self.running = True
         self.runtime_data = RuntimeData(current_state="null")
+        self.tgbot = TgBot()
 
     @property
     def profile_name(self) -> str:
@@ -133,6 +134,7 @@ class PvPDodge(BaseProfile):
         await self.bank_restore()
 
     async def back_to_spot(self):
+
         window_id = next(iter(self.window_info))
         if self.runtime_data.current_state == "combat":
             return True
@@ -151,10 +153,13 @@ class PvPDodge(BaseProfile):
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
         if to_spot:
             self.runtime_data.current_state = "combat"
+            self.runtime_data.update_last_return()
             return True
         return True
 
     async def dodge(self) -> None:
+        self.runtime_data.update_last_dodge()
+        self.runtime_data.update_dodge_attempt()
         x = False
         window_id, window = next(iter(self.window_info.items()))
         xy, rgb = parseCBT("home_scroll_button_energomode")
@@ -187,6 +192,7 @@ class PvPDodge(BaseProfile):
             sleept = randint(2, 5)
             await energo_mode(self, "on")
             log(f"Сплю {sleept} минут", window_id)
+            self.runtime_data.update_last_succ_dodge()
             self.runtime_data.current_state = "afk"
             self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M")
         else:
@@ -407,3 +413,6 @@ class PvPDodge(BaseProfile):
         priority = PRIORITIES.get(MonitorType(etype), 999)
         self._event_queue.put_nowait((priority, event))
         log(f"Ивент {etype} добавлен в очередь с приоритетом {priority}", window_id)
+
+    def is_running(self):
+        return self.running

@@ -8,10 +8,12 @@ from bot.windows.runtime import RuntimeData
 
 class Buyer(BaseProfile):
     def __init__(self, window_info, settings=None):
+        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
         self.mouse = MouseEvents()  # мышильда
         self._child_tasks = []
         self.runtime_data = RuntimeData(current_state="null")
+        self.tgbot = TgBot()
 
     def profile_version(self):
         return "1.0"
@@ -42,6 +44,7 @@ class Buyer(BaseProfile):
             raise
 
     async def on_stop(self):
+        self.running = False
         window_id = next(iter(self.window_info))
         log("Stopped =(", window_id)
         await super().on_stop()
@@ -49,3 +52,6 @@ class Buyer(BaseProfile):
             log("Ликвидировал дочерний таск", window_id)
             task.cancel()
         await asyncio.gather(*self._child_tasks, return_exceptions=True)
+
+    def is_running(self):
+        return self.running

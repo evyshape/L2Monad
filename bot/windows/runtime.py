@@ -1,45 +1,69 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from constans import GLOBAL_STATES
 
 @dataclass
 class RuntimeData:
-    current_state: str = "null"                   # текущий статус (возможные в constans.py GLOBAL_STATES)
-    stashing_count: int = 0                       # сколько раз пытались стешнуть шмотки за время работы бота
-    last_return_spot: Optional[str] = None        # время последнего возврата на спот
-    spot_time: Optional[str] = None               # время когда надо тп на рандом спот
-    dodge_attempts: int = 0                       # попытки сдоджить пвп
-    last_dodge: Optional[str] = None              # ластовая попытка доджа пвп
-    has_quiver: bool | None = None                # имеет ли колчан? двигаются корды всех гуи элементов в энерго
+    """
+    Класс для хранения временных данных (за сессию)
+    """
 
-    #todo
-    npc_list_spot1: Optional[Dict[str, str]] = None
-    npc_list_spot2: Optional[Dict[str, str]] = None
-    npc_list_spot3: Optional[Dict[str, str]] = None
-    npc_list_spot4: Optional[Dict[str, str]] = None
-    #todo
+    current_state: str = "null"                     # текущий статус (валидные значения в GLOBAL_STATES)
+    stashing_count: int = 0                         # количество попыток стешнуть шмотки
+    buy_count: int = 0                              # количество попыток закупиться
+    purc_count: int = 0                             # количество попыток продаться
+    last_return_spot: Optional[str] = None          # время последнего возврата на спот
+    spot_time: Optional[str] = None                 # время для тп на рандомный спот
+    dodge_attempts: int = 0                         # количество попыток доджа пвп
+    last_dodge: Optional[str] = None                # последняя попытка доджа пвп
+    last_succ_dodge: Optional[str] = None           # последняя успешная попытка доджа пвп
+    has_quiver: Optional[bool] = None               # есть ли колчан (двигаются гуи элементы в энерего)
+    last_mapping: Optional[Dict[str, str]] = None   # последний полученный маппинг
 
     def __post_init__(self):
         if self.current_state not in GLOBAL_STATES:
             raise ValueError(f"Невалидный стейт при ините: {self.current_state} / Валидные: {GLOBAL_STATES}")
 
-    def update_return_spot(self):
-        self.last_return_spot = datetime.now().strftime("%H:%M")
+    def update_last_mapping(self, mapping: Optional[Dict[str, Any]]) -> None:
+        """
+        Ожидается словарь {"stash": "...", "shop": "...", "buyer": "..."} или None.
+        """
+        if mapping is not None:
+            req = {"stash", "shop", "buyer"}
+            if not req.issubset(mapping.keys()):
+                raise ValueError(
+                    f"Некорректный маппинг: {mapping}. "
+                    f"Ожидается: {req}"
+                )
+        self.last_mapping = mapping
 
-    def update_dodge_attempt(self):
+    def update_dodge_attempt(self) -> None:
         self.dodge_attempts += 1
 
-    def update_last_dodge(self):
-        self.last_dodge = datetime.now().strftime("%H:%M")
+    def update_last_return(self) -> None:
+        self.last_return_spot = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
-    def update_stashing(self):
+    def update_last_dodge(self) -> None:
+        self.last_dodge = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+
+    def update_last_succ_dodge(self) -> None:
+        self.last_succ_dodge = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+
+    def update_stashing(self) -> None:
         self.stashing_count += 1
 
-    def reset_stashing(self):
-        self.stashing_count = 0
+    def update_buy(self) -> None:
+        self.buy_count += 1
+
+    def update_purc(self) -> None:
+        self.purc_count += 1
 
     def time_to_back(self) -> bool:
+        """
+        Проверяет, не пора ли бекаться на спот.
+        Возвращает тру, если текущее время находится в пределах 10 минут после spot_time.
+        """
         if not self.spot_time:
             return False
 
@@ -54,7 +78,21 @@ class RuntimeData:
         delta = now - scheduled
         return 0 <= delta.total_seconds() < 600
 
-    def set_state(self, new_state: str):
+    def set_state(self, new_state: str) -> None:
+        #todo replace all to set state
         if new_state not in GLOBAL_STATES:
             raise ValueError(f"Невалидный стейт: {new_state} / Валидные: {GLOBAL_STATES}")
         self.current_state = new_state
+
+    def reset(self) -> None:
+        """Сброс всего кэша"""
+        self.stashing_count = 0
+        self.buy_count = 0
+        self.purc_count = 0
+        self.last_return_spot = None
+        self.spot_time = None
+        self.dodge_attempts = 0
+        self.last_dodge = None
+        self.last_succ_dodge = None
+        self.has_quiver = None
+        self.last_mapping = None

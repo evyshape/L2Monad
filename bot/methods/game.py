@@ -12,7 +12,6 @@ from constans import DAILY, BATTLE_PASS
 from typing import Optional, Dict, Literal
 from bot.delays import *
 
-
 async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):
     if mode == "skip":
         tag = "cancel_button_vitality"
@@ -67,6 +66,7 @@ async def safe_tp(profile) -> bool:
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
 
     log("Были либо в стане либо нет свитков, не тпнулся =(", window_id)
+    # todo tg uved here
     return False
 
 async def check_lvl_up(profile) -> bool:
@@ -80,6 +80,12 @@ async def check_lvl_up(profile) -> bool:
         log("Лвл ап вылез, закрываю", window_id)
         xy_close, rgb_close = parseCBT("lvl_up_close")
         await profile.mouse.click(profile.window_info, *xy_close)
+        if profile.settings.TELEGRAM_NOTIFIES:
+            profile.tgbot.send_notification(
+                level="info",
+                text="Перс апнул лвл, будь во внимании и качни поинт!",
+                nickname=window_id,
+            )
         return True
     else:
         log(f"Вероятно лвл апа не было {lvl_up_visible}", window_id)
@@ -160,9 +166,21 @@ async def schedule(profile, state) -> bool:
     window_id = next(iter(profile.window_info))
     if state == "on":
         log("Пробую запустить расписание", window_id)
+        if profile.settings.TELEGRAM_NOTIFIES:
+            profile.tgbot.send_notification(
+                level="info",
+                text="Пробую включить шедулю",
+                nickname=window_id,
+            )
         tag = "schedule_start"
     if state == "off":
         log("Пробую остановить расписание", window_id)
+        if profile.settings.TELEGRAM_NOTIFIES:
+            profile.tgbot.send_notification(
+                level="info",
+                text="Пробую оффнуть шедулю",
+                nickname=window_id,
+            )
         tp = await safe_tp(profile)
         tp1 = await wait_teleport(profile)
         if tp1:
@@ -297,11 +315,25 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         await asyncio.sleep(0.15)
         await energo_mode(profile, "on")
         await asyncio.sleep(0.05)
+        profile.runtime_data.update_last_return()
+        if profile.settings.TELEGRAM_NOTIFIES:
+            profile.tgbot.send_notification(
+                level="info",
+                text="Тпнулся на спот успешно",
+                nickname=window_id,
+            )
         return True
 
     return False
 
 async def respawn(profile):
+    window_id = next(iter(profile.window_info))
+    if profile.settings.TELEGRAM_NOTIFIES:
+        profile.tgbot.send_notification(
+            level="warning",
+            text="Пробую воскресить чара",
+            nickname=window_id,
+        )
     rip_energo = False
     emode = await check_energo_mode(profile)
     if emode:
@@ -325,7 +357,13 @@ async def respawn(profile):
         await asyncio.sleep(2)
         return True
 
-    screenshot_window(profile.window_info)
+    path = screenshot_window(profile.window_info)
+    if profile.settings.TELEGRAM_NOTIFIES:
+        profile.tgbot.send_notification(
+            level="error",
+            text=f"Воскрешение неудачно =(\nГляди {path}",
+            nickname=window_id,
+        )
     return False
 
 async def check_rip(profile) -> bool:
@@ -394,9 +432,11 @@ async def get_npc_positions(profile, thr=8) -> Optional[Dict[str, str]]:
 
     if npc_mapping:
         log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", window_id)
+        profile.runtime_data.update_last_mapping(npc_mapping)
         return npc_mapping
     else:
         log(f"get_npc_positions false, не обнаружил npc", window_id)
+        profile.runtime_data.update_last_mapping(npc_mapping)
         return None
 
 async def check_town(profile) -> tuple[bool, dict | None]:
@@ -439,6 +479,13 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                 log("Умер прямо в момент тпшки в город, ресаюсь", window_id)
                 res = await respawn(profile)
                 if res:
+                    path = screenshot_window(profile.window_info)
+                    if profile.settings.TELEGRAM_NOTIFIES:
+                        profile.tgbot.send_notification(
+                            level="error",
+                            text=f"Скорее всего мы сломались, сохранил скриншот: {path}",
+                            nickname=window_id,
+                        )
                     log("Встал, верну False", window_id)
                     return False, None
 
@@ -451,7 +498,7 @@ async def check_town(profile) -> tuple[bool, dict | None]:
 
 
 async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
-
+    profile.runtime_data.update_buy()
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -512,6 +559,7 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
 
 
 async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
+    profile.runtime_data.update_stashing()
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -555,6 +603,7 @@ async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
 
 
 async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
+    profile.runtime_data.update_purc()
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -709,6 +758,8 @@ async def claim_mail(profile) -> bool:
         await wait_and_click("main_menu_gui", timeout=1)
         log(f"Не найден значок почты", window_id)
         return False
+    else:
+        log("Нашел почту", window_id)
 
     red_dot_ex = await check_clr("red_dot_mail")
     claim_ex = await check_clr("claim_all_mail")
@@ -939,6 +990,8 @@ async def claim_achiv(profile) -> bool:
     if not await wait_and_click("red_dot_achiv", timeout=5):
         log("Нет красной точки на иконке достижений", window_id)
         return False
+    else:
+        log("Нашел сбор ачив", window_id)
 
     if not await wait_and_click("red_dot_achiv2", timeout=3):
         log("Не удалось нажать на вторую точку достижений", window_id)
@@ -980,6 +1033,8 @@ async def claim_clan(profile) -> bool:
         log("Нет красной точки клана", window_id)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
+    else:
+        log("Нашел сбор клана", window_id)
 
     if not await wait_and_click("clan_1", timeout=3):
         await wait_and_click("npc_global_quit_button", timeout=5)
@@ -994,6 +1049,8 @@ async def claim_clan(profile) -> bool:
         await asyncio.sleep(0.5)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
+    else:
+        await skip_vitlity(profile, "claim")
 
     if not await wait_and_click("clan_5", timeout=3):
         await wait_and_click("npc_global_quit_button", timeout=5)
@@ -1110,6 +1167,8 @@ async def claim_battle_pass(profile) -> bool:
         log("Батлпасса нет, собирать не будем", window_id)
         await wait_and_click("npc_global_quit_button", 5)
         return False
+    else:
+        log("Нашел бп", window_id)
 
     await asyncio.sleep(1)
     log("Пробую чекнуть вкладочки бп", window_id)

@@ -1,149 +1,99 @@
-import asyncio
-import threading
-
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QInputDialog, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox, QInputDialog, QApplication
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 import keyboard
-
-from clogger import log
-from constans import SUPPORTED_REZ
-from profiles.BuyerProfile.buyer import Buyer
-from profiles.RewardsProfile.rewards import Rewards
-from profiles.PvpProfile.pvp import PvPDodge
+import time
 from bot.utils import findAllWindows
-from bot.windows.base import BaseSettings, default_values
-from bot.windows.settings_loader import load_settings, save_settings
-from .styles import STYLE
-from settings.gui.cache import load_cache, save_cache
+from gui.styles import STYLE
+from gui.cache import load_cache, save_cache
+from gui.single import WindowControlDialog
+from bot.controller import ProfileController
+
 
 class NedoGui(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("nedo vremennoe gui")
-        self.resize(270, 50)
+        self.setWindowTitle("L2Monad")
+        self.resize(400, 150)
 
-        self.current_profile = None
-        self.bots = []
-        self.tasks = []
-        self.loop = asyncio.new_event_loop()
+        self.controller = ProfileController()
         self.cache = load_cache()
+        self.profiles = self.controller.profiles
 
         self.init_ui()
-        self.forever()
         keyboard.add_hotkey("F10", self.stop_profile)
 
     def init_ui(self):
         layout = QVBoxLayout()
-        layout.setSpacing(5)
-        layout.setContentsMargins(5, 5, 5, 5)
-
         font_btn = QFont("Orbitron", 9, QFont.Bold)
 
-        self.btn_pvp = QPushButton("Dodger")
-        self.btn_rewards = QPushButton("Claimer")
-        self.btn_buyer = QPushButton("Buyer")
-        self.btn_stop = QPushButton("STOP")
+        self.btn_otdel = QPushButton("Отдельное управление")
+        self.btn_stop_all = QPushButton("STOP ВСЕ")
+        self.btn_otdel.setFont(font_btn)
+        self.btn_otdel.setCursor(Qt.PointingHandCursor)
+        self.btn_otdel.setFixedHeight(25)
+        self.btn_otdel.clicked.connect(self.open_otdel)
+        layout.addWidget(self.btn_otdel)
 
-        for btn in [self.btn_pvp, self.btn_rewards, self.btn_buyer, self.btn_stop]:
+        for name, cls in self.profiles.items():
+            btn = QPushButton(f"{name} ВСЕ")
             btn.setFont(font_btn)
             btn.setCursor(Qt.PointingHandCursor)
-            btn.setFixedHeight(20)
+            btn.setFixedHeight(25)
+            btn.clicked.connect(lambda _, c=cls: self.start_all(c))
+            layout.addWidget(btn)
 
-        layout.addWidget(self.btn_pvp)
-        layout.addWidget(self.btn_rewards)
-        layout.addWidget(self.btn_buyer)
-        layout.addWidget(self.btn_stop)
+        self.btn_stop_all.setFont(font_btn)
+        self.btn_stop_all.setCursor(Qt.PointingHandCursor)
+        self.btn_stop_all.setFixedHeight(25)
+        self.btn_stop_all.clicked.connect(self.stop_profile)
+        layout.addWidget(self.btn_stop_all)
 
         self.setLayout(layout)
-
-        self.btn_pvp.clicked.connect(lambda: self.start_profile(PvPDodge))
-        self.btn_rewards.clicked.connect(lambda: self.ask_bat(Rewards))
-        self.btn_buyer.clicked.connect(lambda: self.ask_bat(Buyer))
-        self.btn_stop.clicked.connect(self.stop_profile)
-
         self.setStyleSheet(STYLE)
 
-    async def start_bots(self, pr, bat=None):
-        tname = "-Zapuskator-"
-        windows = list(findAllWindows().items())
-        self.bots.clear()
-        self.tasks.clear()
-        self.current_profile = pr
+    def open_otdel(self):
+        self.dlg = WindowControlDialog(self)
+        self.dlg.show()
 
-        if bat:
-            for i in range(0, len(windows), bat):
-                batch = windows[i:i + bat]
-                batch_bots, batch_tasks = [], []
-                for window_nick, window_info in batch:
-                    size = window_info["Size"]
-                    if size not in SUPPORTED_REZ:
-                        log(f"[{window_nick}] Почини разрешение...", tname, "ERROR")
-                        continue
+    def start_windows(self, profile_class, nicks):
+        self.controller.start_windows(profile_class, nicks)
 
-                    settings = load_settings(window_nick) or BaseSettings(
-                        **default_values)
-                    save_settings(window_nick, settings)
-                    bot = pr({window_nick: window_info}, settings=settings)
-                    batch_bots.append(bot)
-                    batch_tasks.append(await bot.on_start())
+    def stop_windows(self, nicks):
+        self.controller.stop_windows(nicks)
 
-                self.bots.extend(batch_bots)
-                self.tasks.extend(batch_tasks)
-                await asyncio.gather(*batch_tasks)
-        else:
-            for window_nick, window_info in windows:
-                size = window_info["Size"]
-                if size not in SUPPORTED_REZ:
-                    log(f"[{window_nick}] Почини разрешение...", tname, "ERROR")
-                    continue
-
-                settings = load_settings(window_nick) or BaseSettings(**default_values)
-                save_settings(window_nick, settings)
-                bot = pr({window_nick: window_info}, settings=settings)
-                self.bots.append(bot)
-                self.tasks.append(await bot.on_start())
-
-            await asyncio.gather(*self.tasks)
-
-        self.current_profile = None
-        self.bots.clear()
-        self.tasks.clear()
-
-    async def stoper(self):
-        if self.bots:
-            for bot in self.bots:
-                await bot.on_stop()
-        self.bots.clear()
-        self.tasks.clear()
-        self.current_profile = None
-
-    def forever(self):
-        threading.Thread(target=self.loop.run_forever, daemon=True).start()
-
-    def start_profile(self, pr, bat=None):
-        if self.current_profile:
-            QMessageBox.information(self, "Info", "Уже запущено какоет говно, жми стоп")
+    def start_all(self, profile_class):
+        windows = list(findAllWindows().keys())
+        if not windows:
+            QMessageBox.information(self, "Info", "Окон не найдено")
             return
-        asyncio.run_coroutine_threadsafe(self.start_bots(pr, bat), self.loop)
+
+        profile_name = profile_class.__name__
+        if profile_name == "PvPDodge":
+            self.start_windows(profile_class, windows)
+            return
+        else:
+            last_value = self.cache.get(profile_name, 1)
+            num, ok = QInputDialog.getInt(
+                self, "Батчер для ВСЕХ",
+                f"Сколько окон запускать одновременно для {profile_name}?",
+                last_value, 1
+            )
+        if not ok:
+            return
+
+        self.cache[profile_name] = num
+        save_cache(self.cache)
+
+        batches = [windows[i:i + num] for i in range(0, len(windows), num)]
+
+        for batch in batches:
+            self.start_windows(profile_class, batch)
+
+            while any(self.controller.is_running(nick) for nick in batch):
+                QApplication.processEvents()
+                time.sleep(1)
 
     def stop_profile(self):
-        if self.current_profile:
-            asyncio.run_coroutine_threadsafe(self.stoper(), self.loop)
-
-    def ask_bat(self, pr):
-        profile_name = pr.__name__
-        last_value = self.cache.get(profile_name, 1)
-
-        num, ok = QInputDialog.getInt(
-            self,
-            "Батчер",
-            f"Сколько обрабатываем за раз для {profile_name}?",
-            last_value,
-            1
-        )
-        if ok:
-            self.cache[profile_name] = num
-            save_cache(self.cache)
-            self.start_profile(pr, bat=num)
-
+        nicks = list(self.controller.bot_manager.bots.keys())
+        self.stop_windows(nicks)

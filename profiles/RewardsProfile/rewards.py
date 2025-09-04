@@ -8,10 +8,12 @@ from bot.windows.runtime import RuntimeData
 
 class Rewards(BaseProfile):
     def __init__(self, window_info, settings=None):
+        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
         self.mouse = MouseEvents()
         self._child_tasks = []
         self.runtime_data = RuntimeData(current_state="afk")
+        self.tgbot = TgBot()
 
     def profile_version(self):
         return "1.0"
@@ -62,6 +64,13 @@ class Rewards(BaseProfile):
             if not await check_energo_mode(self):
                 energomode = await energo_mode(self, "on")
 
+
+            self.tgbot.send_notification(
+                level="info",
+                text="Успешно собрал награды",
+                nickname=window_id,
+            )
+
             await asyncio.sleep(1)
 
         except asyncio.CancelledError:
@@ -69,7 +78,11 @@ class Rewards(BaseProfile):
             raise
 
     async def on_stop(self):
+        self.running = False
         await super().on_stop()
         for task in self._child_tasks:
             task.cancel()
         await asyncio.gather(*self._child_tasks, return_exceptions=True)
+
+    def is_running(self) -> bool:
+        return self.running

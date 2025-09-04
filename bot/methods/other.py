@@ -5,7 +5,7 @@ from collections import deque
 from clogger import log
 from interception import inputs
 from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes
-import pyautogui
+import mss
 import datetime
 from constans import SCREENSHOT_DIR
 import os
@@ -13,15 +13,18 @@ import os
 def screenshot_window(window_info):
     window_id, window = next(iter(window_info.items()))
     x_pos, y_pos = window["Position"]
-    width, height = window["Size"]
+    width, height = map(int, window["Size"].split("x"))
 
-    screenshot = pyautogui.screenshot(region=(x_pos, y_pos, width, height))
     now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    filename = f"zalipon_{window_id}_{now_str}.png"
+    filename = f"{window_id}_{now_str}.png"
     filepath = os.path.join(SCREENSHOT_DIR, filename)
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
-    screenshot.save(filepath)
+    with mss.mss() as sct:
+        monitor = {"top": y_pos, "left": x_pos, "width": width, "height": height}
+        sct_img = sct.grab(monitor)
+        mss.tools.to_png(sct_img.rgb, sct_img.size, output=filepath)
+
     return filepath
 
 def move_mouse(window_info, x_offset, y_offset):

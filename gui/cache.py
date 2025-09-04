@@ -1,8 +1,8 @@
 import json
 import os
 
-CACHE_FILE = os.path.join(os.path.dirname(__file__), "gui_cache.json")
-
+CACHE_FILE = os.path.join("settings", "gui", "gui_cache.json")
+os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
 
 def load_cache():
     if not os.path.exists(CACHE_FILE):
@@ -12,7 +12,6 @@ def load_cache():
             return json.load(f)
     except Exception:
         return {}
-
 
 def save_cache(data: dict):
     try:

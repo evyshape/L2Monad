@@ -13,7 +13,7 @@ from bot.windows.runtime import RuntimeData
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
         self.window_info = window_info
-        self.running = False
+        self.running = True
         self._task: asyncio.Task | None = None
         self.event_queue: Queue = Queue()
         self._event_task: asyncio.Task | None = None
@@ -45,7 +45,7 @@ class BaseProfile(ABC):
         """
         pass
 
-    async def on_start(self) -> asyncio.Task:
+    async def on_start(self) -> None:
         """
         Тут должно быть то, что будет выполняться при старте профиля
         Обязательно должен быть вызов main_loop так как там основная логика профиля
@@ -53,13 +53,21 @@ class BaseProfile(ABC):
         from bot.events.events import EventsManager
         self.running = True
         window_id = next(iter(self.window_info))
-        #log(f"Стартанул профиль", window_id)
 
         EventsManager.register(window_id, self)
-
         self._event_task = asyncio.create_task(self._event_listener())
-        self._task = asyncio.create_task(self.main_loop())
-        return self._task
+
+        try:
+            await self.main_loop()
+        except asyncio.CancelledError:
+            log(f"Профиль остановлен вручную", window_id)
+            raise
+        finally:
+            self.running = False
+            if self._event_task:
+                self._event_task.cancel()
+                await asyncio.gather(self._event_task, return_exceptions=True)
+            log(f"main_loop завершился", window_id)
 
     async def on_stop(self) -> None:
         """
