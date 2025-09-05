@@ -8,15 +8,16 @@ from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swi
 import mss
 import datetime
 from constans import SCREENSHOT_DIR
+from aiogram.types import FSInputFile
 import os
 
-def screenshot_window(window_info):
+def screenshot_window(window_info, tg: bool = False):
     window_id, window = next(iter(window_info.items()))
     x_pos, y_pos = window["Position"]
     width, height = map(int, window["Size"].split("x"))
 
     now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"{window_id}_{now_str}.png"
+    filename = f"{'send_tg_' if tg else ''}{window_id}_{now_str}.png"
     filepath = os.path.join(SCREENSHOT_DIR, filename)
     os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
@@ -25,6 +26,8 @@ def screenshot_window(window_info):
         sct_img = sct.grab(monitor)
         mss.tools.to_png(sct_img.rgb, sct_img.size, output=filepath)
 
+    if tg:
+        return FSInputFile(filepath)
     return filepath
 
 def move_mouse(window_info, x_offset, y_offset):

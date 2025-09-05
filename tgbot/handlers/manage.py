@@ -22,6 +22,16 @@ async def manage_main(callback: CallbackQuery):
         reply_markup=manage_menu_kb()
     )
 
+@router.callback_query(lambda c: c.data.startswith("manage_page_"))
+@admin_only
+async def manage_page(callback: CallbackQuery):
+    page = int(callback.data.split("_")[-1])
+    await callback.message.edit_text(
+        "⚙️ Выберите окно для управления:",
+        reply_markup=manage_menu_kb(page)
+    )
+
+
 @router.callback_query(F.data.startswith("manage_window_"))
 @admin_only
 async def manage_window(callback: CallbackQuery):

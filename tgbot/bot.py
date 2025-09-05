@@ -3,9 +3,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 from tgbot.config import config
 from tgbot.services.notifier import Notifier
-from tgbot.handlers.start import router as start_router
-from tgbot.handlers.menu import router as menu_router
-from tgbot.handlers.manage import router as manage_router
+from tgbot.handlers import all_routers
 from tgbot.services.setup import setup_bot
 from clogger import log
 
@@ -38,9 +36,8 @@ class TgBot:
                 cls._instance.loop
             )
             cls._instance.dp = Dispatcher()
-            cls._instance.dp.include_router(manage_router)
-            cls._instance.dp.include_router(menu_router)
-            cls._instance.dp.include_router(start_router)
+            for r in all_routers:
+                cls._instance.dp.include_router(r)
             cls._instance.notifier = Notifier(cls._instance.bot)
             log(
                 f"TG started successfully | L2Monad",
@@ -53,6 +50,13 @@ class TgBot:
         if config.STATE is True:
             asyncio.run_coroutine_threadsafe(
                 self.notifier.send_notification(*args, **kwargs),
+                self.loop
+            )
+
+    def send_pic(self, *args, **kwargs):
+        if config.STATE is True:
+            asyncio.run_coroutine_threadsafe(
+                self.notifier.send_photo(*args, **kwargs),
                 self.loop
             )
 
