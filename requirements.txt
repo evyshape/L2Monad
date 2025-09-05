@@ -4,7 +4,7 @@ numpy~=1.26.4
 PyAutoGUI~=0.9.54
 pyclick~=0.0.2
 PyGetWindow~=0.0.9
-pywin32~=306
+pywin32
 keyboard~=0.13.5
 PyQt5~=5.15.10
 aiogram~=3.21.0

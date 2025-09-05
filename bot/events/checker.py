@@ -204,7 +204,7 @@ class EventsChecker:
 
             await asyncio.sleep(30)
 
-    async def _monitor_overweight(self, window_id: str, profile: BaseProfile) -> None:
+    async def _monitor_overweight(self, window_id: str, profile: BaseProfile):
         await asyncio.sleep(1)
         if profile.runtime_data.has_quiver is None:
             profile.runtime_data.has_quiver = await find_quiver(profile)
@@ -218,8 +218,7 @@ class EventsChecker:
         while profile.running:
             checks = {level: 0 for level in
                       [OverWeight.ZERO, OverWeight.FIFTY, OverWeight.EIGHTY]}
-
-            for _ in range(2):
+            for _ in range(10):
                 for level, cb_key in coords.items():
                     xy, rgb = parseCBT(cb_key)
                     found = await profile.check_pixel(xy, rgb, timeout=2, thr=1)
@@ -234,12 +233,12 @@ class EventsChecker:
                 detected_level = OverWeight.FIFTY
 
             profile.runtime_data.update_overweight(detected_level)
-            to_notify = profile.runtime_data.need_overweight(profile.settings.OVERWEIGHT_AFK)
+            to_notify = profile.runtime_data.need_notify()
 
             if to_notify is not None:
                 now = time.monotonic()
                 last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get(f"overweight", 0)
+                last_time = last_events.get("overweight", 0)
                 if now - last_time >= 30:
                     EventsManager.send_event(window_id, {"type": "overweight"})
                     last_events["overweight"] = now

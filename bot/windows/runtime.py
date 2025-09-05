@@ -21,6 +21,8 @@ class RuntimeData:
     last_succ_dodge: Optional[str] = None           # последняя успешная попытка доджа пвп
     has_quiver: Optional[bool] = None               # есть ли колчан (двигаются гуи элементы в энерего)
     last_mapping: Optional[Dict[str, str]] = None   # последний полученный маппинг
+
+    last_overweight: OverWeight = OverWeight.ZERO
     overweight: OverWeight = OverWeight.ZERO
     overweight_sended: Dict[int, bool] = field(default_factory=lambda: {0: False, 50: False, 80: False})
 
@@ -29,24 +31,24 @@ class RuntimeData:
             raise ValueError(f"Невалидный стейт при ините: {self.current_state} / Валидные: {GLOBAL_STATES}")
 
     def update_overweight(self, value: OverWeight) -> None:
+        self.last_overweight = self.overweight
         self.overweight = value
-        current = self.overweight.value
 
-        for level in self.overweight_sended:
-            if current < level:
-                self.overweight_sended[level] = False
+    def need_notify(self) -> Optional[int]:
+        prev = self.last_overweight.value
+        curr = self.overweight.value
 
-        if current >= 80:
-            self.overweight_sended[80] = True
-        elif current >= 50:
-            self.overweight_sended[50] = True
-        else:
-            self.overweight_sended[0] = True
+        if prev < 50 <= curr:
+            return 50
+        if prev < 80 <= curr:
+            return 80
+        if prev >= 80 and curr < 80 and curr >= 50:
+            return 50
+        if prev >= 50 and curr < 50:
+            return 0
+        if prev >= 80 and curr < 50:
+            return 0
 
-    def need_overweight(self, uv: int) -> Optional[int]:
-        for level in sorted(self.overweight_sended):
-            if self.overweight_sended[level] and level <= uv:
-                return level
         return None
 
     def update_last_mapping(self, mapping: Optional[Dict[str, Any]]) -> None:

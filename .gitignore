@@ -109,3 +109,4 @@ cython_debug/
 *.manifest
 *.spec
 pip-log.txt
+*.png

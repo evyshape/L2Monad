@@ -68,20 +68,33 @@ class WindowControlDialog(QDialog):
         row.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         nick_label = self._create_label(nick, width=120, bold=True, style=NICK_STYLE)
-        status_label = self._create_label("Остановлено", width=80, bold=True, color="red")
-        profile_buttons = [self._create_button(name, partial(self.start_profile, nick, cls))
-                           for name, cls in self.profiles.items()]
-        stop_button = self._create_button("STOP", partial(self.stop_profile, nick))
+        status_label = self._create_label("Остановлено", width=80, bold=True,
+                                          color="red")
+
+        active_profile = self._create_label("", width=120, bold=True,
+                                                  color="#00ff00")
+        active_profile.setVisible(False)
+
+        profile_buttons = []
+        for name, cls in self.profiles.items():
+            btn = self._create_button(name, partial(self.start_profile, nick, cls,
+                                                    active_profile, name))
+            profile_buttons.append(btn)
+
+        stop_button = self._create_button("STOP", partial(self.stop_profile, nick,
+                                                          active_profile))
 
         layout.addWidget(nick_label)
         layout.addWidget(status_label)
         for btn in profile_buttons:
             layout.addWidget(btn)
         layout.addWidget(stop_button)
+        layout.addWidget(active_profile)
         layout.addStretch()
 
         self.window_buttons[nick] = {"profiles": profile_buttons, "stop": stop_button}
         self.window_status[nick] = status_label
+        self.window_active_profile = {nick: active_profile}
         self.update_buttons(nick)
         return row
 
@@ -112,18 +125,29 @@ class WindowControlDialog(QDialog):
     def update_buttons(self, nick):
         running = self.controller.is_running(nick)
         buttons = self.window_buttons[nick]
+        status = self.window_status[nick]
+        label = self.window_active_profile.get(nick)
+
         for btn in buttons["profiles"]:
             btn.setVisible(not running)
         buttons["stop"].setVisible(running)
 
-        status = self.window_status[nick]
         status.setText("Запущено" if running else "Остановлено")
-        status.setStyleSheet(f"color: {'#00ff00' if running else '#ff0000'}; font-weight: bold;")
+        status.setStyleSheet(
+            f"color: {'#00ff00' if running else '#ff0000'}; font-weight: bold;")
 
-    def start_profile(self, nick, profile_class):
-        self.update_buttons(nick)
+        if label:
+            label.setVisible(running)
+            if not running:
+                label.setText("")
+
+    def start_profile(self, nick, profile_class, label, profile_name):
+        label.setText(profile_name)
         self.controller.start_windows(profile_class, [nick])
-
-    def stop_profile(self, nick):
-        self.controller.stop_windows([nick])
         QTimer.singleShot(100, lambda: self.update_buttons(nick))
+
+    def stop_profile(self, nick, label):
+        self.controller.stop_windows([nick])
+        label.setVisible(False)
+        QTimer.singleShot(100, lambda: self.update_buttons(nick))
+
