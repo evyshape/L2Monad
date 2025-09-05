@@ -39,24 +39,27 @@ class PvPDodge(BaseProfile):
     @property
     def get_monitors(self) -> list:
         monitors = [MonitorType.SPOT_BACK]
-        if self.settings.PVP_EVADE:
+
+        if getattr(self.settings, "PVP_EVADE", False):
             monitors.append(MonitorType.PVP)
-        if self.settings.DEATH_CHECKER:
+        if getattr(self.settings, "DEATH_CHECKER", False):
             monitors.append(MonitorType.DEATH)
-        if self.settings.SOSKA_CHECKER:
+        if getattr(self.settings, "SOSKA_CHECKER", False):
             monitors.append(MonitorType.SOSKA)
-        if self.settings.HP_BANK_CHECKER:
+        if getattr(self.settings, "HP_BANK_CHECKER", False):
             monitors.append(MonitorType.HP_BANK)
-        if self.settings.SCHEDULE_BUYING != "":
-            monitors.append(MonitorType.SELL_STASH_BUY)
-        if self.settings.SCHEDULE_MAIL != "":
-            monitors.append(MonitorType.CLAIM_MAIL)
-        if self.settings.SCHEDULE_REWARDS != "":
-            monitors.append(MonitorType.CLAIM_REWARDS)
-        if self.settings.SCHEDULE_SCHEDULE != "":
-            monitors.append(MonitorType.SCHEDULE)
-        if self.settings.OVERWEIGHT_CHECKER != "":
+        if getattr(self.settings, "OVERWEIGHT_CHECKER", False):
             monitors.append(MonitorType.OVERWEIGHT)
+
+        if getattr(self.settings, "SCHEDULE_BUYING", ""):
+            monitors.append(MonitorType.SELL_STASH_BUY)
+        if getattr(self.settings, "SCHEDULE_MAIL", ""):
+            monitors.append(MonitorType.CLAIM_MAIL)
+        if getattr(self.settings, "SCHEDULE_REWARDS", ""):
+            monitors.append(MonitorType.CLAIM_REWARDS)
+        if getattr(self.settings, "SCHEDULE_SCHEDULE", ""):
+            monitors.append(MonitorType.SCHEDULE)
+
         return monitors
 
     async def main_loop(self) -> None:
