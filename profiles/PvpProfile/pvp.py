@@ -55,6 +55,8 @@ class PvPDodge(BaseProfile):
             monitors.append(MonitorType.CLAIM_REWARDS)
         if self.settings.SCHEDULE_SCHEDULE != "":
             monitors.append(MonitorType.SCHEDULE)
+        if self.settings.OVERWEIGHT_CHECKER != "":
+            monitors.append(MonitorType.OVERWEIGHT)
         return monitors
 
     async def main_loop(self) -> None:
@@ -394,6 +396,73 @@ class PvPDodge(BaseProfile):
             log("wtf?", window_id)
             self.runtime_data.current_state = "afk"
 
+    async def overweight_check(self):
+        window_id, window = next(iter(self.window_info.items()))
+        self.events_checker.stop_monitoring(window_id)
+        runtime = self.runtime_data
+        afk = self.settings.OVERWEIGHT_AFK
+        current_level = runtime.overweight.value
+
+        if current_level == 0:
+            log(f"Перевес упал до нуля, все чисто", window_id)
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+            if runtime.current_state == "afk":
+                to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
+                if to_spot:
+                    runtime.set_state("combat")
+                    return
+
+        log(f"Перевес окна: {current_level}, Порог: {afk}", window_id)
+
+        to_notify = runtime.need_overweight(afk)
+        if to_notify < afk:
+            log(f"Игнорю перевес, ниже порога... | {current_level}", window_id)
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="warning",
+                    text=f"Дошли до перевеса, игнорим его. Почисти окно плиз =(\nНужно до афк: {afk}\nТекущий перевес: {current_level}",
+                    nickname=window_id,
+                )
+
+        if current_level >= afk:
+            if runtime.current_state != "afk":
+                runtime.set_state("afk")
+                log(f"У окна жоский перевес, тпаю в город | {current_level}", window_id)
+                tped = await safe_tp(self)
+                if tped:
+                    tped2 = await wait_teleport(self)
+                    if tped2:
+                        await energo_mode(self, "on")
+                        if self.settings.TELEGRAM_NOTIFIES:
+                            self.tgbot.send_notification(
+                                level="error",
+                                text="Чини перевес, дошли до порога",
+                                nickname=window_id,
+                            )
+                            await asyncio.sleep(4)
+                            screenn = screenshot_window(self.window_info, tg=True)
+                            self.tgbot.send_pic(photo=screenn,
+                                                caption="Дошли до порога перевеса, будем стоять в городе афк. #важно",
+                                                parse_mode="HTML", nickname=window_id,
+                                                reply_markup=delete_screenshot_kb())
+                            self.events_checker.start_monitoring(window_id, self,
+                                                                 monitors=[MonitorType.OVERWEIGHT])
+        else:
+            if runtime.current_state == "afk":
+                log(f"Перевес упал, возвращаем состояние и тпаем на спот", window_id)
+                to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
+                if to_spot:
+                    runtime.set_state("combat")
+                    self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
+                    if self.settings.TELEGRAM_NOTIFIES:
+                        self.tgbot.send_notification(
+                            level="warning",
+                            text="Перевес упал до нормальных значений, лечу на спот",
+                            nickname=window_id,
+                        )
+                    return True
+
     async def _event_worker(self) -> None:
         window_id = next(iter(self.window_info))
         while self.running:
@@ -439,6 +508,8 @@ class PvPDodge(BaseProfile):
             await self.schedule_schedule()
         elif etype == "soska":
             await self.bank_restore()
+        elif etype == "overweight":
+            await self.overweight_check()
         else:
             log(f"Что за нах: {etype}", window_id)
 

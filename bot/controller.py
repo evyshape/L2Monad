@@ -23,11 +23,9 @@ class ProfileController:
             window_info = findAllWindows()[nick]
             settings = load_settings(nick)
             if not settings:
-                log(f"[{nick}] Нет настроек, создаём из базы...", nick)
+                log(f"Нет настроек, создаём из базы...", nick)
                 settings = BaseSettings(**default_values)
                 save_settings(nick, settings)
-            else:
-                log(f"[{nick}] Успешно подтянул настройки...", nick)
 
             asyncio.run_coroutine_threadsafe(
                 self.bot_manager.start_bot(profile_class, nick, window_info, settings),

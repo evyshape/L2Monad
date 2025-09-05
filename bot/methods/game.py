@@ -66,7 +66,12 @@ async def safe_tp(profile) -> bool:
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
 
     log("Были либо в стане либо нет свитков, не тпнулся =(", window_id)
-    # todo tg uved here
+    if profile.settings.TELEGRAM_NOTIFIES:
+        profile.tgbot.send_notification(
+            level="error",
+            text="Чет могло жестко сломаться, не смогли тп в город",
+            nickname=window_id,
+        )
     return False
 
 async def check_lvl_up(profile) -> bool:

@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any
 from constans import GLOBAL_STATES
+from bot.events.enums import OverWeight
 
 @dataclass
 class RuntimeData:
@@ -20,10 +21,33 @@ class RuntimeData:
     last_succ_dodge: Optional[str] = None           # последняя успешная попытка доджа пвп
     has_quiver: Optional[bool] = None               # есть ли колчан (двигаются гуи элементы в энерего)
     last_mapping: Optional[Dict[str, str]] = None   # последний полученный маппинг
+    overweight: OverWeight = OverWeight.ZERO
+    overweight_sended: Dict[int, bool] = field(default_factory=lambda: {0: False, 50: False, 80: False})
 
     def __post_init__(self):
         if self.current_state not in GLOBAL_STATES:
             raise ValueError(f"Невалидный стейт при ините: {self.current_state} / Валидные: {GLOBAL_STATES}")
+
+    def update_overweight(self, value: OverWeight) -> None:
+        self.overweight = value
+        current = self.overweight.value
+
+        for level in self.overweight_sended:
+            if current < level:
+                self.overweight_sended[level] = False
+
+        if current >= 80:
+            self.overweight_sended[80] = True
+        elif current >= 50:
+            self.overweight_sended[50] = True
+        else:
+            self.overweight_sended[0] = True
+
+    def need_overweight(self, uv: int) -> Optional[int]:
+        for level in sorted(self.overweight_sended):
+            if self.overweight_sended[level] and level <= uv:
+                return level
+        return None
 
     def update_last_mapping(self, mapping: Optional[Dict[str, Any]]) -> None:
         """

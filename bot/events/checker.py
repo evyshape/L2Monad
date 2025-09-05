@@ -6,6 +6,7 @@ from profiles.base import BaseProfile
 from bot.methods.base import parseCBT
 from bot.events.enums import MonitorType
 from clogger import log
+from bot.events.enums import OverWeight
 from bot.methods.game import check_rip, find_quiver
 
 class EventsChecker:
@@ -155,6 +156,7 @@ class EventsChecker:
                 last_events["sell_stash_buy"] = now
 
             await asyncio.sleep(5)
+
     async def _monitor_mail(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
@@ -171,6 +173,7 @@ class EventsChecker:
                 last_events["claim_mail"] = now
 
             await asyncio.sleep(5)
+
     async def _monitor_rewards(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
@@ -187,6 +190,7 @@ class EventsChecker:
                 last_events["claim_rewards"] = now
 
             await asyncio.sleep(5)
+
     async def _monitor_schedule_schedule(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:
             now = time.monotonic()
@@ -199,6 +203,48 @@ class EventsChecker:
                 last_events["schedule"] = now
 
             await asyncio.sleep(30)
+
+    async def _monitor_overweight(self, window_id: str, profile: BaseProfile) -> None:
+        await asyncio.sleep(1)
+        if profile.runtime_data.has_quiver is None:
+            profile.runtime_data.has_quiver = await find_quiver(profile)
+
+        coords = {
+            OverWeight.ZERO: "q_pereves0" if profile.runtime_data.has_quiver else "pereves0",
+            OverWeight.FIFTY: "q_pereves2" if profile.runtime_data.has_quiver else "pereves2",
+            OverWeight.EIGHTY: "q_pereves1" if profile.runtime_data.has_quiver else "pereves1",
+        }
+
+        while profile.running:
+            checks = {level: 0 for level in
+                      [OverWeight.ZERO, OverWeight.FIFTY, OverWeight.EIGHTY]}
+
+            for _ in range(2):
+                for level, cb_key in coords.items():
+                    xy, rgb = parseCBT(cb_key)
+                    found = await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+                    if found:
+                        checks[level] += 1
+                await asyncio.sleep(1)
+
+            detected_level = OverWeight.ZERO
+            if checks[OverWeight.EIGHTY] >= 1:
+                detected_level = OverWeight.EIGHTY
+            elif checks[OverWeight.FIFTY] >= 1:
+                detected_level = OverWeight.FIFTY
+
+            profile.runtime_data.update_overweight(detected_level)
+            to_notify = profile.runtime_data.need_overweight(profile.settings.OVERWEIGHT_AFK)
+
+            if to_notify is not None:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(f"overweight", 0)
+                if now - last_time >= 30:
+                    EventsManager.send_event(window_id, {"type": "overweight"})
+                    last_events["overweight"] = now
+
+            await asyncio.sleep(5)
 
     def start_monitoring(self, window_id: str, profile: BaseProfile,
                          monitors: list[MonitorType]) -> None:
@@ -228,6 +274,8 @@ class EventsChecker:
                 tasks.append(asyncio.create_task(self._monitor_schedule_schedule(window_id, profile)))
             elif monitor_type == MonitorType.SOSKA:
                 tasks.append(asyncio.create_task(self._monitor_soska(window_id, profile)))
+            elif monitor_type == MonitorType.OVERWEIGHT:
+                tasks.append(asyncio.create_task(self._monitor_overweight(window_id, profile)))
 
         self.tasks[window_id] = tasks
 

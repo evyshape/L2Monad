@@ -63,6 +63,7 @@ async def window_info(callback: CallbackQuery):
         f"🎒 Стешей: <code>{runtime.stashing_count}</code>\n"
         f"💰 Закупов: <code>{runtime.buy_count}</code>\n"
         f"📦 Продаж: <code>{runtime.purc_count}</code>\n\n"
+        f"⚖️ Перевес: <code>{runtime.overweight.value}%</code>\n\n"
         f"⏱ Последний возврат на спот: <code>{runtime.last_return_spot}</code>\n"
         f"🕒 Время когда нужно на спот: <code>{runtime.spot_time}</code>\n\n"
         f"⚔️ Попыток доджа: <code>{runtime.dodge_attempts}</code>\n"
