@@ -4,6 +4,7 @@ from tgbot.services.decorators import admin_only
 from bot.utils import findAllWindows
 from bot.methods.other import screenshot_window
 from tgbot.keyboards.windows import window_back_kb
+from tgbot.keyboards.screenshot import delete_screenshot_kb
 
 router = Router()
 
@@ -24,5 +25,11 @@ async def take_screenshot(callback: CallbackQuery):
         return
 
     photo = screenshot_window({nick: windows_info[nick]}, tg=True)
-    bot_instance.send_pic(photo=photo, caption="Скриншот готов!", parse_mode="HTML", nickname=nick)
+    bot_instance.send_pic(photo=photo, caption="Скриншот готов!", parse_mode="HTML", nickname=nick, reply_markup=delete_screenshot_kb())
     await callback.answer("✅", show_alert=False)
+
+@router.callback_query(lambda c: c.data == "delete_screenshot")
+@admin_only
+async def delete_screenshot(callback: CallbackQuery):
+    await callback.message.delete()
+    await callback.answer("🗑️ Скрин удалён!", show_alert=False)

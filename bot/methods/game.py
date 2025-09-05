@@ -318,7 +318,7 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         profile.runtime_data.update_last_return()
         if profile.settings.TELEGRAM_NOTIFIES:
             profile.tgbot.send_notification(
-                level="info",
+                level="trash",
                 text="Тпнулся на спот успешно",
                 nickname=window_id,
             )

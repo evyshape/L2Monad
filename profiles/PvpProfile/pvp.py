@@ -5,8 +5,9 @@ from bot.events.enums import MonitorType, PRIORITIES
 from bot.events.checker import EventsChecker
 from bot.methods.base import parseCBT
 from bot.methods.other import MouseEvents, screenshot_window
-from bot.methods.game import energo_mode, check_rip, wait_teleport, buy_in_shop, \
-    teleport_to_random_spot, check_energo_mode, respawn, check_town, check_autohunt, \
+from tgbot.keyboards.screenshot import delete_screenshot_kb
+from bot.methods.game import check_rip, wait_teleport, buy_in_shop, \
+    teleport_to_random_spot, respawn, check_autohunt, \
     buy_loot, claim_mail, check_energo_mode, energo_mode, claim_daily, \
     claim_achiv, claim_clan, claim_battle_pass, claim_donate_shop, schedule, safe_tp, \
     sell_buyer, go_stash
@@ -195,7 +196,22 @@ class PvPDodge(BaseProfile):
             self.runtime_data.update_last_succ_dodge()
             self.runtime_data.current_state = "afk"
             self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M")
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="warning",
+                    text="Задоджил пвп успешно",
+                    nickname=window_id,
+                )
         else:
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="warning",
+                    text="Не смог доджнуть пвп, втф?",
+                    nickname=window_id,
+                )
+                screenn = screenshot_window(self.window_info, tg=True)
+                self.tgbot.send_pic(photo=screenn, caption="Не смог доджнуть пвп, #важно", parse_mode="HTML", nickname=window_id, reply_markup=delete_screenshot_kb())
+
             log(f"bad result? | dodger | pvp tp | rip?", window_id)
             log(f"bad result? | dodger | pvp tp | {result}", window_id)
             rip, btn = await check_rip(self)
@@ -231,6 +247,12 @@ class PvPDodge(BaseProfile):
                 if to_spot:
                     self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
                     self.runtime_data.current_state = "combat"
+                    if self.settings.TELEGRAM_NOTIFIES:
+                        self.tgbot.send_notification(
+                            level="trash",
+                            text="Закупился успешно",
+                            nickname=window_id,
+                        )
                     return True
             else:
                 log(f"bad result? {result} / buy", window_id)
@@ -248,6 +270,12 @@ class PvPDodge(BaseProfile):
         claimed_mail = await claim_mail(self)
         if claimed_mail:
             log(f"Почта успешно собрана", window_id)
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="trash",
+                    text="Собрал почту",
+                    nickname=window_id,
+                )
         else:
             log(f"Нет новой почты или не удалось собрать", window_id)
 
@@ -307,6 +335,13 @@ class PvPDodge(BaseProfile):
             log(f"Шоп успешно собран", window_id)
         else:
             log(f"Не смог собрать шоп", window_id)
+
+        if self.settings.TELEGRAM_NOTIFIES:
+            self.tgbot.send_notification(
+                level="trash",
+                text="Собрал награды по расписанию",
+                nickname=window_id,
+            )
 
         self.events_checker.start_monitoring(window_id, self,
                                              monitors=self.get_monitors)

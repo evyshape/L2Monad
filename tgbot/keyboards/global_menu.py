@@ -13,7 +13,7 @@ def global_menu_kb() -> InlineKeyboardMarkup:
     for profile_name in controller.profiles.keys():
         kb_buttons.append([
             InlineKeyboardButton(
-                text=f"🐷 {profile_name}",
+                text=f"➡️ {profile_name}",
                 callback_data=f"global_start_all_{profile_name}"
             )
         ])
