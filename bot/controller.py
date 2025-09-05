@@ -5,6 +5,7 @@ from bot.utils import findAllWindows, getProfiles
 from bot.windows.settings_loader import load_settings, save_settings
 from bot.windows.base import BaseSettings, default_values
 from clogger import log
+import ctypes
 
 class ProfileController:
     _instance = None
@@ -47,3 +48,24 @@ class ProfileController:
 
     def is_running(self, nick):
         return self.bot_manager.is_running(nick)
+
+    def close_window(self, nick: str):
+        self.stop_windows([nick])
+
+        windows = findAllWindows()
+        if nick not in windows:
+            log(f"Окно для {nick} не найдено")
+            return False
+
+        hwnd = windows[nick]["ID"]
+        if not ctypes.windll.user32.IsWindow(hwnd):
+            log(f"HWND для {nick} недействителен")
+            return False
+
+        ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
+        log(f"Окно {nick} закрыто")
+        return True
+
+    def stop_and_close(self, nicks):
+        for nick in nicks:
+            self.close_window(nick)

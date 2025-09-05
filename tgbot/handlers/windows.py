@@ -4,7 +4,6 @@ from bot.controller import ProfileController
 from bot.utils import findAllWindows
 from tgbot.keyboards.windows import windows_menu_kb, window_back_kb
 from tgbot.keyboards.screenshot import window_screenshot_kb
-from tgbot.keyboards.menu import main_menu_kb
 from tgbot.services.decorators import admin_only
 
 router = Router()
@@ -77,8 +76,3 @@ async def window_info(callback: CallbackQuery):
         reply_markup=window_screenshot_kb(nick),
         parse_mode="HTML"
     )
-
-@router.callback_query(lambda c: c.data == "menu_back")
-@admin_only
-async def back_to_menu(callback: CallbackQuery):
-    await callback.message.edit_text("🏥 Главное меню:", reply_markup=main_menu_kb())

@@ -12,6 +12,14 @@ VERSION_FILE = os.path.join("bot", "version.txt")
 REPO_VERSION = "https://raw.githubusercontent.com/evyshape/L2Monad/main/bot/version.txt"
 REPO_ZIP = "https://github.com/evyshape/L2Monad/archive/refs/heads/main.zip"
 
+def backup():
+    version = get_my_version()
+    backup_dir = os.path.join("backups", f"update_backup_{version}")
+    os.makedirs(backup_dir, exist_ok=True)
+    archive_path = shutil.make_archive(backup_dir, 'zip', ".")
+    log(f"Сделан бэкап текущей версии в {archive_path}")
+    return archive_path
+
 def install_req(req_path="requirements.txt"):
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_path])
@@ -64,6 +72,7 @@ def ini(lp, np):
 
 def update():
     try:
+        backup()
         r = requests.get(REPO_ZIP, timeout=5)
         r.raise_for_status()
         z = zipfile.ZipFile(io.BytesIO(r.content))

@@ -6,6 +6,7 @@ from .notifications import router as notifications_router
 from .windows import router as windows_router
 from .ignore import router as ignore_router
 from .global_menu import router as global_menu_router
+from .prank import router as prank_router
 
 all_routers = [
     start_router,
@@ -16,4 +17,5 @@ all_routers = [
     windows_router,
     ignore_router,
     global_menu_router,
+    prank_router,
 ]

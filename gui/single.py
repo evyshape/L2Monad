@@ -160,14 +160,22 @@ class WindowControlDialog(QDialog):
         return btn
 
     def refresh_status(self):
-        for nick in self.window_buttons:
+        for nick in list(self.window_buttons.keys()):
             self.update_buttons(nick)
 
     def update_buttons(self, nick):
+        windows = findAllWindows()
+        if nick not in windows:
+            self._remove_window_row(nick)
+            return
+
         running = self.controller.is_running(nick)
-        buttons = self.window_buttons[nick]
-        status = self.window_status[nick]
+        buttons = self.window_buttons.get(nick)
+        status = self.window_status.get(nick)
         label = self.window_active_profile.get(nick)
+
+        if not buttons or not status:
+            return
 
         for btn in buttons["profiles"]:
             btn.setVisible(not running)
@@ -181,6 +189,21 @@ class WindowControlDialog(QDialog):
             label.setVisible(running)
             if not running:
                 label.setText("")
+
+    def _remove_window_row(self, nick):
+        for i in reversed(range(self.windows_layout.count())):
+            item = self.windows_layout.itemAt(i)
+            widget = item.widget()
+            if widget:
+                label = widget.findChild(QLabel)
+                if label and label.text() == nick:
+                    self.windows_layout.takeAt(i)
+                    widget.setParent(None)
+                    break
+
+        self.window_buttons.pop(nick, None)
+        self.window_status.pop(nick, None)
+        self.window_active_profile.pop(nick, None)
 
     def start_profile(self, nick, profile_class, label, profile_name):
         label.setText(profile_name)
