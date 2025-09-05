@@ -342,7 +342,7 @@ class PvPDodge(BaseProfile):
                 text="Собрал награды по расписанию",
                 nickname=window_id,
             )
-
+        self.runtime_data.current_state = cstate
         self.events_checker.start_monitoring(window_id, self,
                                              monitors=self.get_monitors)
 
