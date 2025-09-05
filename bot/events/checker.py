@@ -221,7 +221,7 @@ class EventsChecker:
             for _ in range(10):
                 for level, cb_key in coords.items():
                     xy, rgb = parseCBT(cb_key)
-                    found = await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+                    found = await profile.check_pixel(xy, rgb, timeout=4, thr=0)
                     if found:
                         checks[level] += 1
                 await asyncio.sleep(1)

@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox, QInputDialog, QApplication, QLabel
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 import keyboard
 import time
 from bot.utils import findAllWindows
@@ -9,7 +9,32 @@ from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
 from bot.controller import ProfileController
 from updater import needs_update, update, get_my_version
+from clogger import log
 
+class UpdateChecker(QThread):
+    update_available = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._running = True
+
+    def run(self):
+        log("Запустил чекер обнов")
+        while self._running:
+            try:
+                log("Проверяю обновы...")
+                if needs_update():
+                    log("Доступна обнова! Спавню кнопку")
+                    self.update_available.emit()
+                else:
+                    log(f"Установлена последняя версия бота | {get_my_version()}")
+            except Exception:
+                pass
+            time.sleep(60 * 60)
+
+    def stop(self):
+        log("Стопнул чекер обнов")
+        self._running = False
 
 class NedoGui(QWidget):
     def __init__(self):
@@ -24,17 +49,21 @@ class NedoGui(QWidget):
         self.init_ui()
         keyboard.add_hotkey("F10", self.stop_profile)
 
+        self.update_checker = UpdateChecker()
+        self.update_checker.update_available.connect(self.show_update_button)
+        self.update_checker.start()
+
+
     def init_ui(self):
-        layout = QVBoxLayout()
+        self.layout_main = QVBoxLayout()
         font_btn = QFont("Orbitron", 9, QFont.Bold)
 
         self.btn_otdel = QPushButton("Отдельное управление")
-        self.btn_stop_all = QPushButton("STOP ВСЕ")
         self.btn_otdel.setFont(font_btn)
         self.btn_otdel.setCursor(Qt.PointingHandCursor)
         self.btn_otdel.setFixedHeight(25)
         self.btn_otdel.clicked.connect(self.open_otdel)
-        layout.addWidget(self.btn_otdel)
+        self.layout_main.addWidget(self.btn_otdel)
 
         for name, cls in self.profiles.items():
             btn = QPushButton(f"{name} ВСЕ")
@@ -42,33 +71,25 @@ class NedoGui(QWidget):
             btn.setCursor(Qt.PointingHandCursor)
             btn.setFixedHeight(25)
             btn.clicked.connect(lambda _, c=cls: self.start_all(c))
-            layout.addWidget(btn)
+            self.layout_main.addWidget(btn)
 
+        self.btn_stop_all = QPushButton("STOP ВСЕ")
         self.btn_stop_all.setFont(font_btn)
         self.btn_stop_all.setCursor(Qt.PointingHandCursor)
         self.btn_stop_all.setFixedHeight(25)
         self.btn_stop_all.clicked.connect(self.stop_profile)
-        layout.addWidget(self.btn_stop_all)
+        self.layout_main.addWidget(self.btn_stop_all)
 
-        self.setLayout(layout)
+        version = QLabel(f"v{get_my_version()} | tg: @BotLineage2M")
+        version.setStyleSheet("color: gray; font-size: 8pt;")
+        version.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        self.layout_main.addWidget(version)
+
+        self.setLayout(self.layout_main)
         self.setStyleSheet(STYLE)
 
         if needs_update():
-            self.btn_update = QPushButton("♿️ Доступна обнова! (жми)")
-            self.btn_update.setCursor(Qt.PointingHandCursor)
-            self.btn_update.setFixedHeight(18)
-            self.btn_update.setFixedWidth(180)
-            self.btn_update.setStyleSheet(UPD)
-            self.btn_update.clicked.connect(self.show_update)
-            layout.addWidget(self.btn_update, alignment=Qt.AlignRight)
-
-        version = QLabel(f"v{get_my_version()} | tg: @BotLineage2M") # ток попробуйте выпилить либо заменить на свое
-        version.setStyleSheet("color: gray; font-size: 8pt;")
-        version.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-        layout.addWidget(version)
-
-        self.setLayout(layout)
-        self.setStyleSheet(STYLE)
+            self.show_update_button()
 
     def open_otdel(self):
         self.dlg = WindowControlDialog(self)
@@ -116,6 +137,19 @@ class NedoGui(QWidget):
         nicks = list(self.controller.bot_manager.bots.keys())
         self.stop_windows(nicks)
 
+    def show_update_button(self):
+        if hasattr(self, 'btn_update'):
+            return
+
+        font_btn = QFont("Orbitron", 9, QFont.Bold)
+        self.btn_update = QPushButton("♿️ Доступна обнова! (жми)")
+        self.btn_update.setCursor(Qt.PointingHandCursor)
+        self.btn_update.setFixedHeight(18)
+        self.btn_update.setFixedWidth(180)
+        self.btn_update.setStyleSheet(UPD)
+        self.btn_update.clicked.connect(self.show_update)
+        self.layout().addWidget(self.btn_update, alignment=Qt.AlignRight)
+
     def show_update(self):
         reply = QMessageBox.question(
             self,
@@ -131,3 +165,8 @@ class NedoGui(QWidget):
             msg.setModal(False)
             msg.show()
             QTimer.singleShot(10, update)
+
+    def closeEvent(self, event):
+        if hasattr(self, 'update_checker'):
+            self.update_checker.stop()
+        super().closeEvent(event)

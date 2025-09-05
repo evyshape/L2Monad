@@ -6,10 +6,18 @@ import shutil
 import configparser
 import sys
 from clogger import log
+import subprocess
 
 VERSION_FILE = os.path.join("bot", "version.txt")
 REPO_VERSION = "https://raw.githubusercontent.com/evyshape/L2Monad/main/bot/version.txt"
 REPO_ZIP = "https://github.com/evyshape/L2Monad/archive/refs/heads/main.zip"
+
+def install_req(req_path="requirements.txt"):
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_path])
+        log(f"Установил зависимости: {req_path}")
+    except Exception as e:
+        log(f"Ошибка в апдейтере: {e}")
 
 def get_my_version():
     try:
@@ -82,6 +90,11 @@ def update():
                 shutil.copy2(os.path.join(root, file), dst_path)
 
         shutil.rmtree(temp_dir)
+
+        rf = "requirements.txt"
+        if os.path.exists(rf):
+            install_req(rf)
+
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
     except Exception as e:

@@ -24,27 +24,6 @@ class Test(BaseProfile):
         window_id = next(iter(self.window_info))
         try:
             energo = await check_energo_mode(self)
-            if energo:
-                await energo_mode(self, "off")
-            result = await teleport_to_random_spot(self, to_=1)
-            if result:
-                self.tgbot.send_notification(
-                    level="info",
-                    text="Тест гавно отработало на изи",
-                    nickname=window_id,
-                )
-
-                self.tgbot.send_notification(
-                    level="warning",
-                    text="Тест гавно отработало на изи 2",
-                    nickname=window_id,
-                )
-
-                self.tgbot.send_notification(
-                    level="error",
-                    text="Тест гавно отработало на изи 3",
-                    nickname=window_id,
-                )
 
         except asyncio.CancelledError:
             log("Профиль остановлен вручную", window_id)
