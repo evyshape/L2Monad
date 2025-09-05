@@ -1,7 +1,9 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox, QInputDialog, QApplication, QLabel
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QSize
 import keyboard
+import json
+import os
 import time
 from bot.utils import findAllWindows
 from gui.styles import STYLE, UPD
@@ -10,6 +12,9 @@ from gui.single import WindowControlDialog
 from bot.controller import ProfileController
 from updater import needs_update, update, get_my_version
 from clogger import log
+
+PROJECT_ROOT = os.getcwd()
+WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")
 
 class UpdateChecker(QThread):
     update_available = pyqtSignal()
@@ -30,7 +35,10 @@ class UpdateChecker(QThread):
                     log(f"Установлена последняя версия бота | {get_my_version()}")
             except Exception:
                 pass
-            time.sleep(60 * 60)
+            for _ in range(3600):
+                if not self._running:
+                    break
+                time.sleep(1)
 
     def stop(self):
         log("Стопнул чекер обнов")
@@ -41,18 +49,53 @@ class NedoGui(QWidget):
         super().__init__()
         self.setWindowTitle("L2Monad")
         self.resize(400, 150)
-
         self.controller = ProfileController()
         self.cache = load_cache()
         self.profiles = self.controller.profiles
-
+        self.load_window_position()
         self.init_ui()
         keyboard.add_hotkey("F10", self.stop_profile)
-
         self.update_checker = UpdateChecker()
         self.update_checker.update_available.connect(self.show_update_button)
         self.update_checker.start()
 
+    def load_window_position(self):
+        if os.path.exists(WINDOWS_CACHE):
+            try:
+                with open(WINDOWS_CACHE, "r") as f:
+                    data = json.load(f)
+                pos = data.get("main", {}).get("pos")
+                size = data.get("main", {}).get("size")
+                if pos:
+                    self.move(QPoint(pos[0], pos[1]))
+                if size:
+                    self.resize(QSize(size[0], size[1]))
+            except:
+                pass
+
+    def save_window_position(self):
+        data = {"main": {}, "single": {}}
+        if os.path.exists(WINDOWS_CACHE):
+            try:
+                with open(WINDOWS_CACHE, "r") as f:
+                    data = json.load(f)
+            except:
+                pass
+        data["main"]["pos"] = [self.pos().x(), self.pos().y()]
+        data["main"]["size"] = [self.size().width(), self.size().height()]
+        os.makedirs(os.path.dirname(WINDOWS_CACHE), exist_ok=True)
+        with open(WINDOWS_CACHE, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def closeEvent(self, event):
+        try:
+            self.save_window_position()
+        except Exception:
+            pass
+        if hasattr(self, 'update_checker') and self.update_checker.isRunning():
+            self.update_checker.stop()
+            self.update_checker.wait(100)
+        super().closeEvent(event)
 
     def init_ui(self):
         self.layout_main = QVBoxLayout()
@@ -141,7 +184,6 @@ class NedoGui(QWidget):
         if hasattr(self, 'btn_update'):
             return
 
-        font_btn = QFont("Orbitron", 9, QFont.Bold)
         self.btn_update = QPushButton("♿️ Доступна обнова! (жми)")
         self.btn_update.setCursor(Qt.PointingHandCursor)
         self.btn_update.setFixedHeight(18)
@@ -160,13 +202,8 @@ class NedoGui(QWidget):
         if reply == QMessageBox.Yes:
             msg = QMessageBox(self)
             msg.setWindowTitle("Обнове быть!")
-            msg.setText("Все гуд, бот сам перезапустится через несколько секунд")
+            msg.setText("Все гуд, бот сам перезапустится через несколько секунд\nТекущее окно зависнет, НЕ ТРОГАЙ ЕГО")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.setModal(False)
             msg.show()
             QTimer.singleShot(10, update)
-
-    def closeEvent(self, event):
-        if hasattr(self, 'update_checker'):
-            self.update_checker.stop()
-        super().closeEvent(event)

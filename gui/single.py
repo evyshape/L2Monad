@@ -2,12 +2,18 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QScrollArea, QWidget as QW, QFrame, QSizePolicy
 )
-from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
+import json
+import os
 from PyQt5.QtGui import QFont
 from functools import partial
 from .styles import STYLE, NICK_STYLE, SCROLL
 from bot.utils import findAllWindows
 from bot.controller import ProfileController  # синглтон
+
+PROJECT_ROOT = os.getcwd()
+WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")
+
 
 class WindowControlDialog(QDialog):
     def __init__(self, gui):
@@ -17,11 +23,11 @@ class WindowControlDialog(QDialog):
         self.setWindowTitle("L2Monad | Single")
         self.resize(540, 200)
         self.setStyleSheet(STYLE)
-
         self.window_buttons = {}
         self.window_status = {}
         self.profiles = self.controller.profiles
-
+        self.window_active_profile = {}
+        self.load_window_position()
         self._init_ui()
         self._start_timer()
 
@@ -40,6 +46,41 @@ class WindowControlDialog(QDialog):
         scroll.setWidget(container)
         layout.addWidget(scroll)
         self.render()
+
+    def load_window_position(self):
+        if os.path.exists(WINDOWS_CACHE):
+            try:
+                with open(WINDOWS_CACHE, "r") as f:
+                    data = json.load(f)
+                pos = data.get("single", {}).get("pos")
+                size = data.get("single", {}).get("size")
+                if pos:
+                    self.move(QPoint(pos[0], pos[1]))
+                if size:
+                    self.resize(QSize(size[0], size[1]))
+            except:
+                pass
+
+    def save_window_position(self):
+        data = {"main": {}, "single": {}}
+        if os.path.exists(WINDOWS_CACHE):
+            try:
+                with open(WINDOWS_CACHE, "r") as f:
+                    data = json.load(f)
+            except:
+                pass
+        data["single"]["pos"] = [self.pos().x(), self.pos().y()]
+        data["single"]["size"] = [self.size().width(), self.size().height()]
+        os.makedirs(os.path.dirname(WINDOWS_CACHE), exist_ok=True)
+        with open(WINDOWS_CACHE, "w") as f:
+            json.dump(data, f, indent=2)
+
+    def closeEvent(self, event):
+        try:
+            self.save_window_position()
+        except Exception:
+            pass
+        super().closeEvent(event)
 
     def _start_timer(self):
         self.timer = QTimer()
