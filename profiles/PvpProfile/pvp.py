@@ -278,7 +278,7 @@ class PvPDodge(BaseProfile):
                 )
         else:
             log(f"Нет новой почты или не удалось собрать", window_id)
-
+        self.runtime_data.current_state = cstate
         self.events_checker.start_monitoring(window_id, self,
                                              monitors=self.get_monitors)
         if not await check_energo_mode(self):
