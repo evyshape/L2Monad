@@ -1,4 +1,9 @@
-from enum import StrEnum
+from enum import StrEnum, IntEnum
+
+class OverWeight(IntEnum):
+    ZERO = 0
+    FIFTY = 50
+    EIGHTY = 80
 
 class MonitorType(StrEnum):
     PVP = "pvp"
