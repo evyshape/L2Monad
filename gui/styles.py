@@ -42,3 +42,17 @@ QScrollBar::add-page, QScrollBar::sub-page {
 NICK_STYLE = """
     QFrame { border: 1px solid white; border-radius: 12px; background-color: transparent; }
 """
+
+UPD = """
+    QPushButton {
+        background-color: #ffcc00;
+        color: black;
+        font-size: 8pt;
+        font-weight: bold;
+        border: 1px solid #aaa;
+        border-radius: 4px;
+    }
+    QPushButton:hover {
+        background-color: #ffd633;
+    }
+"""

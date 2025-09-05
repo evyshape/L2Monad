@@ -1,13 +1,14 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox, QInputDialog, QApplication
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox, QInputDialog, QApplication, QLabel
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 import keyboard
 import time
 from bot.utils import findAllWindows
-from gui.styles import STYLE
+from gui.styles import STYLE, UPD
 from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
 from bot.controller import ProfileController
+from updater import needs_update, update, get_my_version
 
 
 class NedoGui(QWidget):
@@ -48,6 +49,23 @@ class NedoGui(QWidget):
         self.btn_stop_all.setFixedHeight(25)
         self.btn_stop_all.clicked.connect(self.stop_profile)
         layout.addWidget(self.btn_stop_all)
+
+        self.setLayout(layout)
+        self.setStyleSheet(STYLE)
+
+        if needs_update():
+            self.btn_update = QPushButton("♿️ Доступна обнова! (жми)")
+            self.btn_update.setCursor(Qt.PointingHandCursor)
+            self.btn_update.setFixedHeight(18)
+            self.btn_update.setFixedWidth(180)
+            self.btn_update.setStyleSheet(UPD)
+            self.btn_update.clicked.connect(self.show_update)
+            layout.addWidget(self.btn_update, alignment=Qt.AlignRight)
+
+        version = QLabel(f"v{get_my_version()} | tg: @BotLineage2M") # ток попробуйте выпилить либо заменить на свое
+        version.setStyleSheet("color: gray; font-size: 8pt;")
+        version.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
+        layout.addWidget(version)
 
         self.setLayout(layout)
         self.setStyleSheet(STYLE)
@@ -97,3 +115,19 @@ class NedoGui(QWidget):
     def stop_profile(self):
         nicks = list(self.controller.bot_manager.bots.keys())
         self.stop_windows(nicks)
+
+    def show_update(self):
+        reply = QMessageBox.question(
+            self,
+            "Обнова!",
+            "Качаем и ставим?\nНа всякий случай сохрани\nвсю папочку settings и файл tg.ini",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            msg = QMessageBox(self)
+            msg.setWindowTitle("Обнове быть!")
+            msg.setText("Все гуд, бот сам перезапустится через несколько секунд")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.setModal(False)
+            msg.show()
+            QTimer.singleShot(10, update)

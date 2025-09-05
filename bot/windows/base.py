@@ -13,6 +13,8 @@ class BaseSettings:
     HP_BANK_CHECKER: bool # тру фолс
     SOSKA_CHECKER: bool # тру фолс
     DEATH_CHECKER: bool # тру фолс
+    OVERWEIGHT_CHECKER: bool # тру фолс
+    OVERWEIGHT_AFK: bool # 0-49 игнорим и ничего не делаем при любом перевесе, 50-79 тпнемся в город при перевесе 50 и будем афк, 80+ тпнемся в город при 80
     SCHEDULE_BUYING: str # "10:00" или "10:00|12:00"
     SCHEDULE_MAIL: str # "10:00" или "10:00|12:00"
     SCHEDULE_REWARDS: str # "10:00" или "10:00|12:00"
@@ -147,6 +149,8 @@ default_values = {
     "HP_BANK_CHECKER": True,
     "SOSKA_CHECKER": False,
     "DEATH_CHECKER": True,
+    "OVERWEIGHT_CHECKER": True,
+    "OVERWEIGHT_AFK": 80,
     "SCHEDULE_BUYING": "10:30|13:30|20:20",
     "SCHEDULE_MAIL": "10:00|15:00|20:00|05:00",
     "SCHEDULE_REWARDS": "21:03",
