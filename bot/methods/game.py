@@ -502,8 +502,9 @@ async def check_town(profile) -> tuple[bool, dict | None]:
     return False, None
 
 
-async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
+async def buy_in_shop(profile, in_town=None, npcs=None, check_loot=False) -> tuple[bool, bool, dict]:
     profile.runtime_data.update_buy()
+    window_id = next(iter(profile.window_info))
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
 
@@ -513,6 +514,11 @@ async def buy_in_shop(profile, in_town=None, npcs=None) -> tuple[bool, bool, dic
     xy, rgb = parseCBT(npcs['shop'])
     if xy is None:
         return False, in_town, npcs
+
+    if check_loot:
+        try_to_buy = await buy_loot(profile)
+        if try_to_buy:
+            log("Успешно выкупил шмотки пока пробегал в городе!", window_id)
 
     await profile.mouse.click(profile.window_info, *xy)
 
@@ -657,7 +663,7 @@ async def buy_loot(profile) -> bool:
         await energo_mode(profile, "off")
 
     xy, rgb = parseCBT("krest_after_respawn")
-    if not await profile.check_pixel(xy, rgb, timeout=3):
+    if not await profile.check_pixel(xy, rgb, timeout=1.5):
         return False
 
     await profile.mouse.click(window_info, xy[0], xy[1])

@@ -150,7 +150,7 @@ class PvPDodge(BaseProfile):
             await energo_mode(self, "off")
 
         stash_ok, in_town, npcs = await go_stash(self)
-        shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+        shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs, check_loot=True)
         buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
 
         if stash_ok:
@@ -244,7 +244,7 @@ class PvPDodge(BaseProfile):
         result = await wait_teleport(self)
         if result:
             stash_ok, in_town, npcs = await go_stash(self)
-            shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+            shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs, check_loot=True)
             buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
 
             if stash_ok:
