@@ -14,9 +14,19 @@ REPO_ZIP = "https://github.com/evyshape/L2Monad/archive/refs/heads/main.zip"
 
 def backup():
     version = get_my_version()
-    backup_dir = os.path.join("backups", f"update_backup_{version}")
-    os.makedirs(backup_dir, exist_ok=True)
-    archive_path = shutil.make_archive(backup_dir, 'zip', ".")
+    os.makedirs("backups", exist_ok=True)
+    archive_path = os.path.join("backups", f"update_backup_{version}.zip")
+
+    root_dir = os.path.abspath(".")
+    with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(root_dir):
+            if any(skip in root for skip in ("backups", "interception", "logs")):
+                continue
+            for file in files:
+                path = os.path.join(root, file)
+                rel_path = os.path.relpath(path, root_dir)
+                zipf.write(path, rel_path)
+
     log(f"Сделан бэкап текущей версии в {archive_path}")
     return archive_path
 
