@@ -9,3 +9,4 @@ keyboard~=0.13.5
 PyQt5~=5.15.10
 aiogram~=3.21.0
 qasync
+requests
