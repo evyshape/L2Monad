@@ -58,9 +58,10 @@ class UpdateChecker(QThread):
 class NedoGui(QWidget):
     def __init__(self, kb: str, m: str):
         super().__init__()
-        if kb is not None and m is not None:
-            self.setWindowTitle(f"L2Monad | Драйвер OK | Клава {kb} | Мышь {m}")
+        if m is not None:
+            self.setWindowTitle(f"L2Monad | OK | Клава {kb} | Мышь {m}")
         else:
+            # жаль никогда не случится =(
             self.setWindowTitle("L2Monad | Драйвер не найден!")
 
         self.resize(400, 150)

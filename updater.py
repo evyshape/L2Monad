@@ -34,8 +34,13 @@ def install_req(req_path="requirements.txt"):
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_path])
         log(f"Установил зависимости: {req_path}")
+    except PermissionError:
+        # почему вы не запускаете бота с админки...
+        log("Не смог установить зависимости, пробую с --user флагом =(")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "-r", req_path])
+        log(f"Установил зависимости: {req_path}")
     except Exception as e:
-        log(f"Ошибка в апдейтере: {e}")
+        log(f"Ошибка в апдейтере, не качнул зависимости: {e}")
 
 def get_my_version():
     try:

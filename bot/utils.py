@@ -74,14 +74,15 @@ def checkDriver() -> bool:
         for i in range(10, 20)
     )
 
-    if not kb:
-        log("Не найдена клава")
-    if not m:
-        log("Не найдена ни мышь")
+    if not kb and not m:
+        log("Не найдена ни клавиатура, ни мышь")
+        return None, None
+    elif not kb:
+        log("Не найдена клавиатура, но мышь присутствует")
+        return None, _g_context.mouse
+    elif not m:
+        log("Не найдена мышь, бот не сможет работать")
+        return None, None
 
-    if kb and m:
-        log(f"Драйвер работает - "
-              f"{_g_context.keyboard} | {_g_context.mouse}")
-        return _g_context.keyboard, _g_context.mouse
-
-    return None, None
+    log(f"Драйвер работает! | Клава={_g_context.keyboard} | Мышь={_g_context.mouse}")
+    return _g_context.keyboard, _g_context.mouse
