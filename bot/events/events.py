@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from profiles.base import BaseProfile
-from clogger import log
+from bot.clogger import log
 
 tname = "-EventsManager-"
 

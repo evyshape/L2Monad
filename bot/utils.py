@@ -1,5 +1,5 @@
 import pygetwindow as gw
-from clogger import log
+from bot.clogger import log
 import os
 import importlib.util
 from profiles.base import BaseProfile

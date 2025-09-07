@@ -12,8 +12,8 @@ import mss
 from bot.delays import *
 from bot.methods.base import parseCBT
 from bot.methods.other import screenshot_window
-from clogger import log
-from constans import DAILY, BATTLE_PASS
+from bot.clogger import log
+from bot.constans import DAILY, BATTLE_PASS
 
 
 async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):

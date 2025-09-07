@@ -1,6 +1,6 @@
 import asyncio
 
-from clogger import log
+from bot.clogger import log
 
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents

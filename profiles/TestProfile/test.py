@@ -1,10 +1,9 @@
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import find_quiver, teleport_to_random_spot, check_energo_mode, energo_mode
-from bot.methods.other import screenshot_window
-from clogger import log
+from bot.methods.game import check_energo_mode
+from bot.clogger import log
 import asyncio
-from bot.windows.runtime import RuntimeData
+
 
 class Test(BaseProfile):
     def __init__(self, window_info, settings=None):

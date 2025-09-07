@@ -17,11 +17,11 @@ from PyQt5.QtWidgets import (
 
 from bot.controller import ProfileController
 from bot.utils import findAllWindows
-from clogger import log
+from bot.clogger import log
 from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
 from gui.styles import STYLE, UPD
-from updater import needs_update, update, get_my_version
+from bot.updater import needs_update, update, get_my_version
 
 
 PROJECT_ROOT = os.getcwd()

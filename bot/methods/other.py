@@ -8,10 +8,10 @@ from collections import deque
 import mss
 from aiogram.types import FSInputFile
 
-from clogger import log
+from bot.clogger import log
 from interception import inputs
 from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes
-from constans import SCREENSHOT_DIR
+from bot.constans import SCREENSHOT_DIR
 
 
 def screenshot_window(window_info, tg: bool = False):

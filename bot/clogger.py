@@ -1,7 +1,7 @@
 import logging
 import os
 import colorlog
-from constans import LOG_DIR
+from bot.constans import LOG_DIR
 
 os.makedirs(LOG_DIR, exist_ok=True)
 

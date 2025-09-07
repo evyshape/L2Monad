@@ -7,7 +7,7 @@ from typing import Any, Dict, Tuple, Union
 import mss
 import numpy as np
 
-from clogger import log
+from bot.clogger import log
 from bot.limits import pixel_semaphore
 from bot.windows.base import BaseSettings, default_values
 from bot.windows.runtime import RuntimeData

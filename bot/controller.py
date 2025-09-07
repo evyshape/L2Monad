@@ -2,7 +2,7 @@ import asyncio
 import threading
 import ctypes
 
-from clogger import log
+from bot.clogger import log
 
 from bot.manager import BotManager
 from bot.utils import findAllWindows, getProfiles

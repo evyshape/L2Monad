@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from random import randint
 from typing import Optional
 
-from clogger import log
+from bot.clogger import log
 
 from profiles.base import BaseProfile
 from bot.events.checker import EventsChecker

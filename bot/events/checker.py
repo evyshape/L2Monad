@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Dict
 
-from clogger import log
+from bot.clogger import log
 
 from bot.events.events import EventsManager
 from bot.events.enums import MonitorType, OverWeight

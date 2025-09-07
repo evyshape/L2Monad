@@ -1,14 +1,12 @@
 import asyncio
 
-from clogger import log
+from bot.clogger import log
 
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
 from bot.methods.game import (
     buy_in_shop,
     safe_tp,
-    check_energo_mode,
-    energo_mode,
     wait_teleport,
     sell_buyer,
     go_stash,

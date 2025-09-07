@@ -5,21 +5,24 @@ import io
 import shutil
 import configparser
 import sys
-from clogger import log
+from bot.clogger import log
 import subprocess
 
-VERSION_FILE = os.path.join("bot", "version.txt")
+VERSION_FILE = os.path.join(os.path.dirname(__file__), "version.txt")
 REPO_VERSION = "https://raw.githubusercontent.com/evyshape/L2Monad/main/bot/version.txt"
 REPO_ZIP = "https://github.com/evyshape/L2Monad/archive/refs/heads/main.zip"
 
 def backup():
     version = get_my_version()
-    os.makedirs("backups", exist_ok=True)
-    archive_path = os.path.join("backups", f"update_backup_{version}.zip")
 
-    root_dir = os.path.abspath(".")
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    backups_dir = os.path.join(root_dir, "backups")
+    os.makedirs(backups_dir, exist_ok=True)
+    archive_path = os.path.join(backups_dir, f"update_backup_{version}.zip")
+
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(root_dir):
+            # пропускаем папку с бэкапами и ботом внутри неё
             if any(skip in root for skip in ("backups", "interception", "logs")):
                 continue
             for file in files:
@@ -98,7 +101,7 @@ def update():
         for root, dirs, files in os.walk(main_repo):
             for file in files:
                 rel_path = os.path.relpath(os.path.join(root, file), main_repo)
-                dst_path = os.path.join(".", rel_path)
+                dst_path = os.path.join("..", rel_path)
 
                 if "settings" in dst_path.split(os.sep):
                     if not os.path.exists(dst_path):

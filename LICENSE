@@ -1,16 +1,46 @@
 Copyright (c) 2025 evyshape
 
-This project is licensed for non-commercial use only.
+License for Non-Commercial Use
 
-You are free to:
-- Fork and modify this project on GitHub
-- Use it for personal or educational purposes
+Preamble:
+This software, including all source code, documentation, and related materials (collectively, the “Software”), is the intellectual property of evyshape. By accessing, downloading, copying, or using this Software, you (“Licensee”) agree to be bound by the following terms and conditions. If you do not agree, you must not use this Software.
 
-You are NOT allowed to:
-- Use this code or its derivatives for commercial purposes
-- Repost or redistribute this project or its forks without proper attribution and a link to the original GitHub repository
-- Sell, rent, or bundle this software in any commercial product or service
+1. Grant of License:
+Subject to the terms of this Agreement, evyshape hereby grants Licensee a non-exclusive, non-transferable, worldwide, revocable license to:
 
-By using this project, you agree to these terms.
+Fork, copy, modify, and distribute this Software for personal, academic, or educational purposes;
+
+Use the Software for non-commercial projects and research;
+
+Reference or include this Software in projects that are not sold, monetized, or otherwise used for commercial gain.
+
+2. Restrictions:
+Licensee may not, under any circumstances:
+
+Use this Software or any derivative works for commercial purposes, including but not limited to selling, licensing, renting, sublicensing, or bundling in commercial software or services;
+
+Redistribute the Software or any derivative works without providing proper attribution to the original author, including a visible link to the original GitHub repository;
+
+Remove, alter, or obscure any copyright notices, license terms, or disclaimers included in the Software;
+
+Misrepresent the origin of the Software or imply endorsement by evyshape without explicit written permission.
+
+3. Attribution Requirement:
+Any use, modification, or redistribution of this Software must include clear attribution to evyshape and a link to the original repository:
+https://github.com/evyshape/L2Monad
+
+4. No Warranty:
+The Software is provided “as is,” without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, or non-infringement. evyshape shall not be liable for any damages arising from the use or inability to use the Software, including direct, indirect, incidental, consequential, or punitive damages.
+
+5. Termination:
+This license is effective until terminated. Licensee’s rights under this Agreement automatically terminate if Licensee breaches any of the terms. Upon termination, Licensee must cease all use, distribution, and modification of the Software and destroy all copies in their possession.
+
+6. Governing Law:
+This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction of the author (evyshape), without regard to conflict of law principles.
+
+7. Entire Agreement:
+This Agreement constitutes the entire agreement between the parties regarding the Software and supersedes all prior agreements, understandings, and communications regarding its subject matter.
+
+By using, copying, or modifying this Software, you acknowledge that you have read, understood, and agree to be bound by these terms.
 
 Original repository: https://github.com/evyshape/L2Monad

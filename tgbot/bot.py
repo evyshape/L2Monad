@@ -5,7 +5,7 @@ from tgbot.config import config
 from tgbot.services.notifier import Notifier
 from tgbot.handlers import all_routers
 from tgbot.services.setup import setup_bot
-from clogger import log
+from bot.clogger import log
 
 class TgBot:
     _instance = None

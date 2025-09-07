@@ -1,8 +1,7 @@
 import json
 import os
 from bot.windows.base import BaseSettings, default_values
-from clogger import log
-from constans import SETTINGS_DIR
+from bot.constans import SETTINGS_DIR
 
 def load_settings(nickname: str) -> BaseSettings | None:
     path = os.path.join(SETTINGS_DIR, f"{nickname}.json")

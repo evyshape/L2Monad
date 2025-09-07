@@ -1,170 +1,132 @@
+# Асинхронный многозадачный бот для Lineage2M
 
-# 🤖 Lineage 2M Bot
+На момент **07.09.2025** бот поддерживает **JP / SEA** сервера. (В ближайшем будущем будет добавлен RU)
 
----
-
-## 🇷🇺 Русская версия
-
-Асинхронный бот для игры **Lineage 2M**, который сейчас поддерживает японские и американские сервера. Скоро будет добавлена поддержка русского сервера.
-
-### 🚀 Возможности
-
-- **Удобная и гибкая архитектура** — позволяет создавать и подключать собственные профили для бота.
-- В комплекте идут три готовых профиля:
-  - **PVP Dodger** — автоматический фарм спотов, сбор наград по расписанию, пополнение банков и сосок.
-  - **Buyer** — телепортирует все окна в город, осуществляет закупку необходимых предметов и возвращает окна на фарм-спот.
-  - **Rewards Claimer** — собирает все возможные награды.
-- Поддержка различных игровых функций:
-  - Клан
-  - Донат-шоп
-  - Ачивки (достижения)
-  - Ежедневные задания (дейлики)
-  - Батл пасс
-- Возможность работать с несколькими игровыми окнами одновременно. Каждое окно работает независимо, что позволяет запускать для них разные профили.
-- Гибкая настройка задержек между действиями, чтобы избежать лагов и блокировок.
-- В ближайших обновлениях планируется добавить:
-  - Telegram-бот для управления
-  - Удобный и красивый графический интерфейс (GUI)
-  - Поддержка русского сервера
-  - Функция крутки алхимии
+Бот **всегда будет бесплатным и опенсурсным**.
 
 ---
 
-## ⚙️ Установка
+## 📥 Установка бота
 
-1. Скачайте архив с основного репозитория на GitHub.
-2. Перейдите в папку `installer`.
-3. Запустите файл `install.exe`. Он автоматически установит все необходимые зависимости:
-   - Драйвер Interception
-   - Python (если не установлен)
+1. ⬇️ Скачайте и распакуйте архив из текущего репозитория  
+   (сверху зелёная кнопка **Code** → **Download ZIP**).
 
-   **Если хотите установить вручную:**
 
-   ```bash
-   install_interception.exe /install
-   ```
+2. ▶️ Откройте папку `installer`, нажмите правой кнопкой мыши на `installer.ps1`  
+   и выберите **Выполнить с помощью PowerShell**.
 
-4. После установки обязательно **перезагрузите компьютер**.
-5. Убедитесь, что Python добавлен в системную переменную PATH. Это необходимо для корректной работы бота.
-6. В будущем будут добавлены обучающие видео и демонстрации работы бота.
+
+3. ⏳ Дождитесь окончания установки.  
+   ✅ Убедитесь, что в консоли нет ошибок.  
+   🔄 Перезагрузите ПК и приступайте к настройке бота.
 
 ---
 
-## 🛠 Использование
+## 🤖 Настройка Telegram-бота
 
-- Запустите бота.
-- Для каждого окна выберите нужный профиль (PVP Dodger, Buyer, Rewards Claimer или собственный).
-- Настройте задержки и параметры работы в конфигурационных файлах, чтобы избежать лагов.
-- Управляйте каждым игровым окном независимо — можно запускать разные профили на разных окнах одновременно.
+1. В основной папке откройте файл `tg.ini`.
 
----
+2. Решите, нужен ли вам Telegram-бот:
+   - `state = True` — если нужен (бот = уведомления и возможность управлять окнами игры)
+   - `state = False` — если не нужен
 
-## 🚫 Лицензия и ограничения
+👉 Если бот нужен:
 
-- Использование бота в коммерческих целях **запрещено**.
-- Бот предоставляется «как есть», разработчики не несут ответственности за возможные блокировки аккаунтов или иные последствия.
+3. Впишите токен бота:
+   - Получить токен можно у [@BotFather](https://t.me/botfather) с командой `/newbot`.
+   - ❗ Никому не показывайте токен! Один токен = один бот.  
+     Для нескольких ПК нужны **разные боты**.
+   - В `tg.ini`: `token = ВАШ_ТОКЕН`
 
----
+4. Получите свой Telegram ID:
+   - Напишите [@raw_info_bot](https://t.me/raw_info_bot) `/start` и получите ID.
+   - Впишите его в `admins = 123123`.  
+     Чтобы дать доступ другу: `admins = 123,456`.
 
-## 📱 Контакты и сообщество
-
-- Telegram для связи с разработчиком: [@evyshape](https://t.me/evyshape)
-- Telegram-группа проекта: [@botlineage2m](https://t.me/botlineage2m)
-
----
-
-## 🔜 Планы на будущее
-
-- Поддержка русского сервера.
-- Добавление функции крутки алхимии.
-- Выпуск удобного и красивого GUI.
-- Создание Telegram-бота для удалённого управления.
+5. ✅ Бот настроен.  
+   Основная команда вызова меню: **`/menu`**.
 
 ---
 
-Спасибо, что выбрали наш бот! Если у вас есть вопросы, предложения или идеи — пишите в Telegram.
+## ⚙ Настройка основного бота
+
+1. 📂 Откройте `start.bat`. Появится GUI, позволяющий управлять ботом.
+2. После запуска в папке `settings` появятся никнеймы ваших ЗАПУЩЕННЫХ окон.  
+   Закройте бота и настройте каждое окно по своему усмотрению.  
+   (открывать `.json` файлы можно через блокнот)
+
+🔧 Пример настроек (`true` = включено, `false` = выключено):
+
+
+```json
+{
+    "REGION": "JP", // Регион игры: JP или RU (RU пока не поддерживается)
+    "PVP_EVADE": true, // Уворот от PVP (не может быть включен одновременно с PVP_ANSWER)
+    "PVP_ANSWER": false, // Ответное PVP
+    "HP_BANK_CHECKER": true, // Проверка хп банок (если 0, бот телепортируется в город для закупки)
+    "SOSKA_CHECKER": false, // Проверка сосок (аналогично HP банкам)
+    "DEATH_CHECKER": true, // Следит за смертями, воскрешает погибшие окна и возвращает на спот
+    "OVERWEIGHT_CHECKER": true, // Чекер перевеса
+    "OVERWEIGHT_AFK": 80, // Порог перевеса для телепорта в город (0, 50 или 80)
+    "SCHEDULE_BUYING": "10:30|13:30|20:20", // Время телепорта в город для закупки
+    "SCHEDULE_MAIL": "10:00|15:00|20:00|05:00", // Время сбора почты
+    "SCHEDULE_REWARDS": "21:03", // Время сбора всех наград
+    "SCHEDULE_SCHEDULE": "", // Время включения игрового календаря
+    "SCHEDULE_AUCTION": "", // Время перевыставления аукциона
+    "DONATE_SHOP_PAGES": "1|2", // Страницы донат шопа для выкупа
+    "SPOT_OT": 1, // Выбор спота для телепорта (от)
+    "SPOT_DO": 1, // Выбор спота для телепорта (до)
+    "TELEGRAM_NOTIFIES": true // Включение уведомлений в тг для этого окна
+}
+```
+- **Если вам не нужен какой либо из `SCHEDULE` - указывайте пустые кавычки**
+- **SPOT_OT / SPOT_DO** — диапазон спота для телепорта, бот будет выбирать рандомный между ними
 
 ---
 
-## 🇬🇧 English Version
+## ▶️ Запуск
 
-Asynchronous bot for the game **Lineage 2M**, currently supporting Japanese and American servers. Russian server support will be added soon.
+1. После настройки тг бота и окон запускаем `start.bat`.
+2. откроется GUI с кнопками:
 
----
+<p align="center">
+  <img src="gui/images/gui_main.png" alt="Главное окно GUI" width="420"/>
+</p>
 
-## 🚀 Features
+- **Отдельное управление** — открывает окно для управления каждым окном отдельно. (можно выбирать разные профили)
+- **Профиль** **ВСЕ** — запустить профиль для всех выключенных окон. (таких кнопок будет несколько)
+- **STOP ВСЕ** — выключает все активные профили.
 
-- **Flexible and modular architecture** allowing you to create and use custom profiles for the bot.
-- Comes with three default profiles:
-  - **PVP Dodger** — automatically farms spots, collects rewards on schedule, and refills potions and buffs.
-  - **Buyer** — teleports all game windows to town, performs necessary purchases, and returns windows to the farming spot.
-  - **Rewards Claimer** — collects all available rewards.
-- Supports various in-game features:
-  - Clan
-  - Donation shop
-  - Achievements
-  - Daily quests
-  - Battle pass
-- Supports multiple game windows running simultaneously. Each window works independently, allowing you to run different profiles on different windows.
-- Adjustable delays between actions to prevent lag and avoid detection.
-- Upcoming features include:
-  - Telegram bot for remote control
-  - User-friendly and attractive graphical user interface (GUI)
-  - Russian server support
-  - Alchemy reroll feature
+### 📌 Пример «Отдельного управления»
+
+<p align="center">
+   <img src="gui/images/gui_single.png" alt="Окно отдельного управления" width="500"/>
+ </p>
+
+> - В прямоугольнике отображается ник окна
+> - Кнопочки справа запускают выбранный профиль **ТОЛЬКО для этого окна**  
+> (то же самое можно делать через тг-бота, если он включен)
+
 
 ---
 
-## ⚙️ Installation
+## 📂 О профилях
 
-1. Download the archive from the main GitHub repository.
-2. Navigate to the `installer` folder.
-3. Run the `install.exe` file. This will automatically install all necessary dependencies:
-   - Interception driver
-   - Python (if not already installed)
+**Список может расширяться.**  
+Актуальные профили всегда отображаются в интерфейсе бота.
 
-   **Alternatively, to install manually:**
+В комплекте идут три базовых профиля:
 
-   ```bash
-   install_interception.exe /install
-   ```
-
-4. After installation, **restart your computer**.
-5. Make sure Python is added to your system PATH. This is necessary for the bot to work correctly.
-6. Video guides and demonstrations will be added soon.
+1. **Buyer** 🛒 — телепортирует все окна в город, закупает расходку и возвращает на спот.
+2. **Rewards** 🎁 — собирает все награды (ачивки, дейлики, БП, почту, донат-шоп, донат в клан).
+3. **PvpDodger** ⚔️ — основной рабочий профиль, выполняет всё сразу:
+   - При старте проверяет автоохоту.  
+   - Если включена → следит за окном.  
+   - Если выключена → телепортирует на спот и включает автоохоту.  
+   - Далее выполняет настроенные действия из конфига. **Универсальный профиль (95% времени).**
 
 ---
+## 📞 Поддержка
 
-## 🛠 Usage
-
-- Launch the bot.
-- Select the desired profile for each game window (PVP Dodger, Buyer, Rewards Claimer, or your own custom profile).
-- Configure delays and other settings in configuration files to avoid lag.
-- Manage each game window independently — you can run different profiles simultaneously on multiple windows.
-
----
-
-## 🚫 License and Restrictions
-
-- Commercial use of this bot is **prohibited**.
-- The bot is provided "as is." Developers are not responsible for any account bans or other consequences.
-
----
-
-## 📱 Contacts and Community
-
-- Contact the developer via Telegram: [@evyshape](https://t.me/evyshape)
-- Project Telegram group: [@botlineage2m](https://t.me/botlineage2m)
-
----
-
-## 🔜 Future Plans
-
-- Russian server support.
-- Implementation of the alchemy reroll feature.
-- Release of a user-friendly and attractive GUI.
-- Creation of a Telegram bot for remote management.
-
----
-
-Thank you for choosing our bot! If you have any questions, suggestions, or ideas — please contact us on Telegram.
+- 📲 Telegram: [@evyshape](https://t.me/evyshape) — раз РАБ
+- 📡 Канал: [@BotLineage2M](https://t.me/BotLineage2M) — все новости и обновления

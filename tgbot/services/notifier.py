@@ -3,7 +3,7 @@ from aiogram.types import InputFile, ReplyKeyboardMarkup, InlineKeyboardMarkup
 from aiogram.enums import ParseMode
 
 from tgbot.config import config, notify_levels
-from clogger import log
+from bot.clogger import log
 
 class Notifier:
     _levels = {

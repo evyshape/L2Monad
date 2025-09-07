@@ -1,5 +1,5 @@
-from constans import CBT_JP
-from clogger import log
+from bot.constans import CBT_JP
+from bot.clogger import log
 
 def parseCBT(trigger_name):
     try:
