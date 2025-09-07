@@ -1,6 +1,6 @@
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_energo_mode
+from bot.methods.game import get_npc_positions
 from bot.clogger import log
 import asyncio
 
@@ -22,7 +22,7 @@ class Test(BaseProfile):
     async def main_loop(self):
         window_id = next(iter(self.window_info))
         try:
-            energo = await check_energo_mode(self)
+            ggggg = await get_npc_positions(self)
 
         except asyncio.CancelledError:
             log("Профиль остановлен вручную", window_id)

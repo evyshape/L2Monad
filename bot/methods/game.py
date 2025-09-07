@@ -394,59 +394,38 @@ async def check_rip(profile) -> bool:
 
     return False, ""
 
-
-async def get_npc_positions(profile, thr=8) -> Optional[Dict[str, str]]:
-    """
-    profile — это объект ес че, вызывайте напрямую из обьекта бота
-    """
+# возможно надо будет вернуть старую, бацнул тестовый варик. надо фидбек собрать #todo
+async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS) -> Optional[Dict[str, str]]:
     npc_mapping = {}
     window_id = next(iter(profile.window_info))
     log(f"Пробую получить позиции нпс", window_id)
 
-    for j in [2, 3, 4, 5]:
+    async def check_npc(j):
         xy, rgb = parseCBT(f"npc_list_{j}")
-        #log(f"Пробую чекнуть npc_list_{j}", window_id)
-
         result = await profile.check_pixel(xy, rgb, timeout=DELAY_CHECK_NPC_POSITIONS, thr=thr, wsize="1x1")
+        return j if result else None
 
-        if result:
-            log(f"Детектнул позиции, {j}", window_id)
-            if j == 2:
-                npc_mapping = {
-                    "stash": f"npc_list_{j}",
-                    "shop": "npc_list_1",
-                    "buyer": "npc_list_4"
-                }
-            elif j == 3:
-                npc_mapping = {
-                    "stash": f"npc_list_{j}",
-                    "shop": "npc_list_1",
-                    "buyer": "npc_list_5"
-                }
-            elif j == 4:
-                npc_mapping = {
-                    "stash": f"npc_list_{j}",
-                    "shop": "npc_list_2",
-                    "buyer": "npc_list_6"
-                }
-            elif j == 5:
-                npc_mapping = {
-                    "stash": f"npc_list_{j}",
-                    "shop": "npc_list_3",
-                    "buyer": "no_data"
-                }
-            break
-        else:
-            log(f"no {j}", window_id)
+    results = await asyncio.gather(*(check_npc(j) for j in [2, 3, 4, 5]))
+    found_j = min([r for r in results if r is not None], default=None)
 
-    if npc_mapping:
+    if found_j:
+        log(f"Детектнул позиции, {found_j}", window_id)
+        if found_j == 2:
+            npc_mapping = {"stash": "npc_list_2", "shop": "npc_list_1", "buyer": "npc_list_4"}
+        elif found_j == 3:
+            npc_mapping = {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
+        elif found_j == 4:
+            npc_mapping = {"stash": "npc_list_4", "shop": "npc_list_2", "buyer": "npc_list_6"}
+        elif found_j == 5:
+            npc_mapping = {"stash": "npc_list_5", "shop": "npc_list_3", "buyer": "no_data"}
+
+        profile.runtime_data.update_last_mapping(npc_mapping)
         log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", window_id)
-        profile.runtime_data.update_last_mapping(npc_mapping)
         return npc_mapping
-    else:
-        log(f"get_npc_positions false, не обнаружил npc", window_id)
-        profile.runtime_data.update_last_mapping(npc_mapping)
-        return None
+
+    log(f"get_npc_positions false, не обнаружил npc", window_id)
+    return None
+
 
 async def check_town(profile) -> tuple[bool, dict | None]:
     window_id = next(iter(profile.window_info))
