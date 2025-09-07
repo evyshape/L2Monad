@@ -1,16 +1,20 @@
+import asyncio
 import json
 import math
+import random
+import time
+
+from typing import Optional, Dict, Literal
+
+import numpy as np
+import mss
+
+from bot.delays import *
 from bot.methods.base import parseCBT
 from bot.methods.other import screenshot_window
 from clogger import log
-import random
-import asyncio
-import time
-import numpy as np
-import mss
 from constans import DAILY, BATTLE_PASS
-from typing import Optional, Dict, Literal
-from bot.delays import *
+
 
 async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):
     if mode == "skip":

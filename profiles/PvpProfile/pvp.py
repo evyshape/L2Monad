@@ -1,20 +1,39 @@
 import asyncio
+from datetime import datetime, timedelta
+from random import randint
 from typing import Optional
+
+from clogger import log
+
 from profiles.base import BaseProfile
-from bot.events.enums import MonitorType, PRIORITIES
 from bot.events.checker import EventsChecker
+from bot.events.enums import MonitorType, PRIORITIES
 from bot.methods.base import parseCBT
 from bot.methods.other import MouseEvents, screenshot_window
 from tgbot.keyboards.screenshot import delete_screenshot_kb
-from bot.methods.game import check_rip, wait_teleport, buy_in_shop, \
-    teleport_to_random_spot, respawn, check_autohunt, \
-    buy_loot, claim_mail, check_energo_mode, energo_mode, claim_daily, \
-    claim_achiv, claim_clan, claim_battle_pass, claim_donate_shop, schedule, safe_tp, \
-    sell_buyer, go_stash
-from random import randint
-from clogger import log
+from bot.methods.game import (
+    check_rip,
+    wait_teleport,
+    buy_in_shop,
+    teleport_to_random_spot,
+    respawn,
+    check_autohunt,
+    buy_loot,
+    claim_mail,
+    check_energo_mode,
+    energo_mode,
+    claim_daily,
+    claim_achiv,
+    claim_clan,
+    claim_battle_pass,
+    claim_donate_shop,
+    schedule,
+    safe_tp,
+    sell_buyer,
+    go_stash,
+)
 from bot.windows.runtime import RuntimeData
-from datetime import datetime, timedelta
+
 
 class PvPDodge(BaseProfile):
     def __init__(self, window_info, settings=None):

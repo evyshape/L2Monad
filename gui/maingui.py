@@ -1,17 +1,28 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox, QInputDialog, QApplication, QLabel
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QSize
-import keyboard
 import json
 import os
 import time
+
+import keyboard
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QSize
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import (
+    QApplication,
+    QInputDialog,
+    QLabel,
+    QMessageBox,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from bot.controller import ProfileController
 from bot.utils import findAllWindows
-from gui.styles import STYLE, UPD
+from clogger import log
 from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
-from bot.controller import ProfileController
+from gui.styles import STYLE, UPD
 from updater import needs_update, update, get_my_version
-from clogger import log
+
 
 PROJECT_ROOT = os.getcwd()
 WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")
@@ -45,9 +56,13 @@ class UpdateChecker(QThread):
         self._running = False
 
 class NedoGui(QWidget):
-    def __init__(self):
+    def __init__(self, kb: str, m: str):
         super().__init__()
-        self.setWindowTitle("L2Monad")
+        if kb is not None and m is not None:
+            self.setWindowTitle(f"L2Monad | Драйвер OK | Клава {kb} | Мышь {m}")
+        else:
+            self.setWindowTitle("L2Monad | Драйвер не найден!")
+
         self.resize(400, 150)
         self.controller = ProfileController()
         self.cache = load_cache()
@@ -107,6 +122,7 @@ class NedoGui(QWidget):
         self.btn_otdel.setFixedHeight(25)
         self.btn_otdel.clicked.connect(self.open_otdel)
         self.layout_main.addWidget(self.btn_otdel)
+
 
         for name, cls in self.profiles.items():
             btn = QPushButton(f"{name} ВСЕ")

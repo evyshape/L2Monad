@@ -1,15 +1,25 @@
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QScrollArea, QWidget as QW, QFrame, QSizePolicy
-)
-from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
 import json
 import os
-from PyQt5.QtGui import QFont
 from functools import partial
-from .styles import STYLE, NICK_STYLE, SCROLL
-from bot.utils import findAllWindows
+
+from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QWidget as QW,
+    QFrame,
+    QSizePolicy,
+)
+
 from bot.controller import ProfileController  # синглтон
+from bot.utils import findAllWindows
+from gui.styles import STYLE, NICK_STYLE, SCROLL
+
 
 PROJECT_ROOT = os.getcwd()
 WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")

@@ -1,10 +1,21 @@
+import asyncio
+
+from clogger import log
+
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import buy_in_shop, safe_tp, check_energo_mode, \
-    energo_mode, wait_teleport, sell_buyer, go_stash, teleport_to_random_spot
-from clogger import log
-import asyncio
+from bot.methods.game import (
+    buy_in_shop,
+    safe_tp,
+    check_energo_mode,
+    energo_mode,
+    wait_teleport,
+    sell_buyer,
+    go_stash,
+    teleport_to_random_spot,
+)
 from bot.windows.runtime import RuntimeData
+
 
 class Buyer(BaseProfile):
     def __init__(self, window_info, settings=None):

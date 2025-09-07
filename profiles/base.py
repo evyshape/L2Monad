@@ -3,12 +3,15 @@ from asyncio import Queue
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Tuple, Union
+
 import mss
 import numpy as np
-from bot.limits import pixel_semaphore
+
 from clogger import log
+from bot.limits import pixel_semaphore
 from bot.windows.base import BaseSettings, default_values
 from bot.windows.runtime import RuntimeData
+
 
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):

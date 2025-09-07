@@ -56,3 +56,34 @@ UPD = """
         background-color: #ffd633;
     }
 """
+
+ERROR_STYLE = """
+QWidget {
+    background-color: #1c1c1c;
+    color: #ff4c4c;
+    font-family: 'Consolas', monospace;
+    font-size: 11pt;
+}
+
+QMessageBox QLabel {
+    color: #ff4c4c;
+}
+
+QPushButton {
+    background-color: #2e2e2e;
+    color: #ff4c4c;
+    border: 1px solid #ff4c4c;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+QPushButton:hover {
+    background-color: #ff4c4c;
+    color: #1c1c1c;
+}
+
+QPushButton:pressed {
+    background-color: #ff1c1c;
+    color: #ffffff;
+}
+"""

@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any
+
 from constans import GLOBAL_STATES
 from bot.events.enums import OverWeight
+
 
 @dataclass
 class RuntimeData:

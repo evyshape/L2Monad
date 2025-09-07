@@ -3,6 +3,7 @@ from clogger import log
 import os
 import importlib.util
 from profiles.base import BaseProfile
+from interception.inputs import _g_context
 
 def findAllWindows():
     all_windows = gw.getWindowsWithTitle("Lineage2M")
@@ -56,3 +57,31 @@ def getProfiles(profiles_path="profiles"):
                     pr[at] = attr
 
     return pr
+
+
+def checkDriver() -> bool:
+    if not _g_context.valid:
+        log("Драйвер не найден или не удалось чекнуть!")
+        return None, None
+
+    kb = any(
+        _g_context.devices[i].get_HWID() is not None
+        for i in range(0, 10)
+    )
+
+    m = any(
+        _g_context.devices[i].get_HWID() is not None
+        for i in range(10, 20)
+    )
+
+    if not kb:
+        log("Не найдена клава")
+    if not m:
+        log("Не найдена ни мышь")
+
+    if kb and m:
+        log(f"Драйвер работает - "
+              f"{_g_context.keyboard} | {_g_context.mouse}")
+        return _g_context.keyboard, _g_context.mouse
+
+    return None, None

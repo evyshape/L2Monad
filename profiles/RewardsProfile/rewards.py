@@ -1,10 +1,21 @@
 import asyncio
+
+from clogger import log
+
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import claim_mail, check_energo_mode, energo_mode, claim_daily, \
-    claim_achiv, claim_clan, claim_battle_pass, claim_donate_shop
-from clogger import log
+from bot.methods.game import (
+    claim_mail,
+    check_energo_mode,
+    energo_mode,
+    claim_daily,
+    claim_achiv,
+    claim_clan,
+    claim_battle_pass,
+    claim_donate_shop,
+)
 from bot.windows.runtime import RuntimeData
+
 
 class Rewards(BaseProfile):
     def __init__(self, window_info, settings=None):

@@ -1,11 +1,14 @@
 import asyncio
 import threading
+import ctypes
+
+from clogger import log
+
 from bot.manager import BotManager
 from bot.utils import findAllWindows, getProfiles
-from bot.windows.settings_loader import load_settings, save_settings
 from bot.windows.base import BaseSettings, default_values
-from clogger import log
-import ctypes
+from bot.windows.settings_loader import load_settings, save_settings
+
 
 class ProfileController:
     _instance = None

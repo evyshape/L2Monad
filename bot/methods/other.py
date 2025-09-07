@@ -1,15 +1,18 @@
 import asyncio
+import datetime
 import functools
+import os
 import time
 from collections import deque
+
+import mss
+from aiogram.types import FSInputFile
+
 from clogger import log
 from interception import inputs
 from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes
-import mss
-import datetime
 from constans import SCREENSHOT_DIR
-from aiogram.types import FSInputFile
-import os
+
 
 def screenshot_window(window_info, tg: bool = False):
     window_id, window = next(iter(window_info.items()))
