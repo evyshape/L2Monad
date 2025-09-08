@@ -3,7 +3,7 @@ import os
 from functools import partial
 
 from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QScrollArea,
     QWidget as QW,
-    QFrame,
     QSizePolicy,
 )
 
@@ -23,6 +22,7 @@ from gui.styles import STYLE, NICK_STYLE, SCROLL
 
 PROJECT_ROOT = os.getcwd()
 WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")
+FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
 
 
 class WindowControlDialog(QDialog):
@@ -31,6 +31,7 @@ class WindowControlDialog(QDialog):
         self.gui = gui
         self.controller = ProfileController()
         self.setWindowTitle("L2Monad | Single")
+        self.setWindowIcon(QIcon(FAVICON))
         self.resize(540, 200)
         self.setStyleSheet(STYLE)
         self.window_buttons = {}

@@ -15,6 +15,7 @@ from bot.methods.other import screenshot_window
 from bot.clogger import log
 from bot.constans import DAILY, BATTLE_PASS
 
+from tgbot.keyboards.screenshot import delete_screenshot_kb
 
 async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):
     if mode == "skip":
@@ -64,10 +65,22 @@ async def safe_tp(profile) -> bool:
         parseCBT("home_scroll_button_no_energomode"),
     ]
 
-    for xy, rgb in targets:
-        if await profile.check_pixel(xy, rgb, timeout=5):
-            await asyncio.sleep(2)
+    tasks = [
+        asyncio.create_task(profile.check_pixel(xy, rgb, timeout=5))
+        for xy, rgb in targets
+    ]
+
+    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+
+    for task, (xy, _) in zip(tasks, targets):
+        if task in done and task.result() is True:
+            for p in pending:
+                p.cancel()
+            await asyncio.sleep(0.1)
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
+
+    for p in pending:
+        p.cancel()
 
     log("Были либо в стане либо нет свитков, не тпнулся =(", window_id)
     if profile.settings.TELEGRAM_NOTIFIES:
@@ -77,6 +90,7 @@ async def safe_tp(profile) -> bool:
             nickname=window_id,
         )
     return False
+
 
 async def check_lvl_up(profile) -> bool:
     window_id = next(iter(profile.window_info))
@@ -153,6 +167,65 @@ async def energo_mode(profile, state: str) -> bool:
 
     return False
 
+async def auction_rereg(profile) -> bool:
+
+    async def wait_and_click(tag, timeout=5, thr=3):
+        xy, rgb = parseCBT(tag)
+        if await profile.check_pixel(xy, rgb, timeout=timeout, thr=thr):
+            x, y = xy
+            await profile.mouse.click(profile.window_info, x, y)
+            return True
+        return False
+
+    if not await wait_and_click("main_menu_gui", timeout=7):
+        #log(f"Не удалось открыть главное меню", window_id)
+        return False
+
+    if not await wait_and_click("auction_menu", timeout=4):
+        return False
+
+    await asyncio.sleep(0.3)
+
+    if not await wait_and_click("auction_sell_page", timeout=4):
+        await wait_and_click("main_menu_gui", timeout=1)
+        #print(1)
+        return False
+
+    await asyncio.sleep(0.3)
+
+    if not await wait_and_click("auction_sell_select_all_active", timeout=4):
+        await wait_and_click("main_menu_gui", timeout=1)
+        #print(2)
+        return False
+
+    await asyncio.sleep(0.3)
+
+    if not await wait_and_click("auction_sell_reregister_active", timeout=4):
+        await wait_and_click("main_menu_gui", timeout=1)
+        #print(3)
+        return False
+
+    await asyncio.sleep(0.3)
+
+    if not await wait_and_click("auction_sell_reregister_confirm", timeout=4):
+        await wait_and_click("main_menu_gui", timeout=1)
+        #print(4)
+        return False
+
+    await asyncio.sleep(0.3)
+
+    xy, rgb = parseCBT("auction_sell_select_all_inactive", profile)
+    waited = await profile.check_pixel(xy, rgb, timeout=15, thr=3)
+
+    if waited:
+        log("Успешно перевыставил аук!")
+        await wait_and_click("main_menu_gui", timeout=1)
+    else:
+        await wait_and_click("main_menu_gui", timeout=1)
+        #todo
+
+    return True
+
 async def autohunt(profile) -> bool:
     button_xy, button_rgb = parseCBT("auto_combat_mode_gui")
     button_x, button_y = button_xy
@@ -209,6 +282,17 @@ async def schedule(profile, state) -> bool:
     await asyncio.sleep(1)
     if not await wait_and_click(tag, timeout=5):
         log("Окно сломалось?", window_id)
+        if profile.settings.TELEGRAM_NOTIFIES:
+            profile.tgbot.send_notification(
+                level="error",
+                text=f"Возможно окно залипло, подойди глянь плиз\n\ntry schedule {state} | {tag}",
+                nickname=window_id,
+            )
+            screenn = screenshot_window(profile.window_info, tg=True)
+            profile.tgbot.send_pic(photo=screenn, caption="Кажись залипли, #важно",
+                                parse_mode="HTML", nickname=window_id,
+                                reply_markup=delete_screenshot_kb())
+
         return False
 
     if state == "off":
@@ -375,6 +459,11 @@ async def respawn(profile):
         )
     return False
 
+async def check_bablo(profile):
+    cbt = "monetka_gui"
+    xy, rgb = parseCBT(cbt)
+    return await profile.check_pixel(xy, rgb, timeout=1, thr=7, wsize="2x2")
+
 async def check_rip(profile) -> bool:
     window_id = next(iter(profile.window_info))
     cbts = ["you_were_killed_energomode", "check_death_penalty", "respawn_village"]
@@ -384,7 +473,7 @@ async def check_rip(profile) -> bool:
     async def check(cbt: str) -> bool:
         #log(f"Чекаю {cbt}", window_id)
         xy, rgb = parseCBT(cbt)
-        return await profile.check_pixel(xy, rgb, timeout=0.2)
+        return await profile.check_pixel(xy, rgb, timeout=5)
 
     results = await asyncio.gather(*(check(cbt) for cbt in cbts))
     for cbt, found in zip(cbts, results):

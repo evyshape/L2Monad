@@ -28,6 +28,8 @@ class RuntimeData:
     overweight: OverWeight = OverWeight.ZERO
     overweight_sended: Dict[int, bool] = field(default_factory=lambda: {0: False, 50: False, 80: False})
 
+    health: int = 0
+
     def __post_init__(self):
         if self.current_state not in GLOBAL_STATES:
             raise ValueError(f"Невалидный стейт при ините: {self.current_state} / Валидные: {GLOBAL_STATES}")

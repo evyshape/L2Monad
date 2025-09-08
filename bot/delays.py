@@ -6,6 +6,7 @@ DELAY_CHECK_ENERGO = 2 # задержка на проверку энерго р�
 DELAY_CHECK_NPC_POSITIONS = 1.1 # задержка на проверку ВСЕХ СРАЗУ нпс в городе
 DELAY_TELEPORT_TO_HOME = 3.4 # задержка для wait_teleport, не меняйте
 DELAY_AUTOHUNT_CHECK = 5 # задержка на проверку автоохоты
+DELAY_PVP_ANSWER = 20 # таймаут на пвп ответ
 
 # ПОРОГИ
 

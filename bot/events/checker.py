@@ -15,7 +15,11 @@ class EventsChecker:
     def __init__(self):
         self.tasks: Dict[str, list[asyncio.Task]] = {}
         self._last_event_time: Dict[str, Dict[str, float]] = {}
+        self._last_time: Dict[str, Dict[str, int | None]] = {}
         self.tname = "-EventsChecker-"
+
+    def get_last_timestamp(self, window_id: str, event_type: str) -> int | None:
+        return self._last_time.get(window_id, {}).get(event_type)
 
     async def _monitor_pvp(self, window_id: str, profile: BaseProfile) -> None:
         xy, rgb = parseCBT("pvp_energo_trigger")
@@ -108,7 +112,9 @@ class EventsChecker:
         while profile.running:
             death_found, btn = await check_rip(profile)
             if death_found and btn != "":
-                now = time.monotonic()
+                now_monotonic = time.monotonic()
+                now_ts = int(time.time())
+                now = now_monotonic
                 last_events = self._last_event_time.setdefault(window_id, {})
                 last_time = last_events.get("death", 0)
 
@@ -117,7 +123,8 @@ class EventsChecker:
                     #print(btn)
                     EventsManager.send_event(window_id, {"type": "death"})
                     log(f"DEATH ивент отправлен в {window_id}", self.tname)
-                    last_events["death"] = now
+                    last_events["death"] = now_monotonic
+                    self._last_time.setdefault(window_id, {})["death"] = now_ts
 
                 await asyncio.sleep(2)
             else:
@@ -173,6 +180,23 @@ class EventsChecker:
                 log(f"MAIL ивент отправлен в {window_id}", self.tname)
 
                 last_events["claim_mail"] = now
+
+            await asyncio.sleep(5)
+
+    async def _monitor_auction(self, window_id: str,
+                                      profile: BaseProfile) -> None:
+        while profile.running:
+            now = time.monotonic()
+            last_events = self._last_event_time.setdefault(window_id, {})
+            last_time = last_events.get("auction", 0)
+
+            auc = profile.settings.is_schedule("auction", window_id)
+
+            if auc and now - last_time >= 240:
+                EventsManager.send_event(window_id, {"type": "auction"})
+                log(f"AUCTION ивент отправлен в {window_id}", self.tname)
+
+                last_events["auction"] = now
 
             await asyncio.sleep(5)
 
@@ -247,6 +271,53 @@ class EventsChecker:
 
             await asyncio.sleep(5)
 
+    async def _monitor_health(self, window_id: str, profile: BaseProfile) -> None:
+        if profile.runtime_data.has_quiver is None:
+            profile.runtime_data.has_quiver = await find_quiver(profile)
+
+        all_levels = list(range(10, 101, 10)) # анти хардкод списка епт
+
+        while profile.running:
+            health_thr = profile.settings.HEALTH_BACK or []
+            if not health_thr:
+                await asyncio.sleep(1.0)
+                continue
+
+            min_thr = min(health_thr)  # минимальный порог для сьеба в город
+            check_levels = [x for x in all_levels if x >= min_thr]
+
+            hp_keys = [f"hp_{value}" for value in check_levels]
+
+            tasks = []
+            for cb_key in hp_keys:
+                xy, rgb = parseCBT(cb_key)
+                tasks.append(
+                    profile.check_pixel(xy, rgb, timeout=3, thr=31, wsize="1x1")
+                )  # todo подобрать идеальный thr
+
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            found_levels = [
+                int(key.split("_")[1]) for key, res in zip(hp_keys, results) if
+                res is True
+            ]
+            if not found_levels:
+                await asyncio.sleep(2)
+                continue
+
+            detected_hp = max(found_levels)
+            profile.runtime_data.health = detected_hp
+
+            now = time.monotonic()
+            last_events = self._last_event_time.setdefault(window_id, {})
+            last_time = last_events.get("health", 0)
+
+            if detected_hp and now - last_time >= 1:
+                # EventsManager.send_event(window_id, {"type": "health"}) # можно в целом вернуть но я пока не хочу ловить ивентами буду брать из рантайма
+                last_events["health"] = now
+
+            await asyncio.sleep(1)
+
     def start_monitoring(self, window_id: str, profile: BaseProfile,
                          monitors: list[MonitorType]) -> None:
         if window_id in self.tasks:
@@ -277,6 +348,10 @@ class EventsChecker:
                 tasks.append(asyncio.create_task(self._monitor_soska(window_id, profile)))
             elif monitor_type == MonitorType.OVERWEIGHT:
                 tasks.append(asyncio.create_task(self._monitor_overweight(window_id, profile)))
+            elif monitor_type == MonitorType.HEALTH:
+                tasks.append(asyncio.create_task(self._monitor_health(window_id, profile)))
+            elif monitor_type == MonitorType.AUCTION:
+                tasks.append(asyncio.create_task(self._monitor_auction(window_id, profile)))
 
         self.tasks[window_id] = tasks
 

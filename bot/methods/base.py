@@ -1,9 +1,19 @@
-from bot.constans import CBT_JP
+from bot.constans import CBT_JP, CBT_RU
 from bot.clogger import log
 
-def parseCBT(trigger_name):
+CBT_VERSIONS = {
+    "JP": CBT_JP,
+    "RU": CBT_RU,
+}
+
+def parseCBT(trigger_name, profile=None):
+    version = "JP"
+    if profile is not None:
+        version = getattr(profile.settings, "REGION", "JP").upper()
+    d = CBT_VERSIONS.get(version, CBT_JP)
+
     try:
-        coordinates = CBT_JP[trigger_name]
+        coordinates = d[trigger_name]
 
         if len(coordinates) == 2:
             xy = tuple(map(int, coordinates[0].split(", ")))
@@ -15,7 +25,7 @@ def parseCBT(trigger_name):
             return xy, rgb
 
     except (KeyError, ValueError, IndexError) as e:
-        log(f"parseCBT error: {e} | {trigger_name}")
+        log(f"parseCBT error: {e} | {trigger_name} | version={version}")
 
-    log(f"parseCBT error | {trigger_name}")
+    log(f"parseCBT error | {trigger_name} | version={version}")
     return None, None

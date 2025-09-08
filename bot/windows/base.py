@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List
 from datetime import datetime, timedelta
 import os
 
@@ -10,6 +10,7 @@ class BaseSettings:
     REGION: str  # "JP" или "RU"
     PVP_EVADE: bool # тру фолс, не может быть одновременно включено с PVP_ANSWER
     PVP_ANSWER: bool # тру фолс, не может быть одновременно включено с PVP_EVADE
+    HEALTH_BACK: List[int] # [30, 40, 50], это если включен ответ пвп при каком пороге улетать в город
     HP_BANK_CHECKER: bool # тру фолс
     SOSKA_CHECKER: bool # тру фолс
     DEATH_CHECKER: bool # тру фолс
@@ -58,6 +59,7 @@ class BaseSettings:
             "buying": self.SCHEDULE_BUYING.split('|') if self.SCHEDULE_BUYING else [],
             "mail": self.SCHEDULE_MAIL.split('|') if self.SCHEDULE_MAIL else [],
             "rewards": self.SCHEDULE_REWARDS.split('|') if self.SCHEDULE_REWARDS else [],
+            "auction": self.SCHEDULE_AUCTION.split('|') if self.SCHEDULE_AUCTION else [],
         }
 
     def is_schedule(self, action: str, nickname: str) -> bool:
@@ -146,6 +148,7 @@ default_values = {
     "REGION": "JP",
     "PVP_EVADE": True,
     "PVP_ANSWER": False,
+    "HEALTH_BACK": [20, 30],
     "HP_BANK_CHECKER": True,
     "SOSKA_CHECKER": False,
     "DEATH_CHECKER": True,
@@ -153,10 +156,10 @@ default_values = {
     "OVERWEIGHT_AFK": 80,
     "SCHEDULE_BUYING": "10:30|13:30|20:20",
     "SCHEDULE_MAIL": "10:00|15:00|20:00|05:00",
-    "SCHEDULE_REWARDS": "21:03",
+    "SCHEDULE_REWARDS": "21:00",
     "SCHEDULE_SCHEDULE": "",
     "SCHEDULE_AUCTION": "",
-    "DONATE_SHOP_PAGES": "1|3",
+    "DONATE_SHOP_PAGES": "1|2",
     "SPOT_OT": 1,
     "SPOT_DO": 1,
     "TELEGRAM_NOTIFIES": True,

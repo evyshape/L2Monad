@@ -1,12 +1,11 @@
 import json
 import os
 import time
-
 import keyboard
+
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QSize
-from PyQt5.QtGui import QFont
+from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import (
-    QApplication,
     QInputDialog,
     QLabel,
     QMessageBox,
@@ -26,6 +25,8 @@ from bot.updater import needs_update, update, get_my_version
 
 PROJECT_ROOT = os.getcwd()
 WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")
+FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
+
 
 class UpdateChecker(QThread):
     update_available = pyqtSignal()
@@ -65,6 +66,7 @@ class NedoGui(QWidget):
             self.setWindowTitle("L2Monad | Драйвер не найден!")
 
         self.resize(400, 150)
+        self.setWindowIcon(QIcon(FAVICON))
         self.controller = ProfileController()
         self.cache = load_cache()
         self.profiles = self.controller.profiles
@@ -171,13 +173,13 @@ class NedoGui(QWidget):
         if profile_name == "PvPDodge":
             self.start_windows(profile_class, windows)
             return
-        else:
-            last_value = self.cache.get(profile_name, 1)
-            num, ok = QInputDialog.getInt(
-                self, "Батчер для ВСЕХ",
-                f"Сколько окон запускать одновременно для {profile_name}?",
-                last_value, 1
-            )
+
+        last_value = self.cache.get(profile_name, 1)
+        num, ok = QInputDialog.getInt(
+            self, "Батчер для ВСЕХ",
+            f"Сколько окон запускать одновременно для {profile_name}?",
+            last_value, 1
+        )
         if not ok:
             return
 
@@ -186,12 +188,27 @@ class NedoGui(QWidget):
 
         batches = [windows[i:i + num] for i in range(0, len(windows), num)]
 
-        for batch in batches:
+        def process_batch(batch_idx=0):
+            if batch_idx >= len(batches):
+                return
+
+            batch = batches[batch_idx]
             self.start_windows(profile_class, batch)
 
-            while any(self.controller.is_running(nick) for nick in batch):
-                QApplication.processEvents()
-                time.sleep(1)
+            def wait_c():
+                if any(self.controller.bot_manager.get_bot(nick) is None for nick in batch):
+                    QTimer.singleShot(500, wait_c)
+                else:
+                    wait_f()
+
+            def wait_f():
+                if any(self.controller.is_running(nick) for nick in batch):
+                    QTimer.singleShot(1000, wait_f)
+                else:
+                    process_batch(batch_idx + 1)
+
+            wait_c()
+        process_batch()
 
     def stop_profile(self):
         nicks = list(self.controller.bot_manager.bots.keys())
@@ -213,7 +230,7 @@ class NedoGui(QWidget):
         reply = QMessageBox.question(
             self,
             "Обнова!",
-            "Качаем и ставим?\nНа всякий случай сохрани\nвсю папочку settings и файл tg.ini",
+            "Качаем и ставим?\nНа всякий случай сохрани\nСохраненный бэкап будет в папочке /backups",
             QMessageBox.Yes | QMessageBox.No
         )
         if reply == QMessageBox.Yes:

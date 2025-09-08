@@ -86,13 +86,18 @@ async def start_batch(call: types.CallbackQuery):
         return
 
     batches = [inactive_nicks[i:i + batch_size] for i in range(0, len(inactive_nicks), batch_size)]
+
     for batch in batches:
         controller.start_windows(profile_class, batch)
+        while any(controller.bot_manager.get_bot(nick) is None for nick in batch):
+            await asyncio.sleep(0.5)
+
         while any(controller.is_running(nick) for nick in batch):
             await asyncio.sleep(1)
 
     await call.answer(f"✅ {profile_name} запущен!", show_alert=False)
     await call.message.edit_text(get_text(), reply_markup=global_menu_kb())
+
 
 @router.callback_query(lambda c: c.data == "menu_back")
 @admin_only

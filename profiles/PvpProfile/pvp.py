@@ -1,4 +1,5 @@
 import asyncio
+import time
 from datetime import datetime, timedelta
 from random import randint
 from typing import Optional
@@ -9,9 +10,11 @@ from profiles.base import BaseProfile
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.methods.base import parseCBT
+from bot.delays import DELAY_PVP_ANSWER
 from bot.methods.other import MouseEvents, screenshot_window
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.methods.game import (
+    check_bablo,
     check_rip,
     wait_teleport,
     buy_in_shop,
@@ -30,7 +33,7 @@ from bot.methods.game import (
     schedule,
     safe_tp,
     sell_buyer,
-    go_stash,
+    go_stash, auction_rereg,
 )
 from bot.windows.runtime import RuntimeData
 
@@ -53,15 +56,20 @@ class PvPDodge(BaseProfile):
 
     @property
     def profile_version(self) -> str:
-        return "1.5.1"
+        return "1.6.1"
 
+    # todo переделать, хочу class MonitorRule в который суну условия
     @property
     def get_monitors(self) -> list:
         monitors = [MonitorType.SPOT_BACK]
 
         if getattr(self.settings, "PVP_EVADE", False):
             monitors.append(MonitorType.PVP)
+        if getattr(self.settings, "PVP_ANSWER", False):
+            monitors.append(MonitorType.PVP)
         if getattr(self.settings, "DEATH_CHECKER", False):
+            if self.settings.HEALTH_BACK == []:
+                self.settings.HEALTH_BACK = [20, 30, 40]
             monitors.append(MonitorType.DEATH)
         if getattr(self.settings, "SOSKA_CHECKER", False):
             monitors.append(MonitorType.SOSKA)
@@ -78,6 +86,8 @@ class PvPDodge(BaseProfile):
             monitors.append(MonitorType.CLAIM_REWARDS)
         if getattr(self.settings, "SCHEDULE_SCHEDULE", ""):
             monitors.append(MonitorType.SCHEDULE)
+        if getattr(self.settings, "SCHEDULE_AUCTION", ""):
+            monitors.append(MonitorType.AUCTION)
 
         return monitors
 
@@ -102,7 +112,7 @@ class PvPDodge(BaseProfile):
         self._event_worker_task = asyncio.create_task(self._event_worker())
 
         while self.running:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
 
     async def on_stop(self) -> None:
         window_id = next(iter(self.window_info))
@@ -281,7 +291,14 @@ class PvPDodge(BaseProfile):
             else:
                 log(f"bad result? {result} / buy", window_id)
         else:
-            log(f"bad result? {result} / else", window_id)
+            log(f"/ bad result? {result} / else", window_id)
+            rip, btn = await check_rip(self)
+            if rip:
+                log("Помер мгновенно как приехал на спот, бувае...", window_id)
+
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+
 
     async def mail(self):
         window_id, window = next(iter(self.window_info.items()))
@@ -454,6 +471,125 @@ class PvPDodge(BaseProfile):
                         reply_markup=delete_screenshot_kb()
                     )
 
+    async def pvp_answer(self):
+        window_id, window = next(iter(self.window_info.items()))
+        wait = DELAY_PVP_ANSWER
+        log(f"Пробую ответить на пвп, таймаут: {wait} сек.", window_id)
+
+        self.events_checker.stop_monitoring(window_id)
+        self.runtime_data.set_state("pvp")
+        xy, rgb = parseCBT("pvp_energo_trigger")
+        click_x, click_y = xy
+        await self.mouse.click(self.window_info, click_x, click_y, fast=True)
+
+        self.events_checker.start_monitoring(window_id, self,
+                                             monitors=[MonitorType.HEALTH,
+                                                       MonitorType.DEATH])
+        await asyncio.sleep(2.5)
+
+        for x in range(wait * 10):
+            current = time.time()
+            last_death = self.events_checker.get_last_timestamp(window_id, "death")
+            if last_death is not None and current - last_death <= 60:
+                log(f"Сдохли во время ответа, анлук", window_id)
+                return
+
+            health = self.runtime_data.health
+            if health and health in self.settings.HEALTH_BACK:
+                log(f"Достигли крит отметки из конфига, пробую улететь! {health}%",
+                    window_id)
+                home = await safe_tp(self)
+                if home:
+                    tped = await wait_teleport(self)
+                    if tped:
+                        sleept = randint(3, 5)
+                        self.runtime_data.current_state = "afk"
+                        self.runtime_data.spot_time = (datetime.now() + timedelta(
+                            minutes=sleept)).strftime("%H:%M")
+                        log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
+                        self.events_checker.stop_monitoring(window_id)
+                        await asyncio.sleep(1)
+                        await energo_mode(self, "on")
+                        if self.settings.TELEGRAM_NOTIFIES:
+                            self.tgbot.send_notification(
+                                level="warning",
+                                text="Задоджил пвп успешно (после попытки ответа)",
+                                nickname=window_id,
+                            )
+                        return
+                else:
+                    log("Вероятно, погиб?", window_id)
+                    rip, btn = await check_rip(self)
+                    if rip:
+                        log("rly rip", window_id)
+                        self.runtime_data.current_state = "death"
+                        return
+
+            if await check_bablo(self):
+                log(f"Пвп успешно завершено, жду 3 сек", window_id)
+                await asyncio.sleep(3)
+                break
+
+        log(f"Мы живы! Возвращаюсь на спот, вдруг увели...", window_id)
+        self.events_checker.stop_monitoring(window_id)
+        to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT,
+                                                self.settings.SPOT_DO)
+        if to_spot:
+            self.runtime_data.current_state = "combat"
+            self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
+        else:
+            log("Не смог тпнуться на спот, если включено тг - смотри скриншот.")
+            await asyncio.sleep(4)
+            screenn = screenshot_window(self.window_info, tg=True)
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_pic(
+                    photo=screenn,
+                    caption="После ответа пвп не смог тпнуться на спот, #важно",
+                    parse_mode="HTML",
+                    nickname=window_id,
+                    reply_markup=delete_screenshot_kb()
+                )
+            self.runtime_data.current_state = "afk"
+            return
+
+    async def auction(self):
+        window_id, window = next(iter(self.window_info.items()))
+        cstate = self.runtime_data.current_state
+        if cstate == "death":
+            return
+        self.runtime_data.current_state = "claiming"
+        self.events_checker.stop_monitoring(window_id)
+        log("Не мониторю новые события во время перевыставления аука", window_id)
+        if await check_energo_mode(self):
+            await energo_mode(self, "off")
+
+        rereg = await auction_rereg(self)
+
+        if not await check_energo_mode(self):
+            await energo_mode(self, "on")
+
+        if rereg:
+            log(f"Аук успешно перевыставлен!", window_id)
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="trash",
+                    text="Перевыставил аук",
+                    nickname=window_id,
+                )
+        else:
+            log(f"Не смог перевыставить аук", window_id)
+
+        self.runtime_data.current_state = cstate
+        self.events_checker.start_monitoring(window_id, self,
+                                             monitors=self.get_monitors)
+        if not await check_energo_mode(self):
+            if cstate != "death":
+                await energo_mode(self, "on")
+                return True
+
+        await asyncio.sleep(1)
+        return True
+
     async def _event_worker(self) -> None:
         window_id = next(iter(self.window_info))
         while self.running:
@@ -482,7 +618,12 @@ class PvPDodge(BaseProfile):
         log(f"Обработка: {etype}", window_id)
 
         if etype == "pvp":
-            await self.dodge()
+            if self.settings.PVP_EVADE:
+                await self.dodge()
+            elif self.settings.PVP_ANSWER:
+                await self.pvp_answer()
+            else:
+                log(f"Скипаю событие, пвп ответ и додж выключены: {etype}", window_id)
         elif etype == "hp_bank":
             await self.bank_restore()
         elif etype == "death":
@@ -501,6 +642,8 @@ class PvPDodge(BaseProfile):
             await self.bank_restore()
         elif etype == "overweight":
             await self.overweight_check()
+        elif etype == "auction":
+            await self.auction()
         else:
             log(f"Что за нах: {etype}", window_id)
 
