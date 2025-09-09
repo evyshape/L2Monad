@@ -1,6 +1,8 @@
 import asyncio
 import threading
 import ctypes
+import time
+import random
 
 from bot.clogger import log
 
@@ -8,7 +10,6 @@ from bot.manager import BotManager
 from bot.utils import findAllWindows, getProfiles
 from bot.windows.base import BaseSettings, default_values
 from bot.windows.settings_loader import load_settings, save_settings
-
 
 class ProfileController:
     _instance = None
@@ -23,18 +24,21 @@ class ProfileController:
         return cls._instance
 
     def start_windows(self, profile_class, nicks):
-        for nick in nicks:
-            window_info = findAllWindows()[nick]
-            settings = load_settings(nick)
-            if not settings:
-                log(f"Нет настроек, создаём из базы...", nick)
-                settings = BaseSettings(**default_values)
-                save_settings(nick, settings)
+        async def start_seq():
+            for nick in nicks:
+                window_info = findAllWindows()[nick]
+                settings = load_settings(nick)
+                if not settings:
+                    log(f"Нет настроек, создаём из базы...", nick)
+                    settings = BaseSettings(**default_values)
+                    save_settings(nick, settings)
 
-            asyncio.run_coroutine_threadsafe(
-                self.bot_manager.start_bot(profile_class, nick, window_info, settings),
-                self.loop
-            )
+                await self.bot_manager.start_bot(profile_class, nick, window_info,
+                                                 settings)
+
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+
+        asyncio.run_coroutine_threadsafe(start_seq(), self.loop)
 
     def stop_windows(self, nicks):
         for nick in nicks:

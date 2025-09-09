@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple, Union
 
-from bot.constans import GLOBAL_STATES
+from bot.constans import GLOBAL_STATES, CBT_JP
 from bot.events.enums import OverWeight
 
 
@@ -29,6 +29,9 @@ class RuntimeData:
     overweight_sended: Dict[int, bool] = field(default_factory=lambda: {0: False, 50: False, 80: False})
 
     health: int = 0
+
+    captures: dict[str, list[dict]] = field(default_factory=lambda: dict())
+    CAPTURE_LIMIT: int = 10
 
     def __post_init__(self):
         if self.current_state not in GLOBAL_STATES:
@@ -126,3 +129,37 @@ class RuntimeData:
         self.last_succ_dodge = None
         self.has_quiver = None
         self.last_mapping = None
+
+    def record_capture(self, xy: Tuple[int, int], rgb: Union[Tuple[int,int,int], str]) -> None:
+        xy_str = f"{xy[0]}, {xy[1]}"
+        matched_key = None
+
+        for key, value in CBT_JP.items():
+            if xy_str in value or (isinstance(rgb, str) and rgb in value):
+                matched_key = key
+                break
+
+        if matched_key is None:
+            matched_key = "unknown"
+
+        if matched_key not in self.captures:
+            self.captures[matched_key] = []
+
+        self.captures[matched_key].append({
+            "xy": xy_str,
+            "rgb": rgb,
+            "time": datetime.now().strftime("%H:%M:%S")
+        })
+
+    def get_top_captures(self, top_n: int = 10) -> str:
+        sorted_items = sorted(
+            self.captures.items(),
+            key=lambda item: len(item[1]),
+            reverse=True
+        )
+
+        lines = [
+            f"<b>{key}</b>: {len(records)}"
+            for key, records in sorted_items[:top_n]
+        ]
+        return "\n".join(lines)

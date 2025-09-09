@@ -2,7 +2,7 @@ import asyncio
 from asyncio import Queue
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple, Union
+from typing import Dict, Tuple, Union, List, Any
 
 import mss
 import numpy as np
@@ -11,7 +11,6 @@ from bot.clogger import log
 from bot.limits import pixel_semaphore
 from bot.windows.base import BaseSettings, default_values
 from bot.windows.runtime import RuntimeData
-
 
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
@@ -23,7 +22,6 @@ class BaseProfile(ABC):
         self.tname = "-BaseProfile-"
         self.settings = settings or BaseSettings(**default_values)
         self.runtime_data = RuntimeData(current_state="null")
-        self._sct = mss.mss()
 
     @property
     @abstractmethod
@@ -122,41 +120,49 @@ class BaseProfile(ABC):
             log(f"[{self.tname}] Слушалка стопнулась")
 
     async def check_pixel(self, xy: Tuple[int, int],
-                          rgb: Union[Tuple[int, int, int], str],
-                          timeout: float = 0.2,
-                          thr: float = 2,
-                          wsize: str = "2x2") -> bool:
+                          rgb: Union[Tuple[int, int, int], str], timeout: float = 0.2,
+                          thr: float = 2, wsize: str = "2x2") -> bool:
 
         if rgb == "no":
             return True
+            
+        loop = asyncio.get_running_loop()
+        self.runtime_data.record_capture(xy, rgb)
+        def blocking_check():
+            wait_time = 0.03
 
-        try:
-            width, height = map(int, wsize.lower().split('x'))
-        except Exception:
-            width, height = 2, 2  # fallback
+            try:
+                width, height = map(int, wsize.lower().split('x'))
+            except Exception:
+                width, height = 2, 2  # fallback
 
-        window_id, window = next(iter(self.window_info.items()))
-        left, top = window['Position']
+            window_id, window = next(iter(self.window_info.items()))
+            left, top = window['Position']
 
-        adjusted_x = xy[0] + left
-        adjusted_y = xy[1] + top
+            adjusted_x = xy[0] + left
+            adjusted_y = xy[1] + top
 
-        start_time = asyncio.get_event_loop().time()
+            start_time = time.time()
+
+            with mss.mss() as sct:
+                while time.time() - start_time < timeout:
+                    monitor = {"left": adjusted_x, "top": adjusted_y, "width": width,
+                               "height": height}
+                    screenshot = np.array(sct.grab(monitor))
+
+                    for y in range(height):
+                        for x in range(width):
+                            pixel_color = screenshot[y, x][:3][::-1]  # BGR to RGB
+                            diff = np.abs(pixel_color - rgb)
+                            if np.all(diff <= thr):
+                                return True
+
+                    time.sleep(wait_time)
+            return False
 
         async with pixel_semaphore:
-            while asyncio.get_event_loop().time() - start_time < timeout:
-                monitor = {"left": adjusted_x, "top": adjusted_y, "width": width, "height": height}
-                screenshot = np.array(self._sct.grab(monitor))
+            return await loop.run_in_executor(None, blocking_check)
 
-                screenshot_rgb = screenshot[..., :3][:, :, ::-1]
-
-                diff = np.abs(screenshot_rgb - np.array(rgb))
-                if np.all(diff <= thr, axis=-1).any():
-                    return True
-
-                await asyncio.sleep(0.01)
-
-        return False
 
     def is_running(self) -> bool:
         """

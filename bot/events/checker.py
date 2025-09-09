@@ -25,7 +25,7 @@ class EventsChecker:
         xy, rgb = parseCBT("pvp_energo_trigger")
 
         while profile.running:
-            found = await profile.check_pixel(xy, rgb, timeout=0.4, thr=1)
+            found = await profile.check_pixel(xy, rgb, timeout=0.4, thr=8)
 
             if found:
                 now = time.monotonic()
@@ -37,9 +37,9 @@ class EventsChecker:
                     log(f"ПВП ивент отправлен в {window_id}", self.tname)
                     last_events["pvp"] = now
 
-                await asyncio.sleep(1)
+                await asyncio.sleep(15)
             else:
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(2)
 
     async def _monitor_hp_bank(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
@@ -54,15 +54,14 @@ class EventsChecker:
         while profile.running:
             checks = 0
             #print(1)
-            for _ in range(13):
-                found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7)
-                #print(found)
+            for _ in range(7):
+                found = await profile.check_pixel(xy, rgb, timeout=0.6, thr=9)
                 if found:
                     checks += 1
                     
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
 
-            if checks >= 10:
+            if checks >= 5:
                 now = time.monotonic()
                 last_events = self._last_event_time.setdefault(window_id, {})
                 last_time = last_events.get("hp_bank", 0)
@@ -88,7 +87,7 @@ class EventsChecker:
         while profile.running:
             checks = 0
             # print(1)
-            for _ in range(13):
+            for _ in range(4):
                 found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7)
                 # print(found)
                 if found:
@@ -96,7 +95,7 @@ class EventsChecker:
 
                 await asyncio.sleep(1)
 
-            if checks >= 10:
+            if checks >= 3:
                 now = time.monotonic()
                 last_events = self._last_event_time.setdefault(window_id, {})
                 last_time = last_events.get("soska", 0)
@@ -126,9 +125,9 @@ class EventsChecker:
                     last_events["death"] = now_monotonic
                     self._last_time.setdefault(window_id, {})["death"] = now_ts
 
-                await asyncio.sleep(2)
+                await asyncio.sleep(6)
             else:
-                await asyncio.sleep(1)
+                await asyncio.sleep(6)
 
     async def _monitor_spot_back(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:
@@ -242,21 +241,19 @@ class EventsChecker:
         }
 
         while profile.running:
-            checks = {level: 0 for level in
-                      [OverWeight.ZERO, OverWeight.FIFTY, OverWeight.EIGHTY]}
-            for _ in range(10):
-                for level, cb_key in coords.items():
-                    xy, rgb = parseCBT(cb_key)
-                    found = await profile.check_pixel(xy, rgb, timeout=4, thr=0)
-                    if found:
-                        checks[level] += 1
-                await asyncio.sleep(1)
-
             detected_level = OverWeight.ZERO
-            if checks[OverWeight.EIGHTY] >= 1:
-                detected_level = OverWeight.EIGHTY
-            elif checks[OverWeight.FIFTY] >= 1:
-                detected_level = OverWeight.FIFTY
+
+            for level in [OverWeight.EIGHTY, OverWeight.FIFTY,
+                          OverWeight.ZERO]:
+
+                cb_key = coords[level]
+                xy, rgb = parseCBT(cb_key)
+                found = await profile.check_pixel(xy, rgb, timeout=4, thr=0)
+                if found:
+                    detected_level = level
+                    break
+
+                await asyncio.sleep(5)
 
             profile.runtime_data.update_overweight(detected_level)
             to_notify = profile.runtime_data.need_notify()
@@ -269,7 +266,7 @@ class EventsChecker:
                     EventsManager.send_event(window_id, {"type": "overweight"})
                     last_events["overweight"] = now
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(50)
 
     async def _monitor_health(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:

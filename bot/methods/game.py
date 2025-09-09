@@ -322,7 +322,7 @@ async def find_quiver(profile) -> bool:
 
     return None
 
-async def wait_teleport(profile, need: int = 8) -> bool:
+async def wait_teleport(profile, need: int = 4) -> bool:
     xy1, rgb1 = parseCBT("zalupka_gui")
     window_id = next(iter(profile.window_info))
     success = 0
@@ -334,7 +334,7 @@ async def wait_teleport(profile, need: int = 8) -> bool:
         if teleported:
             success += 1
 
-    if success >= 6:
+    if success >= 3:
         log(f"tped succ | {success}/{need}", window_id)
         return True
     else:
@@ -484,36 +484,53 @@ async def check_rip(profile) -> bool:
     return False, ""
 
 # возможно надо будет вернуть старую, бацнул тестовый варик. надо фидбек собрать #todo
-async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS) -> Optional[Dict[str, str]]:
-    npc_mapping = {}
+async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int = 5) -> Optional[Dict[str, str]]:
     window_id = next(iter(profile.window_info))
-    log(f"Пробую получить позиции нпс", window_id)
 
-    async def check_npc(j):
-        xy, rgb = parseCBT(f"npc_list_{j}")
-        result = await profile.check_pixel(xy, rgb, timeout=DELAY_CHECK_NPC_POSITIONS, thr=thr, wsize="1x1")
-        return j if result else None
+    npc_batches = [[2, 3], [4, 5]]
+    for attempt in range(1, retries + 1):
+        log(f"Попытка {attempt}/{retries} получить позиции нпс", window_id)
 
-    results = await asyncio.gather(*(check_npc(j) for j in [2, 3, 4, 5]))
-    found_j = min([r for r in results if r is not None], default=None)
+        found_j = None
 
-    if found_j:
-        log(f"Детектнул позиции, {found_j}", window_id)
-        if found_j == 2:
-            npc_mapping = {"stash": "npc_list_2", "shop": "npc_list_1", "buyer": "npc_list_4"}
-        elif found_j == 3:
-            npc_mapping = {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
-        elif found_j == 4:
-            npc_mapping = {"stash": "npc_list_4", "shop": "npc_list_2", "buyer": "npc_list_6"}
-        elif found_j == 5:
-            npc_mapping = {"stash": "npc_list_5", "shop": "npc_list_3", "buyer": "no_data"}
+        for batch in npc_batches:
+            async def check_npc(j):
+                xy, rgb = parseCBT(f"npc_list_{j}")
+                result = await profile.check_pixel(
+                    xy,
+                    rgb,
+                    timeout=DELAY_CHECK_NPC_POSITIONS,
+                    thr=thr,
+                    wsize="1x1",
+                )
+                return j if result else None
 
-        profile.runtime_data.update_last_mapping(npc_mapping)
-        log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", window_id)
-        return npc_mapping
+            results = await asyncio.gather(*(check_npc(j) for j in batch))
+            found_j = min([r for r in results if r is not None], default=None)
 
-    log(f"get_npc_positions false, не обнаружил npc", window_id)
+            if found_j:
+                break
+
+        if found_j:
+            log(f"Детектнул позиции, {found_j}", window_id)
+            if found_j == 2:
+                npc_mapping = {"stash": "npc_list_2", "shop": "npc_list_1", "buyer": "npc_list_4"}
+            elif found_j == 3:
+                npc_mapping = {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
+            elif found_j == 4:
+                npc_mapping = {"stash": "npc_list_4", "shop": "npc_list_2", "buyer": "npc_list_6"}
+            elif found_j == 5:
+                npc_mapping = {"stash": "npc_list_5", "shop": "npc_list_3", "buyer": "no_data"}
+
+            profile.runtime_data.update_last_mapping(npc_mapping)
+            log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", window_id)
+            return npc_mapping
+
+        await asyncio.sleep(0.3)
+
+    log(f"get_npc_positions false, не обнаружил npc за {retries} попыток", window_id)
     return None
+
 
 
 async def check_town(profile) -> tuple[bool, dict | None]:
@@ -642,91 +659,130 @@ async def buy_in_shop(profile, in_town=None, npcs=None, check_loot=False) -> tup
 
 
 async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
+    window_id = next(iter(profile.window_info))
+    log("Старт go_stash", window_id)
+
     profile.runtime_data.update_stashing()
+
     if in_town is None or npcs is None:
+        log("чекаю нпс", window_id)
         in_town, npcs = await check_town(profile)
+        log(f"in_town: {in_town}, npcs: {npcs}", window_id)
 
     if 'stash' not in npcs or npcs['stash'] == "no_data":
+        log("стеш не найден", window_id)
         return False, in_town, npcs
 
     xy, rgb = parseCBT(npcs['stash'])
     if xy is None:
+        log("корды стеша не нашел", window_id)
         return False, in_town, npcs
 
+    log(f"клик по стешу {xy}", window_id)
     await profile.mouse.click(profile.window_info, *xy)
 
     stash_buttons = ["npc_stash_button_1", "npc_stash_button_2"]
     for i, button in enumerate(stash_buttons):
         xy_btn, rgb_btn = parseCBT(button)
         if xy_btn is None:
+            log(f"корды {button} не нашел", window_id)
             if i == 0:
                 return False, in_town, npcs
             continue
 
         if i == 0:
+            log(f"жду {button}...", window_id)
             for _ in range(200):
                 if await profile.check_pixel(xy_btn, rgb_btn, timeout=0.1, thr=7):
                     await asyncio.sleep(0.45)
+                    log(f"клик по {button} в {xy_btn}", window_id)
                     await profile.mouse.click(profile.window_info, *xy_btn)
                     break
                 await asyncio.sleep(0.05)
             else:
+                log(f"таймаут {button}", window_id)
                 return False, in_town, npcs
         else:
             if await profile.check_pixel(xy_btn, rgb_btn, timeout=1.5):
+                log(f"клац {button} в {xy_btn}", window_id)
                 await profile.mouse.click(profile.window_info, *xy_btn)
+            else:
+                log(f"кнопка {button} не появилась", window_id)
 
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
     if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=4):
+        log(f"клацнул выход {xy_quit}", window_id)
         await profile.mouse.click(profile.window_info, *xy_quit)
         await asyncio.sleep(0.25)
+        log("завершил функу", window_id)
         return True, in_town, npcs
 
+    log("не завершил функу", window_id)
     return False, in_town, npcs
 
 
+
 async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
+    window_id = next(iter(profile.window_info))
+    log("Старт sell_buyer", window_id)
+
     profile.runtime_data.update_purc()
+
     if in_town is None or npcs is None:
+        log("чекаю нпс", window_id)
         in_town, npcs = await check_town(profile)
+        log(f"in_town: {in_town}, npcs: {npcs}", window_id)
 
     if 'buyer' not in npcs or npcs['buyer'] == "no_data":
+        log("скуп не найден", window_id)
         return False, in_town, npcs
 
     xy, rgb = parseCBT(npcs['buyer'])
     if xy is None:
         return False, in_town, npcs
 
+    log(f"клик по скупу {xy}", window_id)
     await profile.mouse.click(profile.window_info, *xy)
 
     buyer_buttons = ["npc_buyer_button_1", "npc_buyer_button_2", "npc_buyer_button_3"]
     for i, button in enumerate(buyer_buttons):
         xy_btn, rgb_btn = parseCBT(button)
         if xy_btn is None:
+            log(f"корды {button} не нашел", window_id)
             if i == 0:
                 return False, in_town, npcs
             continue
 
         if i == 0:
+            log(f"жду {button}...", window_id)
             for _ in range(200):
                 if await profile.check_pixel(xy_btn, rgb_btn, timeout=0.1):
                     await asyncio.sleep(0.45)
+                    log(f"клик по {button} в {xy_btn}", window_id)
                     await profile.mouse.click(profile.window_info, *xy_btn)
                     break
                 await asyncio.sleep(0.05)
             else:
+                log(f"таймаут {button}", window_id)
                 return False, in_town, npcs
         else:
             if await profile.check_pixel(xy_btn, rgb_btn, timeout=1.5):
+                log(f"клац {button} в {xy_btn}", window_id)
                 await profile.mouse.click(profile.window_info, *xy_btn)
+            else:
+                log(f"кнопка {button} не появилась", window_id)
 
     xy_quit, rgb_quit = parseCBT("npc_global_quit_button")
     if xy_quit and await profile.check_pixel(xy_quit, rgb_quit, timeout=4):
+        log(f"клацнул выход {xy_quit}", window_id)
         await profile.mouse.click(profile.window_info, *xy_quit)
         await asyncio.sleep(0.25)
+        log("завершил функу", window_id)
         return True, in_town, npcs
 
+    log("не завершил функу", window_id)
     return False, in_town, npcs
+
 
 async def buy_loot(profile) -> bool:
     window_info = profile.window_info

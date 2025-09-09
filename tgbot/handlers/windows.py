@@ -56,6 +56,8 @@ async def window_info(callback: CallbackQuery):
         )
         return
 
+    captures_counts = runtime.get_top_captures(15)
+
     text = (
         f"📊 <b>{nick}</b>\n\n"
         f"🟢 Состояние: <code>{runtime.current_state}</code>\n\n"
@@ -69,7 +71,8 @@ async def window_info(callback: CallbackQuery):
         f"❌ Последний додж: <code>{runtime.last_dodge}</code>\n"
         f"✅ Последний успешный додж: <code>{runtime.last_succ_dodge}</code>\n\n"
         f"🏹 Колчан: <code>{runtime.has_quiver}</code>\n"
-        f"🗺 Маппинг: <code>{runtime.last_mapping}</code>"
+        f"🗺 Маппинг: <code>{runtime.last_mapping}</code>\n\n"
+        f"🖼 Ласт проверки: \n{captures_counts}"
     )
     await callback.message.edit_text(
         text,
