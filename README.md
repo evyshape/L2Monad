@@ -1,8 +1,23 @@
-# Асинхронный многозадачный бот для Lineage2M
+# Асинхронный многозадачный бот для Lineage2M | L2Monad
 
-На момент **07.09.2025** бот поддерживает **JP / SEA** сервера. (В ближайшем будущем будет добавлен RU)
+На момент **07.09.2025** бот поддерживает **JP / SEA** сервера. (В ближайшем времени будет добавлен RU, работа уже началась)
 
 Бот **всегда будет бесплатным и опенсурсным**.
+
+---
+
+## 📺 Обзор бота
+<p align="center">
+  Когда будет время залью видосики на канал, сабайся
+</p>
+<p align="center">
+  <a href="https://www.youtube.com/@evyshape" target="_blank">
+    <img src="https://img.shields.io/badge/▶ YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube">
+  </a>
+</p>
+<p align="center">
+  <sub>(нажми на кнопку выше)</sub>
+</p>
 
 ---
 
@@ -62,7 +77,8 @@
 {
     "REGION": "JP", // Регион игры: JP или RU (RU пока не поддерживается)
     "PVP_EVADE": true, // Уворот от PVP (не может быть включен одновременно с PVP_ANSWER)
-    "PVP_ANSWER": false, // Ответное PVP
+    "PVP_ANSWER": false, // Ответное PVP (не может быть включен одновременно с PVP_EVADE)
+    "HEALTH_BACK": [20, 30, 40], // Процент хп при котором будем улетать в город, лучше указывайте несколько (10.. 20.. 60.. 90..)
     "HP_BANK_CHECKER": true, // Проверка хп банок (если 0, бот телепортируется в город для закупки)
     "SOSKA_CHECKER": false, // Проверка сосок (аналогично HP банкам)
     "DEATH_CHECKER": true, // Следит за смертями, воскрешает погибшие окна и возвращает на спот
@@ -130,3 +146,8 @@
 
 - 📲 Telegram: [@evyshape](https://t.me/evyshape) — раз РАБ
 - 📡 Канал: [@BotLineage2M](https://t.me/BotLineage2M) — все новости и обновления
+---
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/40b0714e-c543-40c2-ae8c-909c91c1b744" width="700" alt="POWER">
+</p>
