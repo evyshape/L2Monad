@@ -322,11 +322,11 @@ async def find_quiver(profile) -> bool:
 
     return None
 
-async def wait_teleport(profile, need: int = 4) -> bool:
+async def wait_teleport(profile, need: int = 7) -> bool:
     xy1, rgb1 = parseCBT("zalupka_gui")
     window_id = next(iter(profile.window_info))
     success = 0
-    await asyncio.sleep(1)
+    await asyncio.sleep(2)
 
     for _ in range(need):
         await asyncio.sleep(0.25)
@@ -334,7 +334,7 @@ async def wait_teleport(profile, need: int = 4) -> bool:
         if teleported:
             success += 1
 
-    if success >= 3:
+    if success >= 6:
         log(f"tped succ | {success}/{need}", window_id)
         return True
     else:
@@ -501,7 +501,7 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
                     rgb,
                     timeout=DELAY_CHECK_NPC_POSITIONS,
                     thr=thr,
-                    wsize="1x1",
+                    wsize="2x2",
                 )
                 return j if result else None
 
@@ -693,7 +693,7 @@ async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
         if i == 0:
             log(f"жду {button}...", window_id)
             for _ in range(200):
-                if await profile.check_pixel(xy_btn, rgb_btn, timeout=0.1, thr=7):
+                if await profile.check_pixel(xy_btn, rgb_btn, timeout=0.2, thr=7):
                     await asyncio.sleep(0.45)
                     log(f"клик по {button} в {xy_btn}", window_id)
                     await profile.mouse.click(profile.window_info, *xy_btn)

@@ -14,6 +14,7 @@ from bot.delays import DELAY_PVP_ANSWER
 from bot.methods.other import MouseEvents, screenshot_window
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.methods.game import (
+    check_town,
     check_bablo,
     check_rip,
     wait_teleport,
@@ -68,8 +69,6 @@ class PvPDodge(BaseProfile):
         if getattr(self.settings, "PVP_ANSWER", False):
             monitors.append(MonitorType.PVP)
         if getattr(self.settings, "DEATH_CHECKER", False):
-            if self.settings.HEALTH_BACK == []:
-                self.settings.HEALTH_BACK = [20, 30, 40]
             monitors.append(MonitorType.DEATH)
         if getattr(self.settings, "SOSKA_CHECKER", False):
             monitors.append(MonitorType.SOSKA)
@@ -290,6 +289,25 @@ class PvPDodge(BaseProfile):
                     return True
             else:
                 log(f"bad result? {result} / buy", window_id)
+                town = await check_town(self)
+                if town:
+                    #todo
+                    to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT,
+                                                            self.settings.SPOT_DO)
+                    if to_spot:
+                        self.events_checker.start_monitoring(window_id, self,
+                                                             monitors=self.get_monitors)
+                        self.runtime_data.current_state = "combat"
+                        return True
+                else:
+                    screenn = screenshot_window(self.window_info, tg=True)
+                    self.tgbot.send_pic(
+                        photo=screenn,
+                        caption=f"Шось пошло не так в bank_restore\n\nСтеш: {stash_ok}\nГород: {town}",
+                        parse_mode="HTML",
+                        nickname=window_id,
+                        reply_markup=delete_screenshot_kb()
+                    )
         else:
             log(f"/ bad result? {result} / else", window_id)
             rip, btn = await check_rip(self)

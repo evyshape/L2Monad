@@ -172,7 +172,7 @@ class MouseEvents:
             finally:
                 self.clear = False
                 done_event.set()
-                await asyncio.sleep(0.14)
+                await asyncio.sleep(0.18)
 
         elif action == "move":
             _, window_info, x_offset, y_offset, done_event = task
