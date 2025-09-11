@@ -8,9 +8,13 @@ import mss
 import numpy as np
 
 from bot.clogger import log
-from bot.limits import pixel_semaphore
+from bot.limits import pixel_semaphore, thread
 from bot.windows.base import BaseSettings, default_values
 from bot.windows.runtime import RuntimeData
+
+from concurrent.futures import ThreadPoolExecutor
+
+THREAD_POOL = ThreadPoolExecutor(max_workers=thread)
 
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
@@ -125,44 +129,43 @@ class BaseProfile(ABC):
 
         if rgb == "no":
             return True
-            
-        loop = asyncio.get_running_loop()
-        self.runtime_data.record_capture(xy, rgb)
-        def blocking_check():
-            wait_time = 0.03
 
+        self.runtime_data.record_capture(xy, rgb)
+
+        def blocking_check():
             try:
                 width, height = map(int, wsize.lower().split('x'))
-            except Exception:
-                width, height = 2, 2  # fallback
+            except:
+                width, height = 2, 2
 
             window_id, window = next(iter(self.window_info.items()))
             left, top = window['Position']
-
             adjusted_x = xy[0] + left
             adjusted_y = xy[1] + top
-
             start_time = time.time()
 
             with mss.mss() as sct:
+                monitor = {
+                    "left": adjusted_x,
+                    "top": adjusted_y,
+                    "width": width,
+                    "height": height,
+                }
                 while time.time() - start_time < timeout:
-                    monitor = {"left": adjusted_x, "top": adjusted_y, "width": width,
-                               "height": height}
-                    screenshot = np.array(sct.grab(monitor))
+                    screenshot = np.array(sct.grab(monitor))[:, :, :3][:, :, ::-1].astype(np.int16)
 
-                    for y in range(height):
-                        for x in range(width):
-                            pixel_color = screenshot[y, x][:3][::-1]  # BGR to RGB
-                            diff = np.abs(pixel_color - rgb)
-                            if np.all(diff <= thr):
-                                return True
+                    target = np.array(rgb, dtype=np.int16)
+                    diff = np.abs(screenshot - target)
+                    mask = np.all(diff <= thr, axis=-1)
 
-                    time.sleep(wait_time)
+                    if np.any(mask):
+                        return True
+
             return False
 
         async with pixel_semaphore:
-            return await loop.run_in_executor(None, blocking_check)
-
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(THREAD_POOL, blocking_check)
 
     def is_running(self) -> bool:
         """

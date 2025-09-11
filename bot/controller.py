@@ -25,18 +25,24 @@ class ProfileController:
 
     def start_windows(self, profile_class, nicks):
         async def start_seq():
+            windows = findAllWindows()
+            tasks = []
+
             for nick in nicks:
-                window_info = findAllWindows()[nick]
+                window_info = windows[nick]
                 settings = load_settings(nick)
                 if not settings:
                     log(f"Нет настроек, создаём из базы...", nick)
                     settings = BaseSettings(**default_values)
                     save_settings(nick, settings)
 
-                await self.bot_manager.start_bot(profile_class, nick, window_info,
-                                                 settings)
+                task = asyncio.create_task(
+                    self.bot_manager.start_bot(profile_class, nick, window_info,
+                                               settings)
+                )
+                tasks.append(task)
 
-                await asyncio.sleep(random.uniform(0.5, 1.5))
+            await asyncio.gather(*tasks)
 
         asyncio.run_coroutine_threadsafe(start_seq(), self.loop)
 

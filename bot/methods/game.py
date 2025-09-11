@@ -159,7 +159,7 @@ async def energo_mode(profile, state: str) -> bool:
 
     elif state == "on":
         await profile.mouse.click(profile.window_info, button_x, button_y)
-        await asyncio.sleep(0.9)
+        await asyncio.sleep(1.5)
         center_x = width // 2
         center_y = height // 2
         await profile.mouse.click(profile.window_info, center_x, center_y)
