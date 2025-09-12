@@ -3,6 +3,7 @@ import datetime
 import functools
 import os
 import time
+import random
 from collections import deque
 
 import mss
@@ -10,7 +11,7 @@ from aiogram.types import FSInputFile
 
 from bot.clogger import log
 from interception import inputs
-from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes
+from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes, curve
 from bot.constans import SCREENSHOT_DIR
 
 
@@ -33,6 +34,53 @@ def screenshot_window(window_info, tg: bool = False):
         return FSInputFile(filepath)
     return filepath
 
+def curv(p0, p1, p2, steps=70):
+    path = []
+    for t in [i / steps for i in range(steps + 1)]:
+        x = int((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t ** 2 * p2[0])
+        y = int((1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t ** 2 * p2[1])
+        path.append((x, y))
+    return path
+
+
+def move_human(window_info, x_offset, y_offset):
+    window_id, window = next(iter(window_info.items()))
+    x_pos, y_pos = window["Position"]
+    target_x = x_pos + x_offset
+    target_y = y_pos + y_offset
+
+    if not curve:
+        inputs.move_to(target_x, target_y)
+        return
+
+    cur_x, cur_y = inputs.mouse_position()
+
+    cp_x = cur_x + (target_x - cur_x) * random.uniform(0.3, 0.7) + random.randint(-50, 50)
+    cp_y = cur_y + (target_y - cur_y) * random.uniform(0.3, 0.7) + random.randint(-50, 50)
+
+    steps = random.randint(45, 65)
+    path = curv((cur_x, cur_y), (cp_x, cp_y), (target_x, target_y), steps=steps)
+
+    for px, py in path:
+        jitter_x = px + random.randint(-1, 1)
+        jitter_y = py + random.randint(-1, 1)
+        inputs.move_to(jitter_x, jitter_y)
+        t = path.index((px, py)) / len(path)
+        delay = 0.003
+        # возможно тайм слип не лучший варик, надо тестить крч
+        time.sleep(delay)
+
+    inputs.move_to(target_x, target_y)
+
+
+def click_human(window_info, x_offset, y_offset, button="left"):
+    move_human(window_info, x_offset, y_offset)
+    time.sleep(random.uniform(0.05, 0.08))
+    inputs.mouse_down(button)
+    time.sleep(random.uniform(0.02, 0.04))
+    inputs.mouse_up(button)
+    return True
+
 def move_mouse(window_info, x_offset, y_offset):
     window_id, window = next(iter(window_info.items()))
     x_pos, position_y = window["Position"]
@@ -41,13 +89,14 @@ def move_mouse(window_info, x_offset, y_offset):
     inputs.move_to(abs_x, abs_y)
     time.sleep(0.01)
 
+
 def click_mouse(window_info, x_offset, y_offset, button="left"):
     window_id, window = next(iter(window_info.items()))
     x_pos, position_y = window["Position"]
     abs_x = x_pos + x_offset
     abs_y = position_y + y_offset
     inputs.move_to(abs_x, abs_y)
-    time.sleep(0.05)
+    time.sleep(0.03)
     inputs.mouse_down(button)
     time.sleep(0.01)
     inputs.mouse_up(button)
@@ -182,7 +231,8 @@ class MouseEvents:
                 async with move_semaphore:
                     await loop.run_in_executor(
                         None,
-                        functools.partial(move_mouse, window_info, x_offset, y_offset)
+                        functools.partial(move_human if curve else move_mouse,
+                                          window_info, x_offset, y_offset)
                     )
             except Exception as e:
                 log(f"Ошибка движения мыши: {e}", self.tname)
@@ -236,7 +286,8 @@ class MouseEvents:
                     first_x, first_y = points[0]
                     await loop.run_in_executor(
                         None,
-                        functools.partial(move_mouse, window_info, first_x, first_y)
+                        functools.partial(move_human if curve else move_mouse,
+                                          window_info, first_x, first_y)
                     )
                     await asyncio.sleep(0.08)
 
@@ -245,7 +296,8 @@ class MouseEvents:
                     for x, y in points[1:]:
                         await loop.run_in_executor(
                             None,
-                            functools.partial(move_mouse, window_info, x, y)
+                            functools.partial(move_human if curve else move_mouse,
+                                              window_info, x, y)
                         )
                         await asyncio.sleep(delay_points)
 
@@ -263,5 +315,6 @@ class MouseEvents:
         async with click_semaphore:
             await loop.run_in_executor(
                 None,
-                functools.partial(click_mouse, window_info, x_offset, y_offset, button)
+                functools.partial(click_human if curve else click_mouse,
+                                  window_info, x_offset, y_offset, button)
             )
