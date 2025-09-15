@@ -18,18 +18,10 @@ def findAllWindows():
             "Width": window.width,  # ширина окна
             "Height": window.height,  # высота окна
             "Size": f"{window.width}x{window.height}",  # размер окна (ширина x высота)
-            "Active": window.isActive,  # активно ли (булево)
-            "Stashing": 0,
-            "State": "null",
-            "Energo": "null",
-            "InHome": "null",
         }
         if nick != "No":
             window_info[nick] = info
-        else:
-            log(f"Не будем обрабатывать окно без ника ({window.title})", level="ERROR")
 
-    #log(len(window_info))
     return window_info
 
 def getProfiles(profiles_path="profiles"):

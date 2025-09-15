@@ -6,6 +6,7 @@ import keyboard
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QSize
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import (
+    QDialog,
     QInputDialog,
     QLabel,
     QMessageBox,
@@ -16,10 +17,12 @@ from PyQt5.QtWidgets import (
 
 from bot.controller import ProfileController
 from bot.utils import findAllWindows
+from bot.windows.settings_loader import load_settings
 from bot.clogger import log
 from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
 from gui.styles import STYLE, UPD
+from gui.region_selector import Selector
 from bot.updater import needs_update, update, get_my_version
 
 
@@ -169,7 +172,14 @@ class NedoGui(QWidget):
             QMessageBox.information(self, "Info", "Окон не найдено")
             return
 
+        new_windows = [nick for nick in windows if load_settings(nick) is None]
+        if new_windows:
+            regions = self.ask_region(new_windows)
+            for nick, region in regions.items():
+                load_settings(nick, region=region)
+
         profile_name = profile_class.__name__
+
         if profile_name == "PvPDodge":
             self.start_windows(profile_class, windows)
             return
@@ -213,6 +223,13 @@ class NedoGui(QWidget):
     def stop_profile(self):
         nicks = list(self.controller.bot_manager.bots.keys())
         self.stop_windows(nicks)
+
+    def ask_region(self, new_windows: list[str]) -> dict[str, str]:
+        dlg = Selector(new_windows, self)
+        if dlg.exec_() == QDialog.Accepted:
+            return dlg.get_regions()
+
+        return {nick: "RU" for nick in new_windows}
 
     def show_update_button(self):
         if hasattr(self, 'btn_update'):

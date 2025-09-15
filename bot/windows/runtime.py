@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, Union
 
-from bot.constans import GLOBAL_STATES, CBT_JP
+from bot.constans import GLOBAL_STATES, CBT_JP, CBT_RU
 from bot.events.enums import OverWeight
 
 
@@ -130,17 +130,22 @@ class RuntimeData:
         self.has_quiver = None
         self.last_mapping = None
 
-    def record_capture(self, xy: Tuple[int, int], rgb: Union[Tuple[int,int,int], str]) -> None:
+    def record_capture(self, xy: Tuple[int, int], rgb: Union[Tuple[int,int,int], str], profile: Optional[Any] = None) -> None:
         xy_str = f"{xy[0]}, {xy[1]}"
         matched_key = None
 
-        for key, value in CBT_JP.items():
+        if profile is not None:
+            region = getattr(getattr(profile, "settings", {}), "REGION", "").upper()
+
+        cbt_map = CBT_JP if region == "JP" else CBT_RU
+
+        for key, value in cbt_map.items():
             if xy_str in value or (isinstance(rgb, str) and rgb in value):
                 matched_key = key
                 break
 
         if matched_key is None:
-            matched_key = "unknown"
+            matched_key = f"bug {xy_str}"
 
         if matched_key not in self.captures:
             self.captures[matched_key] = []

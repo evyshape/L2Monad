@@ -22,7 +22,7 @@ class EventsChecker:
         return self._last_time.get(window_id, {}).get(event_type)
 
     async def _monitor_pvp(self, window_id: str, profile: BaseProfile) -> None:
-        xy, rgb = parseCBT("pvp_energo_trigger")
+        xy, rgb = parseCBT("pvp_energo_trigger", profile=profile)
 
         while profile.running:
             found = await profile.check_pixel(xy, rgb, timeout=0.15, thr=4)
@@ -47,9 +47,9 @@ class EventsChecker:
             profile.runtime_data.has_quiver = quiver_status
 
         if profile.runtime_data.has_quiver is True:
-            xy, rgb = parseCBT("q_hp_bank_in_energo")
+            xy, rgb = parseCBT("q_hp_bank_in_energo", profile=profile)
         if profile.runtime_data.has_quiver is False:
-            xy, rgb = parseCBT("hp_bank_in_energo")
+            xy, rgb = parseCBT("hp_bank_in_energo", profile=profile)
 
         while profile.running:
             checks = 0
@@ -72,7 +72,7 @@ class EventsChecker:
                     last_events["hp_bank"] = now
 
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(3)
 
     async def _monitor_soska(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
@@ -80,9 +80,9 @@ class EventsChecker:
             profile.runtime_data.has_quiver = quiver_status
 
         if profile.runtime_data.has_quiver is True:
-            xy, rgb = parseCBT("q_soska_in_energo")
+            xy, rgb = parseCBT("q_soska_in_energo", profile=profile)
         if profile.runtime_data.has_quiver is False:
-            xy, rgb = parseCBT("soska_in_energo")
+            xy, rgb = parseCBT("soska_in_energo", profile=profile)
 
         while profile.running:
             checks = 0
@@ -247,7 +247,7 @@ class EventsChecker:
                           OverWeight.ZERO]:
 
                 cb_key = coords[level]
-                xy, rgb = parseCBT(cb_key)
+                xy, rgb = parseCBT(cb_key, profile=profile)
                 found = await profile.check_pixel(xy, rgb, timeout=4, thr=0)
                 if found:
                     detected_level = level
@@ -287,7 +287,7 @@ class EventsChecker:
 
             tasks = []
             for cb_key in hp_keys:
-                xy, rgb = parseCBT(cb_key)
+                xy, rgb = parseCBT(cb_key, profile=profile)
                 tasks.append(
                     profile.check_pixel(xy, rgb, timeout=3, thr=31, wsize="1x1")
                 )  # todo подобрать идеальный thr

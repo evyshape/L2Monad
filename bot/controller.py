@@ -1,15 +1,12 @@
 import asyncio
 import threading
 import ctypes
-import time
-import random
-
 from bot.clogger import log
 
 from bot.manager import BotManager
 from bot.utils import findAllWindows, getProfiles
-from bot.windows.base import BaseSettings, default_values
-from bot.windows.settings_loader import load_settings, save_settings
+from bot.constans import SUPPORTED_REZ
+from bot.windows.settings_loader import load_settings
 
 class ProfileController:
     _instance = None
@@ -30,11 +27,11 @@ class ProfileController:
 
             for nick in nicks:
                 window_info = windows[nick]
+                if window_info["Size"] not in SUPPORTED_REZ:
+                    log(f"Окно {nick} имеет насраное разрешение, чини | {window_info['Size']}\nПоддерживаемые: {SUPPORTED_REZ}", level="ERROR")
+                    continue
+
                 settings = load_settings(nick)
-                if not settings:
-                    log(f"Нет настроек, создаём из базы...", nick)
-                    settings = BaseSettings(**default_values)
-                    save_settings(nick, settings)
 
                 task = asyncio.create_task(
                     self.bot_manager.start_bot(profile_class, nick, window_info,

@@ -196,8 +196,8 @@ class PvPDodge(BaseProfile):
         self.runtime_data.update_dodge_attempt()
         x = False
         window_id, window = next(iter(self.window_info.items()))
-        xy, rgb = parseCBT("home_scroll_button_energomode")
-        xy2, rgb2 = parseCBT("home_scroll_button_no_energomode")
+        xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
+        xy2, rgb2 = parseCBT("home_scroll_button_no_energomode", profile=self)
 
         if xy is None:
             return
@@ -263,7 +263,7 @@ class PvPDodge(BaseProfile):
             return
 
         self.runtime_data.current_state = "shopping"
-        xy, rgb = parseCBT("home_scroll_button_energomode")
+        xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
         if xy is None:
             return
         click_x = xy[0]
@@ -496,7 +496,7 @@ class PvPDodge(BaseProfile):
 
         self.events_checker.stop_monitoring(window_id)
         self.runtime_data.set_state("pvp")
-        xy, rgb = parseCBT("pvp_energo_trigger")
+        xy, rgb = parseCBT("pvp_energo_trigger", profile=self)
         click_x, click_y = xy
         await self.mouse.click(self.window_info, click_x, click_y, fast=True)
 

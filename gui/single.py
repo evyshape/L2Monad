@@ -15,9 +15,11 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
 )
 
+from bot.windows.settings_loader import load_settings
 from bot.controller import ProfileController  # синглтон
 from bot.utils import findAllWindows
 from gui.styles import STYLE, NICK_STYLE, SCROLL
+from gui.region_selector import Selector
 
 
 PROJECT_ROOT = os.getcwd()
@@ -217,6 +219,17 @@ class WindowControlDialog(QDialog):
         self.window_active_profile.pop(nick, None)
 
     def start_profile(self, nick, profile_class, label, profile_name):
+        settings = load_settings(nick)
+        if not settings:
+            dlg = Selector([nick], self)
+            if dlg.exec_() == QDialog.Accepted:
+                regions = dlg.get_regions()
+                region = regions.get(nick, "RU")
+            else:
+                region = "RU"  # дефолт
+
+            load_settings(nick, region=region)
+
         label.setText(profile_name)
         self.controller.start_windows(profile_class, [nick])
         QTimer.singleShot(100, lambda: self.update_buttons(nick))

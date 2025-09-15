@@ -130,7 +130,7 @@ class BaseProfile(ABC):
         if rgb == "no":
             return True
 
-        self.runtime_data.record_capture(xy, rgb)
+        self.runtime_data.record_capture(xy, rgb, profile=self)
 
         def blocking_check():
             try:
