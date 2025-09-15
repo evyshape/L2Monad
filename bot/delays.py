@@ -7,6 +7,7 @@ DELAY_CHECK_NPC_POSITIONS = 1.7 # задержка на проверку ВСЕ�
 DELAY_TELEPORT_TO_HOME = 3.4 # задержка для wait_teleport, не меняйте
 DELAY_AUTOHUNT_CHECK = 5 # задержка на проверку автоохоты
 DELAY_PVP_ANSWER = 20 # таймаут на пвп ответ
+PVP_CHECK_DELAY = 0.15
 
 # ПОРОГИ
 

@@ -38,7 +38,8 @@ async def setup_bot(bot: Bot):
         await bot.set_my_short_description(short_description=ex_short)
 
     commands = [
-        types.BotCommand(command="start", description="пока ничего не делает"),
+        types.BotCommand(command="start", description="Приветственное"),
         types.BotCommand(command="menu", description="Открыть меню"),
+        types.BotCommand(command="logs", description="Открыть управление логами"),
     ]
     await bot.set_my_commands(commands)

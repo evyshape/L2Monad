@@ -86,3 +86,22 @@ def checkDriver() -> bool:
 
     log(f"Драйвер работает! | Клава={_g_context.keyboard} | Мышь={_g_context.mouse}")
     return _g_context.keyboard, _g_context.mouse
+
+def getLogs():
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    lpath = os.path.join(base_dir, "logs")
+    all_logs = []
+
+    if not os.path.exists(lpath) or not os.path.isdir(lpath):
+        #log(f"Папка {lpath} не найдена", level="ERROR")
+        return all_logs
+
+    for fname in os.listdir(lpath):
+        fpath = os.path.join(lpath, fname)
+        if os.path.isfile(fpath):
+            all_logs.append({
+                "Name": fname,
+                "Path": fpath
+            })
+
+    return all_logs

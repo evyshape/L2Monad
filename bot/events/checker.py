@@ -3,7 +3,7 @@ import time
 from typing import Dict
 
 from bot.clogger import log
-
+from bot.delays import PVP_CHECK_DELAY
 from bot.events.events import EventsManager
 from bot.events.enums import MonitorType, OverWeight
 from bot.methods.base import parseCBT
@@ -25,7 +25,7 @@ class EventsChecker:
         xy, rgb = parseCBT("pvp_energo_trigger")
 
         while profile.running:
-            found = await profile.check_pixel(xy, rgb, timeout=0.4, thr=8)
+            found = await profile.check_pixel(xy, rgb, timeout=0.15, thr=4)
 
             if found:
                 now = time.monotonic()
@@ -37,9 +37,9 @@ class EventsChecker:
                     log(f"ПВП ивент отправлен в {window_id}", self.tname)
                     last_events["pvp"] = now
 
-                await asyncio.sleep(15)
+                await asyncio.sleep(3)
             else:
-                await asyncio.sleep(2)
+                await asyncio.sleep(PVP_CHECK_DELAY)
 
     async def _monitor_hp_bank(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:

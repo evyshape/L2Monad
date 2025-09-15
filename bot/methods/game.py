@@ -573,12 +573,14 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                 log("Умер прямо в момент тпшки в город, ресаюсь", window_id)
                 res = await respawn(profile)
                 if res:
-                    path = screenshot_window(profile.window_info)
                     if profile.settings.TELEGRAM_NOTIFIES:
-                        profile.tgbot.send_notification(
-                            level="error",
-                            text=f"Скорее всего мы сломались, сохранил скриншот: {path}",
+                        screenn = screenshot_window(profile.window_info, tg=True)
+                        profile.tgbot.send_pic(
+                            photo=screenn,
+                            caption="Кажись залипли, #важно",
+                            parse_mode="HTML",
                             nickname=window_id,
+                            reply_markup=delete_screenshot_kb()
                         )
                     log("Встал, верну False", window_id)
                     return False, None

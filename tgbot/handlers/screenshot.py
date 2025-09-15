@@ -32,4 +32,4 @@ async def take_screenshot(callback: CallbackQuery):
 @admin_only
 async def delete_screenshot(callback: CallbackQuery):
     await callback.message.delete()
-    await callback.answer("🗑️ Скрин удалён!", show_alert=False)
+    await callback.answer("🗑️", show_alert=False)

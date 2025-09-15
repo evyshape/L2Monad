@@ -7,6 +7,7 @@ from .windows import router as windows_router
 from .ignore import router as ignore_router
 from .global_menu import router as global_menu_router
 from .prank import router as prank_router
+from .logs import router as logs_router
 
 all_routers = [
     start_router,
@@ -18,4 +19,5 @@ all_routers = [
     ignore_router,
     global_menu_router,
     prank_router,
+    logs_router,
 ]
