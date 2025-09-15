@@ -88,7 +88,7 @@ def checkDriver() -> bool:
     return _g_context.keyboard, _g_context.mouse
 
 def getLogs():
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    base_dir = os.path.dirname(os.path.dirname(__file__))
     lpath = os.path.join(base_dir, "logs")
     all_logs = []
 

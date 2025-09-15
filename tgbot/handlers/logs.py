@@ -47,11 +47,11 @@ async def open_log(callback: CallbackQuery):
     try:
         with open(p, "r", encoding="utf-8", errors="ignore") as f:
             lines = f.readlines()
-            preview = lines[-15:] if len(lines) > 15 else lines
+            preview = lines[-8:] if len(lines) > 8 else lines
     except Exception as e:
         preview = [f"⚠️ Ошибка: {e}"]
 
     preview_t = "".join(preview).strip() + "\n"
 
-    await callback.message.answer_document(FSInputFile(p), caption=f"📄 <b>{filename}</b>\n\n<pre>{preview_t}</pre>", parse_mode="HTML", reply_markup=delete_screenshot_kb())
+    await callback.message.answer_document(FSInputFile(p), caption=f"📄 <b>{filename}</b>\n<pre>{preview_t}</pre>", parse_mode="HTML", reply_markup=delete_screenshot_kb())
     await callback.answer()
