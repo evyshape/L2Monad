@@ -131,9 +131,9 @@ class PvPDodge(BaseProfile):
         if respawned:
             self.events_checker.stop_monitoring(window_id)
             log("Стопнул мониторинг новых ивентов на время сна", window_id)
-            if not await check_energo_mode(self):
-                await energo_mode(self, "on")
-                await asyncio.sleep(1)
+            await asyncio.sleep(9)
+            await energo_mode(self, "on")
+            await asyncio.sleep(1)
 
             await asyncio.sleep(SLEEP_AFTER_RIP)
             log("Поспал 5 минут, пробую выкупить опыт и шмотки", window_id)
