@@ -324,7 +324,7 @@ async def find_quiver(profile) -> bool:
 
 async def wait_teleport(profile, need: int = 7) -> bool:
     xy1, rgb1 = parseCBT("zalupka_gui", profile=profile)
-    print(xy1, rgb1)
+    #print(xy1, rgb1)
     window_id = next(iter(profile.window_info))
     success = 0
     await asyncio.sleep(2)
@@ -332,7 +332,7 @@ async def wait_teleport(profile, need: int = 7) -> bool:
     for _ in range(need):
         await asyncio.sleep(0.25)
         teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=18 if profile.settings.REGION == "RU" else 2)
-        print(teleported)
+        #print(teleported)
         if teleported:
             success += 1
 

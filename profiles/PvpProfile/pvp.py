@@ -10,7 +10,7 @@ from profiles.base import BaseProfile
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.methods.base import parseCBT
-from bot.delays import DELAY_PVP_ANSWER
+from bot.delays import DELAY_PVP_ANSWER, SLEEP_AFTER_RIP, MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP
 from bot.methods.other import MouseEvents, screenshot_window
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.methods.game import (
@@ -135,7 +135,7 @@ class PvPDodge(BaseProfile):
                 await energo_mode(self, "on")
                 await asyncio.sleep(1)
 
-            await asyncio.sleep(300)
+            await asyncio.sleep(SLEEP_AFTER_RIP)
             log("Поспал 5 минут, пробую выкупить опыт и шмотки", window_id)
             if await check_energo_mode(self):
                 await energo_mode(self, "off")
@@ -223,7 +223,7 @@ class PvPDodge(BaseProfile):
 
         result = await wait_teleport(self)
         if result and not x:
-            sleept = randint(2, 5)
+            sleept = randint(MIN_PVP_DODGE_SLEEP, MAX_PVP_DODGE_SLEEP)
             await energo_mode(self, "on")
             log(f"Сплю {sleept} минут", window_id)
             self.runtime_data.update_last_succ_dodge()

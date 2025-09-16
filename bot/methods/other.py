@@ -12,6 +12,7 @@ from aiogram.types import FSInputFile
 from bot.clogger import log
 from interception import inputs
 from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes, curve
+from bot.delays import CLICK_DELAY
 from bot.constans import SCREENSHOT_DIR
 
 
@@ -221,7 +222,7 @@ class MouseEvents:
             finally:
                 self.clear = False
                 done_event.set()
-                await asyncio.sleep(0.18)
+                await asyncio.sleep(CLICK_DELAY)
 
         elif action == "move":
             _, window_info, x_offset, y_offset, done_event = task

@@ -1,6 +1,7 @@
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
+from bot.methods.game import find_daily
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.clogger import log
@@ -28,14 +29,12 @@ class Test(BaseProfile):
         return "Test gamno"
 
     async def main_loop(self):
-        window_id = next(iter(self.window_info))
+        window_id, window = next(iter(self.window_info.items()))
+        left, top = window["Position"]
+        width, height = window["Width"], window["Height"]
         try:
-            self.events_checker.start_monitoring(window_id, self,
-                                                 monitors=[MonitorType.HEALTH])
-            self._event_worker_task = asyncio.create_task(self._event_worker())
 
-            while self.running:
-                await asyncio.sleep(1)
+            await find_daily(self, self.window_info, left, top, width, height)
 
         except asyncio.CancelledError:
             log("Профиль остановлен вручную", window_id)

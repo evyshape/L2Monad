@@ -144,12 +144,11 @@ class BaseSettings:
         except Exception as e:
             raise ValueError( f"Ошибка в SCHEDULE_SCHEDULE: {self.SCHEDULE_SCHEDULE} — {e}")
 
-#TODO добавить выбор региона по умолчанию
 default_values = {
     "REGION": "RU",
     "PVP_EVADE": True,
     "PVP_ANSWER": False,
-    "HEALTH_BACK": [20, 30],
+    "HEALTH_BACK": [20, 30, 40],
     "HP_BANK_CHECKER": True,
     "SOSKA_CHECKER": False,
     "DEATH_CHECKER": True,
@@ -160,7 +159,7 @@ default_values = {
     "SCHEDULE_REWARDS": "21:00",
     "SCHEDULE_SCHEDULE": "",
     "SCHEDULE_AUCTION": "",
-    "DONATE_SHOP_PAGES": "2",
+    "DONATE_SHOP_PAGES": "1|2",
     "SPOT_OT": 1,
     "SPOT_DO": 1,
     "TELEGRAM_NOTIFIES": True,
