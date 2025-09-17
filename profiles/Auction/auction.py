@@ -1,3 +1,5 @@
+import random
+
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
 from bot.methods.game import auction_rereg, energo_mode, check_energo_mode
@@ -30,9 +32,10 @@ class Auction(BaseProfile):
             rereged = await auction_rereg(self)
 
             if not rereged:
-                log("Шось жоско сломалось =(", window_id)
+                log("Шось сломалось либо не смог перевыставить аук", window_id)
 
             if x:
+                await asyncio.sleep(random.randint(1, 5))
                 await energo_mode(self, "on")
                 await asyncio.sleep(1)
 

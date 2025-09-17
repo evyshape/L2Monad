@@ -1,7 +1,7 @@
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import find_daily
+from bot.methods.game import find_daily, get_npc_positions
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.clogger import log
@@ -30,11 +30,10 @@ class Test(BaseProfile):
 
     async def main_loop(self):
         window_id, window = next(iter(self.window_info.items()))
-        left, top = window["Position"]
-        width, height = window["Width"], window["Height"]
         try:
 
-            await find_daily(self, self.window_info, left, top, width, height)
+            r = await get_npc_positions(self)
+            log(r, window_id)
 
         except asyncio.CancelledError:
             log("Профиль остановлен вручную", window_id)

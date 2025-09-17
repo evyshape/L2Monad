@@ -88,7 +88,7 @@ class EventsChecker:
             checks = 0
             # print(1)
             for _ in range(4):
-                found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7)
+                found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7, wsize="1x1")
                 # print(found)
                 if found:
                     checks += 1

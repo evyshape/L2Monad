@@ -6,6 +6,7 @@ import keyboard
 from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QSize
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtWidgets import (
+    QHBoxLayout,
     QDialog,
     QInputDialog,
     QLabel,
@@ -21,6 +22,7 @@ from bot.windows.settings_loader import load_settings
 from bot.clogger import log
 from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
+from gui.settings_changer import SettingsChanger
 from gui.styles import STYLE, UPD
 from gui.region_selector import Selector
 from bot.updater import needs_update, update, get_my_version
@@ -75,7 +77,7 @@ class NedoGui(QWidget):
         self.profiles = self.controller.profiles
         self.load_window_position()
         self.init_ui()
-        keyboard.add_hotkey("F10", self.stop_profile)
+        keyboard.add_hotkey("F10", self.stop_profile) # это кто-то юзает?
         self.update_checker = UpdateChecker()
         self.update_checker.update_available.connect(self.show_update_button)
         self.update_checker.start()
@@ -129,7 +131,6 @@ class NedoGui(QWidget):
         self.btn_otdel.clicked.connect(self.open_otdel)
         self.layout_main.addWidget(self.btn_otdel)
 
-
         for name, cls in self.profiles.items():
             btn = QPushButton(f"{name} ВСЕ")
             btn.setFont(font_btn)
@@ -145,16 +146,31 @@ class NedoGui(QWidget):
         self.btn_stop_all.clicked.connect(self.stop_profile)
         self.layout_main.addWidget(self.btn_stop_all)
 
+        layout_ver = QHBoxLayout()
+
+        self.btn_settings = QPushButton("⚙️")
+        self.btn_settings.setFixedSize(25, 25)
+        self.btn_settings.setCursor(Qt.PointingHandCursor)
+        self.btn_settings.clicked.connect(self.open_settings)
+        layout_ver.addWidget(self.btn_settings, alignment=Qt.AlignLeft)
+
         version = QLabel(f"v{get_my_version()} | tg: @BotLineage2M")
         version.setStyleSheet("color: gray; font-size: 8pt;")
-        version.setAlignment(Qt.AlignLeft | Qt.AlignBottom)
-        self.layout_main.addWidget(version)
+        version.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        layout_ver.addWidget(version, stretch=1)
+
+        self.layout_main.addLayout(layout_ver)
 
         self.setLayout(self.layout_main)
         self.setStyleSheet(STYLE)
 
         if needs_update():
             self.show_update_button()
+
+    def open_settings(self):
+        self.settings_win = SettingsChanger()
+        self.settings_win.setWindowModality(Qt.NonModal)
+        self.settings_win.show()
 
     def open_otdel(self):
         self.dlg = WindowControlDialog(self)

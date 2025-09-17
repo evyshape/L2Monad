@@ -168,6 +168,7 @@ async def energo_mode(profile, state: str) -> bool:
     return False
 
 async def auction_rereg(profile) -> bool:
+    window_id, window = next(iter(profile.window_info.items()))
 
     async def wait_and_click(tag, timeout=5, thr=3):
         xy, rgb = parseCBT(tag, profile=profile)
@@ -177,54 +178,66 @@ async def auction_rereg(profile) -> bool:
             return True
         return False
 
+    need = ["auction_server_market_server", "auction_server_market_global"]
+    succ = []
+    failed = []
+
     if not await wait_and_click("main_menu_gui", timeout=7):
-        #log(f"Не удалось открыть главное меню", window_id)
+        log(f"Не удалось открыть главное меню В АУКЕ", window_id)
         return False
 
     if not await wait_and_click("auction_menu", timeout=4):
+        log(f"Не удалось ткнуть по auction_menu", window_id)
         return False
 
     await asyncio.sleep(0.3)
 
-    if not await wait_and_click("auction_sell_page", timeout=4):
-        await wait_and_click("main_menu_gui", timeout=1)
-        #print(1)
-        return False
+    for k in need:
+        try_success = True
 
-    await asyncio.sleep(0.3)
+        if not await wait_and_click(k, timeout=4):
+            log(f"Не удалось ткнуть по {k}", window_id)
+            try_success = False
+        else:
+            await asyncio.sleep(3)
 
-    if not await wait_and_click("auction_sell_select_all_active", timeout=4):
-        await wait_and_click("main_menu_gui", timeout=1)
-        #print(2)
-        return False
+        if try_success and not await wait_and_click("auction_sell_page", timeout=5):
+            log(f"Не удалось ткнуть по auction_sell_page для {k}", window_id)
+            try_success = False
 
-    await asyncio.sleep(0.3)
+        if try_success and not await wait_and_click("auction_sell_select_all_active", timeout=5):
+            log(f"Не удалось ткнуть по auction_sell_select_all_active для {k}", window_id)
+            try_success = False
 
-    if not await wait_and_click("auction_sell_reregister_active", timeout=4):
-        await wait_and_click("main_menu_gui", timeout=1)
-        #print(3)
-        return False
+        if try_success and not await wait_and_click("auction_sell_reregister_active", timeout=5):
+            log(f"Не удалось ткнуть по auction_sell_reregister_active для {k}", window_id)
+            try_success = False
 
-    await asyncio.sleep(0.3)
+        if try_success and not await wait_and_click("auction_sell_reregister_confirm", timeout=5):
+            log(f"Не удалось ткнуть по auction_sell_reregister_confirm для {k}", window_id)
+            try_success = False
 
-    if not await wait_and_click("auction_sell_reregister_confirm", timeout=4):
-        await wait_and_click("main_menu_gui", timeout=1)
-        #print(4)
-        return False
+        await asyncio.sleep(0.3)
 
-    await asyncio.sleep(0.3)
+        if try_success:
+            xy, rgb = parseCBT("auction_sell_select_all_inactive", profile=profile)
+            waited = await profile.check_pixel(xy, rgb, timeout=70, thr=0)
+            if waited:
+                succ.append(k)
+            else:
+                failed.append(k)
+        else:
+            failed.append(k)
 
-    xy, rgb = parseCBT("auction_sell_select_all_inactive", profile=profile)
-    waited = await profile.check_pixel(xy, rgb, timeout=70, thr=0)
 
-    if waited:
-        log("Успешно перевыставил аук!")
-        await wait_and_click("main_menu_gui", timeout=1)
-    else:
-        await wait_and_click("main_menu_gui", timeout=1)
-        #todo
+    if succ:
+        log(f"Успешно перевыставил аук! | {succ}", window_id)
+    if failed:
+        log(f"Не удалось перевыставить аук! | {failed}", window_id)
 
-    return True
+    await wait_and_click("main_menu_gui", timeout=1)
+
+    return bool(succ)
 
 async def autohunt(profile) -> bool:
     button_xy, button_rgb = parseCBT("auto_combat_mode_gui", profile=profile)
@@ -580,6 +593,12 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                 log("Умер прямо в момент тпшки в город, ресаюсь", window_id)
                 res = await respawn(profile)
                 if res:
+                    await asyncio.sleep(2)
+                    allNPC = await get_npc_positions(profile)
+                    if allNPC:
+                        log("Список нпс уже открыт, мы в городе", window_id)
+                        return True, allNPC
+
                     if profile.settings.TELEGRAM_NOTIFIES:
                         screenn = screenshot_window(profile.window_info, tg=True)
                         profile.tgbot.send_pic(

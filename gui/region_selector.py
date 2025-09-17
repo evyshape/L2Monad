@@ -3,7 +3,10 @@ from PyQt5.QtWidgets import (
     QPushButton, QHBoxLayout, QWidget, QScrollArea
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon
+import os
 
+FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
 
 class Selector(QDialog):
     def __init__(self, new_windows: list[str], parent=None):
@@ -14,6 +17,7 @@ class Selector(QDialog):
         main_layout = QVBoxLayout(self)
 
         msg = QLabel("Нашёл новые окна, настрой плиз регион:")
+        self.setWindowIcon(QIcon(FAVICON))
         msg.setAlignment(Qt.AlignCenter)
         msg.setStyleSheet("font-weight: bold; font-size: 11pt; margin: 6px;")
         main_layout.addWidget(msg)

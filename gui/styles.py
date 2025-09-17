@@ -87,3 +87,19 @@ QPushButton:pressed {
     color: #ffffff;
 }
 """
+
+CARD = """
+    QFrame {
+        border: 1px solid #666;
+        border-radius: 2px;
+        background-color: #3a3a3a;
+    }
+    QFrame[selected="true"] {
+        background-color: #2a82da;
+        border: 2px solid #0077ff;
+    }
+    QLabel {
+        font-size: 9px;
+        color: #f0f0f0;
+    }
+"""

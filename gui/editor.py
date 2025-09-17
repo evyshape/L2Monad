@@ -1,0 +1,239 @@
+from PyQt5.QtWidgets import (
+    QButtonGroup, QComboBox, QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
+    QLabel, QCheckBox, QLineEdit, QSpinBox, QDialogButtonBox
+)
+from PyQt5.QtCore import Qt
+from bot.windows.settings_loader import save_settings
+from bot.clogger import log
+from gui.styles import STYLE
+from PyQt5.QtGui import QIcon
+import os
+
+FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
+
+
+class Editor(QDialog):
+    def __init__(self, nick, settings, p=None, apply_to=None):
+        super().__init__(p)
+        self.nick = nick
+        self.settings = settings
+        self.apply_to = apply_to or [nick] # оч жесткий костыль #todo починить и добавить mode=some
+
+        self.setWindowTitle(f"⚙️ Настройки") # мб сюда пхнуть ник окна либо "⚙️ Настройки множества"
+        self.resize(480, 580)
+        self.setWindowIcon(QIcon(FAVICON))
+        self.widgets = {}
+        ml = QVBoxLayout()
+        ml.setAlignment(Qt.AlignTop)
+        ml.setContentsMargins(10, 10, 10, 10)
+        ml.setSpacing(8)
+
+        rb = self._spawn("🌍 Регион")
+        rl = QHBoxLayout()
+        self.region_ru = QCheckBox("RU")
+        self.region_jp = QCheckBox("JP")
+        self.region_group = QButtonGroup(self)
+        self.region_group.setExclusive(True)
+        self.region_group.addButton(self.region_ru)
+        self.region_group.addButton(self.region_jp)
+        if settings.REGION == "RU":
+            self.region_ru.setChecked(True)
+        else:
+            self.region_jp.setChecked(True)
+        rl.addWidget(self.region_ru)
+        rl.addWidget(self.region_jp)
+        rb.setLayout(rl)
+        ml.addWidget(rb)
+
+        pb = self._spawn("⚔️ PVP")
+        pl = QHBoxLayout()
+        self.pvp_evade = QCheckBox("Додж")
+        self.pvp_answer = QCheckBox("Ответ")
+        self.pvp_evade.setChecked(settings.PVP_EVADE)
+        self.pvp_answer.setChecked(settings.PVP_ANSWER)
+        self.pvp_evade.stateChanged.connect(self._pvp_changed)
+        self.pvp_answer.stateChanged.connect(self._pvp_changed)
+        pl.addWidget(self.pvp_evade)
+        pl.addWidget(self.pvp_answer)
+        pb.setLayout(pl)
+        ml.addWidget(pb)
+
+        self.hb = self._spawn("❤️ Пороги для улета после ответа")
+        self.hg = QGridLayout()
+        self.hc = []
+        for i, val in enumerate(range(10, 100, 10)):
+            cb = QCheckBox(str(val))
+            if val in settings.HEALTH_BACK:
+                cb.setChecked(True)
+            self.hc.append(cb)
+            self.hg.addWidget(cb, i // 5, i % 5, Qt.AlignCenter)
+        self.hb.setLayout(self.hg)
+        ml.addWidget(self.hb)
+
+        self._health() # если включено пвп в ответе то монитор хп над показывать
+
+        self._add_pack(ml, "🧪 Переключалки", {
+            "HP_BANK_CHECKER": settings.HP_BANK_CHECKER,
+            "SOSKA_CHECKER": settings.SOSKA_CHECKER,
+            "DEATH_CHECKER": settings.DEATH_CHECKER,
+            "OVERWEIGHT_CHECKER": settings.OVERWEIGHT_CHECKER,
+            "TELEGRAM_NOTIFIES": settings.TELEGRAM_NOTIFIES
+        })
+
+        self.owb = self._spawn("⚖️ Перевес")
+        owl = QHBoxLayout()
+        self.ow_combo = QComboBox()
+        self.ow_combo.addItems(["0", "50", "80"])
+        self.ow_combo.setCurrentText(str(settings.OVERWEIGHT_AFK if settings.OVERWEIGHT_CHECKER else "80"))
+        owl.addWidget(QLabel("АФК при:"))
+        owl.addWidget(self.ow_combo)
+        self.owb.setLayout(owl)
+        self.owb.setVisible(settings.OVERWEIGHT_CHECKER)
+        ml.addWidget(self.owb)
+
+        self.widgets["OVERWEIGHT_CHECKER"].stateChanged.connect(lambda state: self.owb.setVisible(state == 2))
+
+        self._fields(ml, "📅 Расписания", {
+            "SCHEDULE_BUYING": settings.SCHEDULE_BUYING,
+            "SCHEDULE_MAIL": settings.SCHEDULE_MAIL,
+            "SCHEDULE_REWARDS": settings.SCHEDULE_REWARDS,
+            "SCHEDULE_SCHEDULE": settings.SCHEDULE_SCHEDULE,
+            "SCHEDULE_AUCTION": settings.SCHEDULE_AUCTION
+        })
+
+        db = self._spawn("💰 Страницы донат шопа")
+        dl = QHBoxLayout()
+        self.dc = []
+        pages = settings.DONATE_SHOP_PAGES.split("|")
+        for i in range(1, 5):
+            cb = QCheckBox(str(i))
+            if str(i) in pages:
+                cb.setChecked(True)
+            self.dc.append(cb)
+            dl.addWidget(cb)
+        db.setLayout(dl)
+        ml.addWidget(db)
+
+        sb = self._spawn("📍 Споты")
+        sl = QHBoxLayout()
+        self.spot_ot = QSpinBox()
+        self.spot_ot.setRange(1, 4)
+        self.spot_ot.setValue(settings.SPOT_OT)
+        self.spot_do = QSpinBox()
+        self.spot_do.setRange(1, 4)
+        self.spot_do.setValue(settings.SPOT_DO)
+        sl.addWidget(QLabel("От:"))
+        sl.addWidget(self.spot_ot)
+        sl.addWidget(QLabel("До:"))
+        sl.addWidget(self.spot_do)
+        sb.setLayout(sl)
+        ml.addWidget(sb)
+
+        btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btn_box.accepted.connect(self._confirm)
+        btn_box.rejected.connect(self.reject)
+        ml.addWidget(btn_box)
+
+        self.setLayout(ml)
+        self.setStyleSheet(STYLE)
+
+    def _spawn(self, title: str):
+        box = QGroupBox(title)
+        box.setAlignment(Qt.AlignCenter)
+        return box
+
+    def _add_pack(self, layout, title, fields: dict):
+        box = self._spawn(title)
+        inner = QGridLayout()
+        for i, (key, val) in enumerate(fields.items()):
+            cb = QCheckBox("Вкл")
+            cb.setChecked(val)
+            inner.addWidget(QLabel(key + ":"), i, 0)
+            inner.addWidget(cb, i, 1)
+            self.widgets[key] = cb
+        box.setLayout(inner)
+        layout.addWidget(box)
+
+    def _fields(self, layout, title, fields: dict):
+        box = self._spawn(title)
+        inner = QGridLayout()
+        for i, (key, val) in enumerate(fields.items()):
+            edit = QLineEdit(str(val))
+            if key == "SCHEDULE_SCHEDULE":
+                edit.setPlaceholderText("10:00-18:00")
+            else:
+                edit.setPlaceholderText("10:00|12:00|...")
+            inner.addWidget(QLabel(key + ":"), i, 0)
+            inner.addWidget(edit, i, 1)
+            self.widgets[key] = edit
+        box.setLayout(inner)
+        layout.addWidget(box)
+
+    def _uniq(self, src, other):
+        if src.isChecked():
+            other.setChecked(False)
+        elif not src.isChecked() and not other.isChecked():
+            src.setChecked(True)
+
+        self._health()
+
+    def _pvp_changed(self, state=None):
+        if not self.pvp_evade.isChecked() and not self.pvp_answer.isChecked():
+            self._health()
+            return
+
+        if self.sender() == self.pvp_evade and self.pvp_evade.isChecked():
+            self.pvp_answer.setChecked(False)
+        elif self.sender() == self.pvp_answer and self.pvp_answer.isChecked():
+            self.pvp_evade.setChecked(False)
+
+        self._health()
+
+    def _health(self):
+        if self.pvp_evade.isChecked():
+            self.hb.setVisible(False)
+            for cb in self.hc:
+                cb.setChecked(False)
+            for val in [20, 30, 40]:
+                for cb in self.hc:
+                    if int(cb.text()) == val:
+                        cb.setChecked(True)
+        elif self.pvp_answer.isChecked():
+            self.hb.setVisible(True)
+        else:
+            self.hb.setVisible(False)
+
+    def _confirm(self):
+        try:
+            if self.region_ru.isChecked():
+                self.settings.REGION = "RU"
+            elif self.region_jp.isChecked():
+                self.settings.REGION = "JP"
+            else:
+                self.region_ru.setChecked(True)
+                self.settings.REGION = "RU"
+
+            self.settings.PVP_EVADE = self.pvp_evade.isChecked()
+            self.settings.PVP_ANSWER = self.pvp_answer.isChecked()
+            self.settings.HEALTH_BACK = [int(cb.text()) for cb in self.hc if cb.isChecked()]
+
+            for key in ["HP_BANK_CHECKER", "SOSKA_CHECKER", "DEATH_CHECKER", "OVERWEIGHT_CHECKER", "TELEGRAM_NOTIFIES"]:
+                self.settings.__dict__[key] = self.widgets[key].isChecked()
+
+            self.settings.OVERWEIGHT_AFK = int(self.ow_combo.currentText()) if self.settings.OVERWEIGHT_CHECKER else 80
+            for key in ["SCHEDULE_BUYING", "SCHEDULE_MAIL", "SCHEDULE_REWARDS", "SCHEDULE_SCHEDULE", "SCHEDULE_AUCTION"]:
+                self.settings.__dict__[key] = self.widgets[key].text()
+
+            self.settings.DONATE_SHOP_PAGES = "|".join([cb.text() for cb in self.dc if cb.isChecked()])
+            self.settings.SPOT_OT = self.spot_ot.value()
+            self.settings.SPOT_DO = self.spot_do.value()
+
+            for nick in self.apply_to: # срет в логи сильно потом оптимизирую
+                save_settings(nick, self.settings)
+                log(f"Сохранил {nick}: {self.settings.__dict__}")
+
+            self.accept()
+
+        except Exception as e:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Ахтунг!", str(e))
