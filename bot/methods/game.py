@@ -359,6 +359,9 @@ async def wait_teleport(profile, need: int = 7) -> bool:
         log(f"tped succ | {success}/{need}", window_id)
         return True
     else:
+        lvlup = await check_lvl_up(profile)
+        if lvlup:
+            return wait_teleport(profile)
         log(f"tped failed | {success}/{need}", window_id)
         return False
 
@@ -901,7 +904,7 @@ async def buy_loot(profile) -> bool:
     xy, _ = parseCBT("respawn_exit_gui_button", profile=profile)
     await profile.mouse.click(window_info, xy[0], xy[1])
     await asyncio.sleep(0.3)
-
+    await check_lvl_up(profile)
     return True
 
 
