@@ -139,9 +139,9 @@ class BaseProfile(ABC):
                 width, height = 2, 2
 
             window_id, window = next(iter(self.window_info.items()))
-            left, top = window['Position']
-            adjusted_x = xy[0] + left
-            adjusted_y = xy[1] + top
+
+            adjusted_x = xy[0] + window['Position'][0]
+            adjusted_y = xy[1] + window['Position'][1]
             start_time = time.time()
 
             with mss.mss() as sct:

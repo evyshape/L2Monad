@@ -173,6 +173,7 @@ class PvPDodge(BaseProfile):
         if self.runtime_data.current_state == "combat":
             return True
         log("Иду закуплюсь", window_id)
+        self.events_checker.stop_monitoring(window_id)
         energo = await check_energo_mode(self)
         if energo:
             await energo_mode(self, "off")
@@ -184,9 +185,12 @@ class PvPDodge(BaseProfile):
         if stash_ok:
             log("Закупился успешно, вероятно...", window_id)
 
+
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
+        self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
         if to_spot:
             self.runtime_data.current_state = "combat"
+
             self.runtime_data.update_last_return()
             return True
         return True
@@ -526,6 +530,7 @@ class PvPDodge(BaseProfile):
                             minutes=sleept)).strftime("%H:%M")
                         log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
                         self.events_checker.stop_monitoring(window_id)
+                        self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
                         await asyncio.sleep(1)
                         await energo_mode(self, "on")
                         if self.settings.TELEGRAM_NOTIFIES:

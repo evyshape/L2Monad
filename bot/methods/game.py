@@ -346,7 +346,7 @@ async def wait_teleport(profile, need: int = 7) -> bool:
     #print(xy1, rgb1)
     window_id = next(iter(profile.window_info))
     success = 0
-    await asyncio.sleep(2)
+    await asyncio.sleep(DELAY_WAIT_WAIT_TELEPORT)
 
     for _ in range(need):
         await asyncio.sleep(0.25)
@@ -355,7 +355,7 @@ async def wait_teleport(profile, need: int = 7) -> bool:
         if teleported:
             success += 1
 
-    if success >= 6:
+    if success >= 5:
         log(f"tped succ | {success}/{need}", window_id)
         return True
     else:
