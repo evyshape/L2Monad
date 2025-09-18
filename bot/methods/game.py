@@ -25,7 +25,7 @@ async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):
     else:
         return False
 
-    async def wait_and_click(tag, timeout=5):
+    async def wait_and_click(tag, timeout=DELAY_WAIT_EINHASAD):
         xy, rgb = parseCBT(tag, profile=profile)
         if await profile.check_pixel(xy, rgb, timeout=timeout):
             x, y = xy
@@ -138,6 +138,7 @@ async def energo_mode(profile, state: str) -> bool:
         await profile.mouse.swipe(profile.window_info, swipe_points, delay_points=0.08)
 
         xy1, rgb1 = parseCBT("zalupka_gui", profile=profile)
+        await asyncio.sleep(SLEEP_AFTER_UNBLOCK)
         teleported = await profile.check_pixel(xy1, rgb1, timeout=10, thr=15 if profile.settings.REGION == "RU" else 2)
         if teleported:
             return True
@@ -150,7 +151,7 @@ async def energo_mode(profile, state: str) -> bool:
                 await profile.mouse.swipe(profile.window_info, repeat_points, delay_points=0.2)
                 await asyncio.sleep(0.2)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(SLEEP_AFTER_UNBLOCK)
             teleported = await profile.check_pixel(xy1, rgb1, timeout=3)
             if teleported:
                 return True
@@ -191,6 +192,11 @@ async def auction_rereg(profile) -> bool:
         return False
 
     await asyncio.sleep(0.3)
+    xy, rgb = parseCBT("auction_nalog", profile=profile)
+    if not await profile.check_pixel(xy, rgb, timeout=DELAY_WAIT_AUCTION, thr=4):
+        log("Чет пошло не так, не прогрузился аук =( Пробую выйти в меню", window_id)
+        await wait_and_click("main_menu_gui", timeout=1)
+        return False
 
     for k in need:
         try_success = True
@@ -376,7 +382,7 @@ async def check_autohunt(profile) -> bool:
         return False
 
 async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=True) -> bool:
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.5)
     window_id = next(iter(profile.window_info))
     spot = random.randint(from_, to_)
 
@@ -392,7 +398,7 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
     steps = [
         "spot_teleport_call_button",
         f"spot_choice_{spot}",
-        f"spot_acept_choice_{spot}"
+        f"spot_accept_choice_{spot}"
     ]
 
     for key in steps:
@@ -555,7 +561,7 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
 
 async def check_town(profile) -> tuple[bool, dict | None]:
     window_id = next(iter(profile.window_info))
-    timeout = 20
+    timeout = 50
     start_time = asyncio.get_event_loop().time()
     log(f"Начал проверять в городе ли я, таймаут: {timeout}", window_id)
 
@@ -632,10 +638,11 @@ async def buy_in_shop(profile, in_town=None, npcs=None, check_loot=False) -> tup
     if xy is None:
         return False, in_town, npcs
 
-    if check_loot:
-        try_to_buy = await buy_loot(profile)
-        if try_to_buy:
-            log("Успешно выкупил шмотки пока пробегал в городе!", window_id)
+    #todo просто проверять есть ли крест и нужен ли выкуп, потом добавлю
+    #if check_loot:
+    #    try_to_buy = await buy_loot(profile)
+    #    if try_to_buy:
+    #        log("Успешно выкупил шмотки пока пробегал в городе!", window_id)
 
     await profile.mouse.click(profile.window_info, *xy)
 
@@ -1420,7 +1427,7 @@ async def claim_donate_shop(profile) -> bool:
     await asyncio.sleep(2.5)
 
     xy_close, rgb_close = parseCBT("magaz_monetka_reklama", profile=profile)
-    if await profile.check_pixel(xy_close, rgb_close, timeout=6, thr=1, wsize="1x1"):
+    if await profile.check_pixel(xy_close, rgb_close, timeout=DELAY_WAIT_ADENA_SHOP_ADD, thr=1, wsize="1x1"):
         await asyncio.sleep(1.5)
         xy_close1, rgb_close1 = parseCBT("magaz_circle_close", profile=profile)
         await profile.mouse.click(window_info, *xy_close1)
@@ -1428,7 +1435,7 @@ async def claim_donate_shop(profile) -> bool:
 
     if profile.settings.REGION != "RU":
         xy_google, rgb_google = parseCBT("magaz_google_trigger", profile=profile)
-        if await profile.check_pixel(xy_google, rgb_google, timeout=4, thr=2, wsize="2x2"):
+        if await profile.check_pixel(xy_google, rgb_google, timeout=DELAY_WAIT_ADENA_SHOP_GOOGLE, thr=2, wsize="2x2"):
             await asyncio.sleep(0.2)
             if await wait_and_click("magaz_google_close", timeout=2):
                 log("Вылез гугл, закрыл гадость", window_id)
