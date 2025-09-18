@@ -413,7 +413,7 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
             log(f"Не удалось нажать на {key} ({x}, {y})", window_id)
             return False
 
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(random.uniform(0.2, 0.5))
 
     tped = await wait_teleport(profile)
 
