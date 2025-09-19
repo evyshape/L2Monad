@@ -39,7 +39,7 @@ def backup():
 
     with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(root_dir):
-            if any(skip in root for skip in ("backups", "interception", "logs")):
+            if any(skip in root for skip in ("backups", "logs")):
                 continue
             for file in files:
                 path = os.path.join(root, file)
@@ -55,6 +55,46 @@ def install_req(req_path):
         log(f"Установил зависимости: {req_path}")
     except Exception as e:
         log(f"Ошибка при установке зависимостей: {e}")
+
+def update_delays(local_path, new_path):
+    try:
+        with open(local_path, "r", encoding="utf-8") as f:
+            local_lines = f.readlines()
+        with open(new_path, "r", encoding="utf-8") as f:
+            new_lines = f.readlines()
+
+        local_keys = {
+            line.split("=")[0].strip()
+            for line in local_lines
+            if line.strip() and "=" in line and line.split("=")[0].isupper()
+        }
+
+        additions = []
+        buffer = []
+        for line in new_lines:
+            if line.strip().startswith("#") or not line.strip():
+                buffer.append(line)
+                continue
+
+            if "=" in line and line.split("=")[0].strip().isupper():
+                key = line.split("=")[0].strip()
+                if key not in local_keys:
+                    additions.extend(buffer)
+                    additions.append(line)
+                buffer = []
+            else:
+                buffer = []
+
+        if additions:
+            with open(local_path, "a", encoding="utf-8") as f:
+                f.write("\n# === NEW DELAYS ===\n")
+                f.writelines(additions)
+            log(f"Добавлены новые задержки в {local_path}: {', '.join(a.split('=')[0].strip() for a in additions if '=' in a)}")
+
+    except Exception as e:
+        log(f"Шось злое: {e}")
+
+
 
 def ini(local_path, new_path):
     config_local = configparser.ConfigParser()
@@ -102,6 +142,10 @@ def update():
 
                 if dst_path.endswith(".ini") and os.path.exists(dst_path):
                     ini(dst_path, os.path.join(root, file))
+                    continue
+
+                if dst_path.endswith("bot{}delays.py".format(os.sep)) and os.path.exists(dst_path):
+                    update_delays(dst_path, os.path.join(root, file))
                     continue
 
                 os.makedirs(os.path.dirname(dst_path), exist_ok=True)
