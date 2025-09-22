@@ -22,6 +22,7 @@ class BaseSettings:
     SCHEDULE_SCHEDULE: str # "10:00-18:00"
     SCHEDULE_AUCTION: str # "10:00|18:00"
     DONATE_SHOP_PAGES: str # "1|3|4" либо "1"
+    ALLIANCE_BUTTON: int #0 = не донатим, 1 = 1.5кк, 2 = 6кк
     SPOT_OT: int # 1 не может быть выше 4
     SPOT_DO: int # 4 не может быть выше 4
     TELEGRAM_NOTIFIES: bool # уведомления от этого окна в тг бота
@@ -148,7 +149,7 @@ default_values = {
     "REGION": "RU",
     "PVP_EVADE": True,
     "PVP_ANSWER": False,
-    "HEALTH_BACK": [20, 30, 40],
+    "HEALTH_BACK": [10, 20, 30, 40],
     "HP_BANK_CHECKER": True,
     "SOSKA_CHECKER": False,
     "DEATH_CHECKER": True,
@@ -160,6 +161,7 @@ default_values = {
     "SCHEDULE_SCHEDULE": "",
     "SCHEDULE_AUCTION": "",
     "DONATE_SHOP_PAGES": "1|2",
+    "ALLIANCE_BUTTON": 2,
     "SPOT_OT": 1,
     "SPOT_DO": 1,
     "TELEGRAM_NOTIFIES": True,

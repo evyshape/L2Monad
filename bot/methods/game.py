@@ -76,7 +76,7 @@ async def safe_tp(profile) -> bool:
         if task in done and task.result() is True:
             for p in pending:
                 p.cancel()
-            await asyncio.sleep(0.06)
+            #await asyncio.sleep(0.06)
             return await profile.mouse.click(profile.window_info, *xy, fast=True)
 
     for p in pending:
@@ -160,7 +160,7 @@ async def energo_mode(profile, state: str) -> bool:
 
     elif state == "on":
         await profile.mouse.click(profile.window_info, button_x, button_y)
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(DELAY_AFTER_CLICK_ENERGO)
         center_x = width // 2
         center_y = height // 2
         await profile.mouse.click(profile.window_info, center_x, center_y)
@@ -1184,7 +1184,7 @@ async def claim_achiv(profile) -> bool:
 
     while True:
         found_claim = await wait_and_click("achiv_claim_1", timeout=2)
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
         found_accept = await wait_and_click("achiv_claim_accept", timeout=2)
 
         if not found_claim:
@@ -1221,14 +1221,17 @@ async def claim_clan(profile) -> bool:
         log("Нашел сбор клана", window_id)
 
     if not await wait_and_click("clan_1", timeout=3):
+        log("Не нашел clan_1", window_id)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
     if not await wait_and_click("clan_2", timeout=3):
+        log("Не нашел clan_2", window_id)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
     if not await wait_and_click("clan_3", timeout=3):
+        log("Не нашел clan_3", window_id)
         await wait_and_click("npc_global_quit_button", timeout=5)
         await asyncio.sleep(0.5)
         await wait_and_click("npc_global_quit_button", timeout=5)
@@ -1237,10 +1240,12 @@ async def claim_clan(profile) -> bool:
         await skip_vitlity(profile, "claim")
 
     if not await wait_and_click("clan_5", timeout=3):
+        log("Не нашел clan_5", window_id)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
         
     if not await wait_and_click("clan_6", timeout=3):
+        log("Не нашел clan_6", window_id)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
@@ -1249,6 +1254,62 @@ async def claim_clan(profile) -> bool:
         return False
 
     await asyncio.sleep(0.3)
+    return True
+
+
+async def claim_alliance(profile) -> bool:
+    window_id = next(iter(profile.window_info))
+    if profile.settings.REGION != "RU":
+        return False
+    num = profile.settings.ALLIANCE_BUTTON
+    if num == 0:
+        return False
+
+    async def wait_and_click(tag, timeout=5):
+        xy, rgb = parseCBT(tag, profile=profile)
+        if await profile.check_pixel(xy, rgb, timeout=timeout):
+            x, y = xy
+            await profile.mouse.click(profile.window_info, x, y)
+            return True
+        return False
+
+    if await check_energo_mode(profile):
+        await energo_mode(profile, "off")
+        await asyncio.sleep(1)
+
+    if not await wait_and_click("main_menu_gui", timeout=5):
+        log("Не удалось открыть главное меню", window_id)
+        return False
+
+    await asyncio.sleep(1.5)
+    if not await wait_and_click("alliance_menu_gui", timeout=3):
+        log("Не нашел кнопку альянса в меню", window_id)
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
+    else:
+        log("Нашел сбор альянса, жму", window_id)
+
+    if not await wait_and_click("alliance_donate_global_button", timeout=2):
+        log("Не нашел кнопку доната", window_id)
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
+
+    await asyncio.sleep(0.2)
+
+    if not await wait_and_click(f"alliance_donate_{num}_button", timeout=3):
+        log(f"Не нашел alliance_donate_{num}_button", window_id)
+        await wait_and_click("alliance_close_donate", timeout=3)
+        await asyncio.sleep(0.2)
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
+    else:
+        await skip_vitlity(profile, "claim")
+
+    if not await wait_and_click("npc_global_quit_button", timeout=3):
+        await wait_and_click("npc_global_quit_button", timeout=5)
+        return False
+
+    await asyncio.sleep(0.2)
     return True
 
 async def claim_battle_pass(profile) -> bool:

@@ -28,6 +28,7 @@ from bot.methods.game import (
     energo_mode,
     claim_daily,
     claim_achiv,
+    claim_alliance,
     claim_clan,
     claim_battle_pass,
     claim_donate_shop,
@@ -203,9 +204,6 @@ class PvPDodge(BaseProfile):
         xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
         xy2, rgb2 = parseCBT("home_scroll_button_no_energomode", profile=self)
 
-        if xy is None:
-            return
-
         click_x = xy[0]
         click_y = xy[1]
 
@@ -304,14 +302,15 @@ class PvPDodge(BaseProfile):
                         self.runtime_data.current_state = "combat"
                         return True
                 else:
-                    screenn = screenshot_window(self.window_info, tg=True)
-                    self.tgbot.send_pic(
-                        photo=screenn,
-                        caption=f"Шось пошло не так в bank_restore\n\nСтеш: {stash_ok}\nГород: {town}",
-                        parse_mode="HTML",
-                        nickname=window_id,
-                        reply_markup=delete_screenshot_kb()
-                    )
+                    if self.settings.TELEGRAM_NOTIFIES:
+                        screenn = screenshot_window(self.window_info, tg=True)
+                        self.tgbot.send_pic(
+                            photo=screenn,
+                            caption=f"Шось пошло не так в bank_restore\n\nСтеш: {stash_ok}\nГород: {town}",
+                            parse_mode="HTML",
+                            nickname=window_id,
+                            reply_markup=delete_screenshot_kb()
+                        )
         else:
             log(f"/ bad result? {result} / else", window_id)
             rip, btn = await check_rip(self)
@@ -386,6 +385,12 @@ class PvPDodge(BaseProfile):
             log(f"Клан успешно собран", window_id)
         else:
             log(f"Нет новых донатов в клан или не удалось вдонить", window_id)
+
+        claim_ali = await claim_alliance(self)
+        if claim_ali:
+            log(f"Альянс успешно собран", window_id)
+        else:
+            log(f"Не смог собрать альянс", window_id)
 
         claimed_bp = await claim_battle_pass(self)
         if claimed_bp:
@@ -520,8 +525,28 @@ class PvPDodge(BaseProfile):
             if health and health in self.settings.HEALTH_BACK:
                 log(f"Достигли крит отметки из конфига, пробую улететь! {health}%",
                     window_id)
-                home = await safe_tp(self)
-                if home:
+
+                xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
+
+                click_x = xy[0]
+                click_y = xy[1]
+
+                result = await self.mouse.click(self.window_info, click_x, click_y, fast=True)
+
+                if result:
+                    await asyncio.sleep(1)
+                    pixel = await self.check_pixel(xy, rgb, 7)
+                    if pixel:
+                        log(f"Контрольный тп вжат", window_id)
+                        await self.mouse.click(self.window_info, xy[0], xy[1], fast=True)
+                        await asyncio.sleep(1)
+                    else:
+                        log(f"rip? or no?", window_id)
+                        rip, btn = await check_rip(self)
+                        if rip:
+                            log("rly rip", window_id)
+                            self.runtime_data.current_state = "death"
+
                     tped = await wait_teleport(self)
                     if tped:
                         sleept = randint(3, 5)

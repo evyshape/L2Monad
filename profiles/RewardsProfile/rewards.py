@@ -11,6 +11,7 @@ from bot.methods.game import (
     claim_daily,
     claim_achiv,
     claim_clan,
+    claim_alliance,
     claim_battle_pass,
     claim_donate_shop,
 )
@@ -59,6 +60,12 @@ class Rewards(BaseProfile):
                 log(f"Клан успешно собран", window_id)
             else:
                 log(f"Нет новых донатов в клан или не удалось вдонить", window_id)
+
+            claim_ali = await claim_alliance(self)
+            if claim_ali:
+                log(f"Альянс успешно собран", window_id)
+            else:
+                log(f"Не смог собрать альянс", window_id)
 
             claimed_bp = await claim_battle_pass(self)
             if claimed_bp:

@@ -194,6 +194,12 @@ CBT_RU = {
     "trash_god_statue_trigger_2": ["282, 34", "149, 157, 176"],
     "trash_god_statue_trigger_3": ["22, 40", "255, 255, 255"],
     "trash_god_statue_trigger_4": ["230, 46", "103, 115, 128"],
+
+    "alliance_menu_gui": ["380, 89", "no"],
+    "alliance_donate_global_button": ["183, 199", "113, 99, 62"],
+    "alliance_donate_1_button": ["58, 174", "215, 103, 11"],
+    "alliance_donate_2_button": ["164, 184", "209, 95, 9"],
+    "alliance_close_donate": ["357, 31", "36, 40, 47"],
 }
 
 CBT_JP = {
@@ -405,24 +411,12 @@ GLOBAL_STATES = [
     "death",
     "claiming",
     "schedule",
-    "pvp"
+    "pvp",
+    "alchemy"
 ]
 
 #todo мб добавить поддержку других? а надо ли?
 SUPPORTED_REZ = [
     "400x225"
 ]
-
-
-ALCH_REZ = "960x495"
-ALCH_POSITIONS = {
-    "slot_1": ["326, 246", "358, 278"],
-    "slot_2": ["367, 141", "399, 173"],
-    "slot_3": ["478, 95", "510, 127"],
-    "slot_4": ["593, 139", "625, 171"],
-    "slot_5": ["630, 247", "662, 279"]
-}
-ALCH_BUTTONS = {
-    "reroll": ["329, 451", "152, 144, 123"],
-    "reroll_confirm": ["515, 351", "215, 103, 11"],
-}
+ALCH_BUTTONS = {}

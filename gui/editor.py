@@ -40,6 +40,8 @@ class Editor(QDialog):
             self.region_ru.setChecked(True)
         else:
             self.region_jp.setChecked(True)
+        self.region_ru.stateChanged.connect(self._region_changed)
+        self.region_jp.stateChanged.connect(self._region_changed)
         rl.addWidget(self.region_ru)
         rl.addWidget(self.region_jp)
         rb.setLayout(rl)
@@ -114,6 +116,18 @@ class Editor(QDialog):
         db.setLayout(dl)
         ml.addWidget(db)
 
+        alliance = self._spawn("💥 Кнопка альянса")
+        al = QHBoxLayout()
+        self.alliance_btn = QSpinBox()
+        self.alliance_btn.setValue(int(settings.ALLIANCE_BUTTON))
+        self.alliance_btn.setRange(0, 2)
+        al.addWidget(QLabel("Куда жмем? (2 центр)"))
+        al.addWidget(self.alliance_btn)
+        alliance.setLayout(al)
+        ml.addWidget(alliance)
+        self.alliance_box = alliance
+        self.alliance_box.setVisible(settings.REGION == "RU")
+
         sb = self._spawn("📍 Споты")
         sl = QHBoxLayout()
         self.spot_ot = QSpinBox()
@@ -141,6 +155,13 @@ class Editor(QDialog):
         box = QGroupBox(title)
         box.setAlignment(Qt.AlignCenter)
         return box
+
+    def _region_changed(self, state=None):
+        if self.region_ru.isChecked():
+            self.alliance_box.setVisible(True)
+        else:
+            self.alliance_box.setVisible(False)
+            self.alliance_btn.setValue(0)
 
     def _add_pack(self, layout, title, fields: dict):
         box = self._spawn(title)
@@ -227,6 +248,11 @@ class Editor(QDialog):
             self.settings.DONATE_SHOP_PAGES = "|".join([cb.text() for cb in self.dc if cb.isChecked()])
             self.settings.SPOT_OT = self.spot_ot.value()
             self.settings.SPOT_DO = self.spot_do.value()
+
+            if self.settings.REGION == "RU":
+                self.settings.ALLIANCE_BUTTON = self.alliance_btn.value()
+            else:
+                self.settings.ALLIANCE_BUTTON = 0
 
             for nick in self.apply_to: # срет в логи сильно потом оптимизирую
                 save_settings(nick, self.settings)
