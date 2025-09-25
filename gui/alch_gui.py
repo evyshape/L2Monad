@@ -66,7 +66,8 @@ class AlchemyDialog(QDialog):
         """)
         scroll_content = QWidget()
         scroll_layout = QGridLayout(scroll_content)
-        scroll_layout.setSpacing(4)
+        scroll_layout.setHorizontalSpacing(4)
+        scroll_layout.setVerticalSpacing(1)
         scroll_layout.setContentsMargins(6, 6, 6, 6)
 
         row, col = 0, 0
@@ -87,11 +88,12 @@ class AlchemyDialog(QDialog):
                     btn.setFixedSize(100, 28)
                     btn.setStyleSheet(MONITOR)
                     btn.window_info = {"nick": nick, **w}
+                    btn.clicked.connect(self.on_clicked)
                     scroll_layout.addWidget(btn, row, col)
                     self.window_buttons[nick] = btn
 
                     col += 1
-                    if col >= 4:
+                    if col >= 3:
                         col = 0
                         row += 1
 
@@ -114,6 +116,14 @@ class AlchemyDialog(QDialog):
         self.btn_max.clicked.connect(self.select_max)
         btns.addWidget(self.btn_max)
         self.layout.addLayout(btns)
+
+    def on_clicked(self):
+        total = sum(mon["grid_all"] for mon in self.monitors["monitors"])
+        selected = [btn for btn in self.window_buttons.values() if btn.isChecked()]
+
+        if total > 0 and len(selected) > total:
+            btn = self.sender()
+            btn.setChecked(False)
 
     def select_max(self):
         total = sum(mon["grid_all"] for mon in self.monitors["monitors"])
