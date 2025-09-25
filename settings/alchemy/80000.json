@@ -1,0 +1,10 @@
+{
+    "SLOT_1": "3,6,8",
+    "SLOT_2": "3,6,8",
+    "SLOT_3": "7,8,9,red,red1,red3,red5,red7,red8,red9",
+    "SLOT_4": "7,8,9,red,red1,red3,red5,red7,red8,red9",
+    "SLOT_5": "7,8,9,red,red1,red3,red5,red7,red8,red9",
+    "BLESS": "gold",
+    "MAX_ROLLS": 1000000,
+    "DESCRIPTION": "Краснуха в 3 слоте вообще бывает?"
+}

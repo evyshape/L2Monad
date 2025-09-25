@@ -1,4 +1,5 @@
 import asyncio
+import random
 import time
 from datetime import datetime, timedelta
 from random import randint
@@ -10,9 +11,10 @@ from profiles.base import BaseProfile
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.methods.base import parseCBT
-from bot.delays import DELAY_PVP_ANSWER, SLEEP_AFTER_RIP, MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP
+from bot.delays import DELAY_PVP_ANSWER, MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP, MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP
 from bot.methods.other import MouseEvents, screenshot_window
 from tgbot.keyboards.screenshot import delete_screenshot_kb
+from bot.misc import *
 from bot.methods.game import (
     check_town,
     check_bablo,
@@ -136,8 +138,8 @@ class PvPDodge(BaseProfile):
             await energo_mode(self, "on")
             await asyncio.sleep(1)
 
-            await asyncio.sleep(SLEEP_AFTER_RIP)
-            log("Поспал 5 минут, пробую выкупить опыт и шмотки", window_id)
+            await asyncio.sleep(random.uniform(MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP))
+            log("Поспал, пробую выкупить опыт и шмотки", window_id)
             if await check_energo_mode(self):
                 await energo_mode(self, "off")
                 await asyncio.sleep(1)
@@ -145,13 +147,16 @@ class PvPDodge(BaseProfile):
             buyed = await buy_loot(self)
             if buyed:
                 log("Что-то выкупил..", window_id)
-            log("Пробую идти к бакалейщику", window_id)
-            stash_ok, in_town, npcs = await go_stash(self)
-            shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
-            buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
-            if stash_ok:
-                log("Успешно скупился!", window_id)
+            if NEED_SHOP_AFTER_RIP:
+                log("Пробую идти к бакалейщику", window_id)
+                stash_ok, in_town, npcs = await go_stash(self)
+                shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+                buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+                if stash_ok:
+                    log("Успешно скупился!", window_id)
+            await asyncio.sleep(1)
             log("Тпаюсь на спот и ставлю автобой", window_id)
+            #todo сунуть проверку телепорт свитков
             to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
             if to_spot:
                 self.runtime_data.current_state = "combat"
@@ -362,47 +367,55 @@ class PvPDodge(BaseProfile):
         self.runtime_data.current_state = "claiming"
         log("Не мониторю новые события во время сборов", window_id)
         await asyncio.sleep(1)
-        claimed_daily = await claim_daily(self)
-        if claimed_daily:
-            log(f"Дейлик успешно собран", window_id)
-        else:
-            log(f"Нет новых дейликов или не удалось собрать", window_id)
 
-        claimed_mail = await claim_mail(self)
-        if claimed_mail:
-            log(f"Почта успешно собрана", window_id)
-        else:
-            log(f"Нет новой почты или не удалось собрать", window_id)
+        if NEED_CLAIM_DAILY:
+            claimed_daily = await claim_daily(self)
+            if claimed_daily:
+                log(f"Дейлик успешно собран", window_id)
+            else:
+                log(f"Нет новых дейликов или не удалось собрать", window_id)
 
-        claimed_achiv = await claim_achiv(self)
-        if claimed_achiv:
-            log(f"Ачивы успешно собраны", window_id)
-        else:
-            log(f"Нет новых ачивок или не удалось собрать", window_id)
+        if NEED_CLAIM_MAIL:
+            claimed_mail = await claim_mail(self)
+            if claimed_mail:
+                log(f"Почта успешно собрана", window_id)
+            else:
+                log(f"Нет новой почты или не удалось собрать", window_id)
 
-        claimed_clan = await claim_clan(self)
-        if claimed_clan:
-            log(f"Клан успешно собран", window_id)
-        else:
-            log(f"Нет новых донатов в клан или не удалось вдонить", window_id)
+        if NEED_CLAIM_ACHIV:
+            claimed_achiv = await claim_achiv(self)
+            if claimed_achiv:
+                log(f"Ачивы успешно собраны", window_id)
+            else:
+                log(f"Нет новых ачивок или не удалось собрать", window_id)
 
-        claim_ali = await claim_alliance(self)
-        if claim_ali:
-            log(f"Альянс успешно собран", window_id)
-        else:
-            log(f"Не смог собрать альянс", window_id)
+        if NEED_CLAIM_CLAN:
+            claimed_clan = await claim_clan(self)
+            if claimed_clan:
+                log(f"Клан успешно собран", window_id)
+            else:
+                log(f"Нет новых донатов в клан или не удалось вдонить", window_id)
 
-        claimed_bp = await claim_battle_pass(self)
-        if claimed_bp:
-            log(f"Пасс успешно собран", window_id)
-        else:
-            log(f"Не смог собрать пасс", window_id)
+        if NEED_CLAIM_ALI:
+            claim_ali = await claim_alliance(self)
+            if claim_ali:
+                log(f"Альянс успешно собран", window_id)
+            else:
+                log(f"Не смог собрать альянс", window_id)
 
-        claimed_shop = await claim_donate_shop(self)
-        if claimed_shop:
-            log(f"Шоп успешно собран", window_id)
-        else:
-            log(f"Не смог собрать шоп", window_id)
+        if NEED_CLAIM_BATTLE_PASS:
+            claimed_bp = await claim_battle_pass(self)
+            if claimed_bp:
+                log(f"Пасс успешно собран", window_id)
+            else:
+                log(f"Не смог собрать пасс", window_id)
+
+        if NEED_CLAIM_DONATE_SHOP:
+            claimed_shop = await claim_donate_shop(self)
+            if claimed_shop:
+                log(f"Шоп успешно собран", window_id)
+            else:
+                log(f"Не смог собрать шоп", window_id)
 
         if self.settings.TELEGRAM_NOTIFIES:
             self.tgbot.send_notification(
@@ -577,6 +590,13 @@ class PvPDodge(BaseProfile):
                 log(f"Пвп успешно завершено, жду 3 сек", window_id)
                 await asyncio.sleep(3)
                 break
+
+        rip = await check_rip(self)
+        if rip:
+            log(f"{rip} | Сдох после попытки ответа, мда", window_id)
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+            return
 
         log(f"Мы живы! Возвращаюсь на спот, вдруг увели...", window_id)
         self.events_checker.stop_monitoring(window_id)

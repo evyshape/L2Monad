@@ -5,6 +5,7 @@ import os
 import time
 import random
 from collections import deque
+import math
 
 import mss
 from aiogram.types import FSInputFile
@@ -44,7 +45,7 @@ def curv(p0, p1, p2, steps=70):
     return path
 
 
-def move_human(window_info, x_offset, y_offset):
+def move_human(window_info, x_offset, y_offset, curve=True):
     window_id, window = next(iter(window_info.items()))
     x_pos, y_pos = window["Position"]
     target_x = x_pos + x_offset
@@ -55,20 +56,23 @@ def move_human(window_info, x_offset, y_offset):
         return
 
     cur_x, cur_y = inputs.mouse_position()
-
     cp_x = cur_x + (target_x - cur_x) * random.uniform(0.3, 0.7) + random.randint(-50, 50)
     cp_y = cur_y + (target_y - cur_y) * random.uniform(0.3, 0.7) + random.randint(-50, 50)
 
-    steps = random.randint(45, 65)
+    steps = random.randint(40, 55)
     path = curv((cur_x, cur_y), (cp_x, cp_y), (target_x, target_y), steps=steps)
 
-    for px, py in path:
-        jitter_x = px + random.randint(-1, 1)
-        jitter_y = py + random.randint(-1, 1)
-        inputs.move_to(jitter_x, jitter_y)
-        t = path.index((px, py)) / len(path)
-        delay = 0.003
-        # возможно тайм слип не лучший варик, надо тестить крч
+    for i, (px, py) in enumerate(path):
+        t = i / (len(path) - 1)
+        adj_t = 0.5 * (1 - math.cos(math.pi * t))
+
+        base_delay = 0.001
+        delay = base_delay + (1 - adj_t) * random.uniform(0.0005, 0.001)
+
+        j_x = px + random.randint(-1, 1)
+        j_y = py + random.randint(-1, 1)
+
+        inputs.move_to(j_x, j_y)
         time.sleep(delay)
 
     inputs.move_to(target_x, target_y)

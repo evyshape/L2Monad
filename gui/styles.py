@@ -103,3 +103,29 @@ CARD = """
         color: #f0f0f0;
     }
 """
+
+WINDOWS_FRAME = """
+    QFrame {
+        border: 1px solid #444;
+        border-radius: 6px;
+        background-color: #151515;
+    }
+"""
+
+MONITOR = """
+    QPushButton {
+        background-color: #1f1f2f;
+        border: 1px solid #444;
+        border-radius: 4px;
+        color: #00ffcc;
+        font-size: 9pt;
+    }
+    QPushButton:hover {
+        background-color: #2c2c3f;
+    }
+    QPushButton:checked {
+        border: 2px solid #00aaff;
+        background-color: #222831;
+        color: #ffffff;
+    }
+"""

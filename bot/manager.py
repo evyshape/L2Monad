@@ -13,11 +13,11 @@ class BotManager:
             return False
         return getattr(bot, "running", False)
 
-    async def start_bot(self, bot_class, window_nick, window_info, settings):
+    async def start_bot(self, bot_class, window_nick, window_info, settings, **kwargs):
         if window_nick in self.bots:
             return
 
-        bot = bot_class({window_nick: window_info}, settings=settings)
+        bot = bot_class({window_nick: window_info}, settings=settings, **kwargs)
         bot.window_nick = window_nick
         bot.running = True
         self.bots[window_nick] = bot

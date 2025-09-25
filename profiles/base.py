@@ -2,17 +2,27 @@ import asyncio
 from asyncio import Queue
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Union, List, Any
+from typing import Dict, Tuple, Union, Any
 
 import mss
 import numpy as np
-
+import pygetwindow as gw
+from screeninfo import get_monitors
 from bot.clogger import log
 from bot.limits import pixel_semaphore, thread
 from bot.windows.base import BaseSettings, default_values
+from bot.alchemy.alch_cons import ALCH_REZ
+from bot.alchemy.alch_utils import alch_rects
 from bot.windows.runtime import RuntimeData
 
 from concurrent.futures import ThreadPoolExecutor
+import ctypes
+
+HWND_BOTTOM = 1
+SWP_NOMOVE = 0x0002
+SWP_NOSIZE = 0x0001
+SWP_NOACTIVATE = 0x0010
+SetWindowPos = ctypes.windll.user32.SetWindowPos
 
 THREAD_POOL = ThreadPoolExecutor(max_workers=thread)
 
@@ -26,6 +36,7 @@ class BaseProfile(ABC):
         self.tname = "-BaseProfile-"
         self.settings = settings or BaseSettings(**default_values)
         self.runtime_data = RuntimeData(current_state="null")
+        self._saved_pos = None
 
     @property
     @abstractmethod
@@ -66,7 +77,7 @@ class BaseProfile(ABC):
         try:
             await self.main_loop()
         except asyncio.CancelledError:
-            log(f"Профиль остановлен вручную", window_id)
+            #log(f"Профиль остановлен вручную", window_id)
             raise
         finally:
             self.running = False
@@ -99,6 +110,93 @@ class BaseProfile(ABC):
         await asyncio.gather(*tasks, return_exceptions=True)
         self.event_queue = Queue()
 
+    async def _save_pos(self):
+        window_id, window = next(iter(self.window_info.items()))
+        try:
+            win = gw.getWindowsWithTitle(window['Title'])[0]
+            self._saved_pos = (win.left, win.top, win.width, win.height)
+        except Exception as e:
+            log(f"Ошибка при сохранении позиции: {e}", window_id)
+
+    async def _resize(self, width: int, height: int, left: int, top: int):
+        window_id, window = next(iter(self.window_info.items()))
+        try:
+            win = gw.getWindowsWithTitle(window['Title'])[0]
+            win.resizeTo(width, height)
+            win.moveTo(left, top)
+
+            if width == 400 and height == 225:
+                SetWindowPos(
+                    win._hWnd,
+                    HWND_BOTTOM,
+                    0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
+                )
+            else:
+                try:
+                    win.activate()
+                except Exception:
+                    pass
+
+            window['Width'] = win.width
+            window['Height'] = win.height
+            window['Position'] = (win.left, win.top)
+            window['Size'] = f"{win.width}x{win.height}"
+
+        except Exception as e:
+            log(f"Ошибка при ресайзе: {e}", window_id)
+
+    async def smart_resize(self):
+        window_id, window = next(iter(self.window_info.items()))
+        try:
+            await self._save_pos()
+
+            #info = get_monitorss()
+            #log(json.dumps(info, indent=4, ensure_ascii=False), window_id)
+
+            monitors = get_monitors()
+
+            win_w, win_h = map(int, ALCH_REZ.split("x"))
+            cell_w = win_w
+            cell_h = win_h + 40
+
+            for idx, monitor in reversed(list(enumerate(monitors))):
+                cols = monitor.width // cell_w
+                rows = monitor.height // cell_h
+
+                candidates = []
+                for r in range(rows):
+                    for c in range(cols):
+                        x = monitor.x + c * cell_w
+                        y = monitor.y + r * cell_h + 40
+                        candidates.append((x, y))
+
+                l2wins = [w for w in gw.getAllWindows() if "Lineage" in w.title]
+                exr = [(w.left, w.top, w.width, w.height) for w in l2wins]
+
+                pos = None
+                for (cx, cy) in candidates:
+                    candidate_rect = (cx, cy, win_w, win_h)
+                    if not any(alch_rects(candidate_rect, r) for r in exr):
+                        pos = (cx, cy)
+                        break
+
+                if pos:
+                    log(
+                        f"Нашёл местечко на монике #{idx + 1} ({monitor.width}x{monitor.height})",
+                        window_id
+                    )
+                    new_left, new_top = pos
+                    await self._resize(win_w, win_h, new_left, new_top)
+                    return True
+
+            log("Свободного места не нашлось вовсе =(", window_id)
+            return None
+
+        except Exception as e:
+            log(f"Ошибка при smart_resize: {e}", window_id)
+
+
     def send_event(self, event: Any) -> None:
         """
         Добавляет событие в очередь профиля, может быть 2 сразу и более
@@ -120,8 +218,6 @@ class BaseProfile(ABC):
                 await self.handle_event(event)
         except asyncio.CancelledError:
             log(f"[{self.tname}] Остановил слушалку")
-        finally:
-            log(f"[{self.tname}] Слушалка стопнулась")
 
     async def check_pixel(self, xy: Tuple[int, int],
                           rgb: Union[Tuple[int, int, int], str], timeout: float = 0.2,

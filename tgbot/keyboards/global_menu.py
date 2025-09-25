@@ -12,6 +12,8 @@ def global_menu_kb() -> InlineKeyboardMarkup:
     ])
 
     for profile_name in controller.profiles.keys():
+        if profile_name == "MainAlchemy":
+            continue
         kb_buttons.append([
             InlineKeyboardButton(
                 text=f"➡️ {profile_name}",

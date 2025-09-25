@@ -97,7 +97,7 @@ async def check_lvl_up(profile) -> bool:
     xy, rgb = parseCBT("lvl_up_black", profile=profile)
 
     log("Чекаю лвл ап залупу", window_id)
-    lvl_up_visible = await profile.check_pixel(xy, rgb, timeout=0.5)
+    lvl_up_visible = await profile.check_pixel(xy, rgb, timeout=1.2, wsize="2x2", thr=5)
 
     if lvl_up_visible:
         log("Лвл ап вылез, закрываю", window_id)
@@ -179,7 +179,10 @@ async def auction_rereg(profile) -> bool:
             return True
         return False
 
-    need = ["auction_server_market_server", "auction_server_market_global"]
+    if profile.settings.REGION == "RU":
+        need = ["auction_server_market_global"]
+    else:
+        need = ["auction_server_market_server", "auction_server_market_global"]
     succ = []
     failed = []
 
@@ -201,12 +204,13 @@ async def auction_rereg(profile) -> bool:
     for k in need:
         try_success = True
 
-        if not await wait_and_click(k, timeout=4):
+        if not await wait_and_click(k, timeout=10):
             log(f"Не удалось ткнуть по {k}", window_id)
             try_success = False
         else:
             await asyncio.sleep(3)
 
+        await asyncio.sleep(DELAY_WAIT_AUCTION)
         if try_success and not await wait_and_click("auction_sell_page", timeout=5):
             log(f"Не удалось ткнуть по auction_sell_page для {k}", window_id)
             try_success = False
@@ -514,6 +518,8 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
     npc_batches = [[2, 3], [4, 5]]
     if profile.settings.REGION == "RU":
         npc_batches.append([6])
+
+    await check_lvl_up(profile)
 
     for attempt in range(1, retries + 1):
         log(f"Попытка {attempt}/{retries} получить позиции нпс", window_id)
@@ -1183,7 +1189,7 @@ async def claim_achiv(profile) -> bool:
         return False
 
     while True:
-        found_claim = await wait_and_click("achiv_claim_1", timeout=2)
+        found_claim = await wait_and_click("achiv_claim_1", timeout=4)
         await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
         found_accept = await wait_and_click("achiv_claim_accept", timeout=2)
 
@@ -1192,6 +1198,9 @@ async def claim_achiv(profile) -> bool:
             await wait_and_click("npc_global_quit_button", timeout=5)
             break
 
+    q = await wait_and_click("achiv_claim_accept", timeout=2)
+    if q:
+        await wait_and_click("npc_global_quit_button", timeout=5)
     return claimed
 
 async def claim_clan(profile) -> bool:

@@ -20,7 +20,7 @@ class ProfileController:
             threading.Thread(target=cls._instance.loop.run_forever, daemon=True).start()
         return cls._instance
 
-    def start_windows(self, profile_class, nicks):
+    def start_windows(self, profile_class, nicks, **kwargs):
         async def start_seq():
             windows = findAllWindows()
             tasks = []
@@ -28,14 +28,16 @@ class ProfileController:
             for nick in nicks:
                 window_info = windows[nick]
                 if window_info["Size"] not in SUPPORTED_REZ:
-                    log(f"Окно {nick} имеет насраное разрешение, чини | {window_info['Size']}\nПоддерживаемые: {SUPPORTED_REZ}", level="ERROR")
+                    log(f"Окно {nick} имеет насраное разрешение, чини | {window_info['Size']}\nПоддерживаемые: {SUPPORTED_REZ}",
+                        level="ERROR")
                     continue
 
                 settings = load_settings(nick)
 
                 task = asyncio.create_task(
-                    self.bot_manager.start_bot(profile_class, nick, window_info,
-                                               settings)
+                    self.bot_manager.start_bot(
+                        profile_class, nick, window_info, settings, **kwargs
+                    )
                 )
                 tasks.append(task)
 

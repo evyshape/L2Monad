@@ -197,6 +197,7 @@ class SettingsChanger(QWidget):
         dlg = Editor(nick, settings, self)
         dlg.exec_()
         self.load()
+        self.update_buttons()
 
     def mass_apply(self):
         from .editor import Editor
@@ -210,6 +211,7 @@ class SettingsChanger(QWidget):
         dlg = Editor(nick, settings, self, apply_to=nicks)
         dlg.exec_()
         self.load()
+        self.update_buttons()
 
     def rassos_times(self):
         nicks = self.get_selected() or []
@@ -222,6 +224,7 @@ class SettingsChanger(QWidget):
         dlg = Rassoser(base_settings, nicks, self)
         dlg.exec_()
         self.load()
+        self.update_buttons()
 
 
 class Rassoser(QDialog):

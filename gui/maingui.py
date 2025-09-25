@@ -22,6 +22,8 @@ from bot.windows.settings_loader import load_settings
 from bot.clogger import log
 from gui.cache import load_cache, save_cache
 from gui.single import WindowControlDialog
+from gui.alch_gui import AlchemyDialog
+from gui.alch_presets import PresetDialog
 from gui.settings_changer import SettingsChanger
 from gui.styles import STYLE, UPD
 from gui.region_selector import Selector
@@ -29,7 +31,7 @@ from bot.updater import needs_update, update, get_my_version
 
 
 PROJECT_ROOT = os.getcwd()
-WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "cache", "windows_cache.json")
+WINDOWS_CACHE = os.path.join(PROJECT_ROOT, "settings", "gui", "windows_cache.json")
 FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
 
 
@@ -136,7 +138,12 @@ class NedoGui(QWidget):
             btn.setFont(font_btn)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setFixedHeight(25)
-            btn.clicked.connect(lambda _, c=cls: self.start_all(c))
+
+            if name == "MainAlchemy":
+                btn.clicked.connect(lambda _, c=cls: self.start_alchemy(c))
+            else:
+                btn.clicked.connect(lambda _, c=cls: self.start_all(c))
+
             self.layout_main.addWidget(btn)
 
         self.btn_stop_all = QPushButton("STOP ВСЕ")
@@ -167,6 +174,39 @@ class NedoGui(QWidget):
         if needs_update():
             self.show_update_button()
 
+    def start_alchemy(self, profile_class):
+        dlg = AlchemyDialog(self)
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        selected = dlg.get_selected()
+        if not selected:
+            QMessageBox.information(self, "Info", "Окна не выбраны")
+            return
+
+        preset_dlg = PresetDialog(self)
+        if preset_dlg.exec_() != QDialog.Accepted:
+            return
+
+        preset = preset_dlg.get_selected()
+        if not preset:
+            QMessageBox.information(self, "Info", "Пресет не выбран")
+            return
+
+        windows_map = findAllWindows()
+        nicks = [nick for nick in selected if nick in windows_map]
+        if not nicks:
+            QMessageBox.information(self, "Info", "Выбранные окна не найдены")
+            return
+
+        new_windows = [nick for nick in nicks if load_settings(nick) is None]
+        if new_windows:
+            regions = self.ask_region(new_windows)
+            for nick, region in regions.items():
+                load_settings(nick, region=region)
+
+        self.start_windows(profile_class, nicks, preset=preset)
+
     def open_settings(self):
         self.settings_win = SettingsChanger()
         self.settings_win.setWindowModality(Qt.NonModal)
@@ -176,8 +216,8 @@ class NedoGui(QWidget):
         self.dlg = WindowControlDialog(self)
         self.dlg.show()
 
-    def start_windows(self, profile_class, nicks):
-        self.controller.start_windows(profile_class, nicks)
+    def start_windows(self, profile_class, nicks, **kwargs):
+        self.controller.start_windows(profile_class, nicks, **kwargs)
 
     def stop_windows(self, nicks):
         self.controller.stop_windows(nicks)

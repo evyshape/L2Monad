@@ -16,6 +16,7 @@ from bot.methods.game import (
     claim_donate_shop,
 )
 from bot.windows.runtime import RuntimeData
+from bot.misc import *
 
 
 class Rewards(BaseProfile):
@@ -36,52 +37,28 @@ class Rewards(BaseProfile):
     async def main_loop(self):
         window_id = next(iter(self.window_info))
 
+        rewards = {
+            "Дейлик": (NEED_CLAIM_DAILY, claim_daily),
+            "Почта": (NEED_CLAIM_MAIL, claim_mail),
+            "Ачивы": (NEED_CLAIM_ACHIV, claim_achiv),
+            "Клан": (NEED_CLAIM_CLAN, claim_clan),
+            "Альянс": (NEED_CLAIM_ALI, claim_alliance),
+            "Пасс": (NEED_CLAIM_BATTLE_PASS, claim_battle_pass),
+            "Шоп": (NEED_CLAIM_DONATE_SHOP, claim_donate_shop),
+        }
+
         try:
-            claimed_daily = await claim_daily(self)
-            if claimed_daily:
-                log(f"Дейлик успешно собран", window_id)
-            else:
-                log(f"Нет новых дейликов или не удалось собрать", window_id)
-
-            claimed_mail = await claim_mail(self)
-            if claimed_mail:
-                log(f"Почта успешно собрана", window_id)
-            else:
-                log(f"Нет новой почты или не удалось собрать", window_id)
-
-            claimed_achiv = await claim_achiv(self)
-            if claimed_achiv:
-                log(f"Ачивы успешно собраны", window_id)
-            else:
-                log(f"Нет новых ачивок или не удалось собрать", window_id)
-
-            claimed_clan = await claim_clan(self)
-            if claimed_clan:
-                log(f"Клан успешно собран", window_id)
-            else:
-                log(f"Нет новых донатов в клан или не удалось вдонить", window_id)
-
-            claim_ali = await claim_alliance(self)
-            if claim_ali:
-                log(f"Альянс успешно собран", window_id)
-            else:
-                log(f"Не смог собрать альянс", window_id)
-
-            claimed_bp = await claim_battle_pass(self)
-            if claimed_bp:
-                log(f"Пасс успешно собран", window_id)
-            else:
-                log(f"Не смог собрать пасс", window_id)
-
-            claimed_shop = await claim_donate_shop(self)
-            if claimed_shop:
-                log(f"Шоп успешно собран", window_id)
-            else:
-                log(f"Не смог собрать шоп", window_id)
+            for name, (need_claim, func) in rewards.items():
+                if need_claim:
+                    claimed = await func(self)
+                    if claimed:
+                        log(f"{name} успешно собран", window_id)
+                    else:
+                        log(f"Нет новых {name.lower()} или не удалось собрать",
+                            window_id)
 
             if not await check_energo_mode(self):
-                energomode = await energo_mode(self, "on")
-
+                await energo_mode(self, "on")
 
             self.tgbot.send_notification(
                 level="info",

@@ -133,6 +133,10 @@ class WindowControlDialog(QDialog):
         for name, cls in self.profiles.items():
             btn = self._create_button(name, partial(self.start_profile, nick, cls,
                                                     active_profile, name))
+
+            if name in ["MainAlchemy"]: #todo maybe add mini alch?
+                continue
+
             profile_buttons.append(btn)
 
         stop_button = self._create_button("STOP", partial(self.stop_profile, nick,

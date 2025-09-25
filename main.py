@@ -19,9 +19,6 @@ async def main():
     gui.show()
 
 if __name__ == "__main__":
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
     user = getpass.getuser()
     p = Path(sys.prefix) / "Lib" / "site-packages" / "PyQt5" / "Qt5" / "plugins" / "platforms"
 
@@ -42,4 +39,6 @@ if __name__ == "__main__":
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     loop.create_task(main())
-    loop.run_forever()
+
+    with loop:
+        loop.run_forever()
