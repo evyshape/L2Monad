@@ -27,6 +27,7 @@ class MainAlchemy(BaseProfile):
 
     async def main_loop(self):
         window_id, window = next(iter(self.window_info.items()))
+        kb = None
         try:
             resized = await self.smart_resize()
             if resized:
@@ -49,7 +50,7 @@ class MainAlchemy(BaseProfile):
                 if init == "first":
                     await asyncio.sleep(2)
                     bless = await check_bless(self)
-                    await roll(self, step=1)
+                    await roll(self, step=1, kb=kb)
                     result = await check_slots(self)
                     #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
                     if match_slots(result, bless, self.alch_cfg):
@@ -64,19 +65,19 @@ class MainAlchemy(BaseProfile):
                             )
 
                         log("Выкрутил то что надо, проверяй окно", window_id)
-                        await roll(self, step=3)
+                        await roll(self, step=3, kb=kb)
                         if hasattr(self, '_saved_pos'):
                             left, top, w, h = self._saved_pos
                             await self._resize(w, h, left, top)
                         return
                     else:
-                        await roll(self, step=2)
+                        await roll(self, step=2, kb=kb)
 
                 if init == "more":
                     #todo мб чет добаивть хз
                     pass
 
-                await self.roll_loop(iterations=self.alch_cfg["MAX_ROLLS"])
+                await self.roll_loop(iterations=self.alch_cfg["MAX_ROLLS"], kb=kb)
 
             elif resized is None:
                 log("Окно не нашло себе места... завершаю профиль", window_id)
@@ -92,17 +93,18 @@ class MainAlchemy(BaseProfile):
         await asyncio.gather(*self._child_tasks, return_exceptions=True)
         await super().on_stop()
 
-    async def roll_loop(self, iterations=10):
+    async def roll_loop(self, iterations=10, kb=None):
         window_id, window = next(iter(self.window_info.items()))
+        kb = None
         try:
-            await roll(self, step=1)
-            await roll(self, step=2)
+            await roll(self, step=1, kb=kb)
+            await roll(self, step=2, kb=kb)
             for i in range(1, iterations + 1):
                 try:
                     log(f"{i}/{iterations}", window_id)
                     await asyncio.sleep(random.uniform(0.25, 1.55))
                     bless = await check_bless(self)
-                    await roll(self, step=1)
+                    await roll(self, step=1, kb=kb)
                     result = await check_slots(self)
                     #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
                     if match_slots(result, bless, self.alch_cfg):
@@ -117,10 +119,10 @@ class MainAlchemy(BaseProfile):
                             )
 
                         log("Выкрутил то что надо, проверяй окно", window_id)
-                        await roll(self, step=3)
+                        await roll(self, step=3, kb=kb)
                         break
                     else:
-                        await roll(self, step=2)
+                        await roll(self, step=2, kb=kb)
 
                 except asyncio.CancelledError:
                     log("stoped", window_id)

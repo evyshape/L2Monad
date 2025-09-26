@@ -196,6 +196,18 @@ class BaseProfile(ABC):
         except Exception as e:
             log(f"Ошибка при smart_resize: {e}", window_id)
 
+    async def _activate(self) -> bool:
+        window_id, window = next(iter(self.window_info.items()))
+        try:
+            win = gw.getWindowsWithTitle(window['Title'])[0]
+            try:
+                win.activate()
+            except Exception:
+                ctypes.windll.user32.SetForegroundWindow(win._hWnd)
+            return True
+        except Exception as e:
+            log(f"Не удалось активнуть: {e}", window_id)
+            return False
 
     def send_event(self, event: Any) -> None:
         """

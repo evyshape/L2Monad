@@ -223,7 +223,7 @@ async def pre_init(profile):
 
     return None
 
-async def roll(profile, step=2):
+async def roll(profile, step=2, kb=None):
 
     async def wait_and_click(tag, timeout=5, thr=2):
         xy, rgb = parseAlch(tag)
@@ -234,9 +234,9 @@ async def roll(profile, step=2):
         return False
 
     steps = {
-        1: ["reroll"],
-        2: ["reroll_confirm"],
-        3: ["reroll_cancel"],
+        1: ["reroll"],          # игрик
+        2: ["reroll_confirm"],  # игрик
+        3: ["reroll_cancel"],   # еск
     }
 
     for tag in steps.get(step, []):

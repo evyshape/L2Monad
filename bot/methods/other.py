@@ -160,6 +160,27 @@ class MouseEvents:
         await self._add_task(("swipe", window_info, points, delay_points, done_event))
         await done_event.wait()
 
+    async def key_press(self, key: str, fast=False, profile=None):
+        done_event = asyncio.Event()
+        task = ("key_press", key, done_event)
+        if profile:
+            await profile._activate()
+        await self._add_task(task, fast)
+        await done_event.wait()
+        return True
+
+    async def key_down(self, key: str, fast=False):
+        done_event = asyncio.Event()
+        task = ("key_down", key, done_event)
+        await self._add_task(task, fast)
+        await done_event.wait()
+
+    async def key_up(self, key: str, fast=False):
+        done_event = asyncio.Event()
+        task = ("key_up", key, done_event)
+        await self._add_task(task, fast)
+        await done_event.wait()
+
     def get_tasks(self):
         fast_names = [task[0] for task in self.fast_queue]
         normal_names = [task[0] for task in self.normal_queue]
@@ -314,6 +335,43 @@ class MouseEvents:
                 self.clear = False
                 done_event.set()
                 await asyncio.sleep(0.09)
+
+        elif action == "key_press":
+            _, key, done_event = task
+            try:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None,
+                                           functools.partial(inputs.press, key))
+            except Exception as e:
+                log(f"Ошибка key_press: {e}", self.tname)
+            finally:
+                done_event.set()
+                await asyncio.sleep(0.01)
+
+        elif action == "key_down":
+            _, key, done_event = task
+            try:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None,
+                                           functools.partial(inputs.key_down, key))
+            except Exception as e:
+                log(f"Ошибка key_down: {e}", self.tname)
+            finally:
+                done_event.set()
+                await asyncio.sleep(0.02)
+
+        elif action == "key_up":
+            _, key, done_event = task
+            try:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None,
+                                           functools.partial(inputs.key_up, key))
+            except Exception as e:
+                log(f"Ошибка key_up: {e}", self.tname)
+            finally:
+                done_event.set()
+                await asyncio.sleep(0.01)
+
 
     async def _do_click(self, window_info, x_offset, y_offset, button):
         loop = asyncio.get_running_loop()
