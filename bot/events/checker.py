@@ -25,7 +25,7 @@ class EventsChecker:
         xy, rgb = parseCBT("pvp_energo_trigger", profile=profile)
 
         while profile.running:
-            found = await profile.check_pixel(xy, rgb, timeout=0.15, thr=4)
+            found = await profile.check_pixel(xy, rgb, timeout=0.15, thr=2)
 
             if found:
                 now = time.monotonic()

@@ -1139,7 +1139,7 @@ async def claim_daily(profile) -> bool:
         await wait_and_click("main_menu_gui", timeout=1)
         return False
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(3.5)
     tabs = await find_daily_tabs(left, top, height)
     summary = 0
 
@@ -1189,18 +1189,20 @@ async def claim_achiv(profile) -> bool:
         return False
 
     while True:
-        found_claim = await wait_and_click("achiv_claim_1", timeout=4)
+        found_claim = await wait_and_click("achiv_claim_1", timeout=6)
         await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
-        found_accept = await wait_and_click("achiv_claim_accept", timeout=2)
+        found_accept = await wait_and_click("achiv_claim_accept", timeout=5)
 
         if not found_claim:
             claimed = True
             await wait_and_click("npc_global_quit_button", timeout=5)
             break
 
+    await asyncio.sleep(2)
     q = await wait_and_click("achiv_claim_accept", timeout=2)
     if q:
-        await wait_and_click("npc_global_quit_button", timeout=5)
+        await wait_and_click("npc_global_quit_button", timeout=3)
+
     return claimed
 
 async def claim_clan(profile) -> bool:

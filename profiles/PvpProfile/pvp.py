@@ -178,20 +178,21 @@ class PvPDodge(BaseProfile):
         window_id = next(iter(self.window_info))
         if self.runtime_data.current_state == "combat":
             return True
-        log("Иду закуплюсь", window_id)
+        log("Пробую вернуться на спот", window_id)
         self.events_checker.stop_monitoring(window_id)
         energo = await check_energo_mode(self)
         if energo:
             await energo_mode(self, "off")
 
-        stash_ok, in_town, npcs = await go_stash(self)
-        shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs, check_loot=True)
-        buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+        if NEED_SHOP_AFTER_PVP_EVADE:
+            stash_ok, in_town, npcs = await go_stash(self)
+            shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs, check_loot=True)
+            buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
 
-        if stash_ok:
-            log("Закупился успешно, вероятно...", window_id)
+            if stash_ok:
+                log("Закупился успешно, вероятно...", window_id)
 
-
+        await asyncio.sleep(2.5)
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
         if to_spot:
@@ -530,7 +531,7 @@ class PvPDodge(BaseProfile):
         for x in range(wait * 10):
             current = time.time()
             last_death = self.events_checker.get_last_timestamp(window_id, "death")
-            if last_death is not None and current - last_death <= 60:
+            if last_death is not None and current - last_death <= 20:
                 log(f"Сдохли во время ответа, анлук", window_id)
                 return
 
@@ -559,6 +560,7 @@ class PvPDodge(BaseProfile):
                         if rip:
                             log("rly rip", window_id)
                             self.runtime_data.current_state = "death"
+                            return
 
                     tped = await wait_teleport(self)
                     if tped:
@@ -591,7 +593,7 @@ class PvPDodge(BaseProfile):
                 await asyncio.sleep(3)
                 break
 
-        rip = await check_rip(self)
+        rip, btn = await check_rip(self)
         if rip:
             log(f"{rip} | Сдох после попытки ответа, мда", window_id)
             self.events_checker.start_monitoring(window_id, self,

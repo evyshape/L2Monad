@@ -1,4 +1,5 @@
 NEED_SHOP_AFTER_RIP = True # бакалейщик после смерти
+NEED_SHOP_AFTER_PVP_EVADE = True # бакалейщик после пвп доджа
 NEED_CLAIM_DAILY = True # при сборе наград нужны ли дейлики?
 NEED_CLAIM_MAIL = True # при сборе наград нужна ли почта?
 NEED_CLAIM_ACHIV = True # при сборе наград нужны ли ачивки?
