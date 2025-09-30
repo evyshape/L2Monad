@@ -272,7 +272,16 @@ class EventsChecker:
         if profile.runtime_data.has_quiver is None:
             profile.runtime_data.has_quiver = await find_quiver(profile)
 
-        all_levels = list(range(10, 101, 10)) # анти хардкод списка епт
+        #start_xy, _ = parseCBT("hp_start", profile=profile)
+        #end_xy, _ = parseCBT("hp_end", profile=profile)
+
+        start_xy = "10, 9"
+        end_xy = "69, 9"
+
+        x1, y1 = map(int, start_xy.split(","))
+        x2, y2 = map(int, end_xy.split(","))
+
+        bar = abs(x2 - x1)
 
         while profile.running:
             health_thr = profile.settings.HEALTH_BACK or []
@@ -280,40 +289,37 @@ class EventsChecker:
                 await asyncio.sleep(1.0)
                 continue
 
-            min_thr = min(health_thr)  # минимальный порог для сьеба в город
-            check_levels = [x for x in all_levels if x >= min_thr]
-
-            hp_keys = [f"hp_{value}" for value in check_levels]
-
+            step = 3
             tasks = []
-            for cb_key in hp_keys:
-                xy, rgb = parseCBT(cb_key, profile=profile)
+            for dx in range(0, bar + 1, step):
+                x = x1 + dx
                 tasks.append(
-                    profile.check_pixel(xy, rgb, timeout=3, thr=31, wsize="1x1")
-                )  # todo подобрать идеальный thr
+                    profile.check_pixel((x, y1), (160, 40, 10), timeout=0.05, thr=60,
+                                        wsize="1x1")
+                )
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            found_levels = [
-                int(key.split("_")[1]) for key, res in zip(hp_keys, results) if
-                res is True
-            ]
-            if not found_levels:
-                await asyncio.sleep(2)
-                continue
+            red = sum(1 for res in results if res is True)
+            total = len(results)
 
-            detected_hp = max(found_levels)
-            profile.runtime_data.health = detected_hp
+            if total > 0:
+                hp_percent = int((red / total) * 100)
+            else:
+                hp_percent = 0
 
+            profile.runtime_data.health = hp_percent
+            #print(hp_percent)
             now = time.monotonic()
             last_events = self._last_event_time.setdefault(window_id, {})
             last_time = last_events.get("health", 0)
 
-            if detected_hp and now - last_time >= 1:
-                # EventsManager.send_event(window_id, {"type": "health"}) # можно в целом вернуть но я пока не хочу ловить ивентами буду брать из рантайма
+            if hp_percent and now - last_time >= 1:
                 last_events["health"] = now
+                # EventsManager.send_event(window_id, {"type": "health"})
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
+
 
     def start_monitoring(self, window_id: str, profile: BaseProfile,
                          monitors: list[MonitorType]) -> None:

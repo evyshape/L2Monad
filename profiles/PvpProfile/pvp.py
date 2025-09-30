@@ -526,7 +526,14 @@ class PvPDodge(BaseProfile):
         self.events_checker.start_monitoring(window_id, self,
                                              monitors=[MonitorType.HEALTH,
                                                        MonitorType.DEATH])
-        await asyncio.sleep(2.5)
+
+        wait = await wait_teleport(self, need=1)
+        if not wait:
+            log("wtf? not wait pvp answer unblock", window_id)
+            self.events_checker.stop_monitoring(window_id)
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+            return
 
         for x in range(wait * 10):
             current = time.time()
@@ -536,10 +543,79 @@ class PvPDodge(BaseProfile):
                 return
 
             health = self.runtime_data.health
-            if health and health in self.settings.HEALTH_BACK:
-                log(f"Достигли крит отметки из конфига, пробую улететь! {health}%",
-                    window_id)
+            if health:
+                log(f"Текущее хп: {health}", window_id)
+                m = max(self.settings.HEALTH_BACK or [20])
+                if health <= m:
+                    log(f"Хп упало! {health}% | {m}, пробую улететь!",
+                        window_id)
 
+                    xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
+
+                    click_x = xy[0]
+                    click_y = xy[1]
+
+                    result = await self.mouse.click(self.window_info, click_x, click_y, fast=True)
+
+                    if result:
+                        await asyncio.sleep(1)
+                        pixel = await self.check_pixel(xy, rgb, 7)
+                        if pixel:
+                            log(f"Контрольный тп вжат", window_id)
+                            await self.mouse.click(self.window_info, xy[0], xy[1], fast=True)
+                            await asyncio.sleep(1)
+                        else:
+                            log(f"rip? or no?", window_id)
+                            rip, btn = await check_rip(self)
+                            if rip:
+                                log("rly rip", window_id)
+                                self.runtime_data.current_state = "death"
+                                return
+
+                        tped = await wait_teleport(self)
+                        if tped:
+                            sleept = randint(3, 5)
+                            self.runtime_data.current_state = "afk"
+                            self.runtime_data.spot_time = (datetime.now() + timedelta(
+                                minutes=sleept)).strftime("%H:%M")
+                            log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
+                            self.events_checker.stop_monitoring(window_id)
+                            self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
+                            await asyncio.sleep(1)
+                            await energo_mode(self, "on")
+                            if self.settings.TELEGRAM_NOTIFIES:
+                                self.tgbot.send_notification(
+                                    level="warning",
+                                    text="Задоджил пвп успешно (после попытки ответа)",
+                                    nickname=window_id,
+                                )
+                            return
+                    else:
+                        log("Вероятно, погиб?", window_id)
+                        rip, btn = await check_rip(self)
+                        if rip:
+                            log("rly rip", window_id)
+                            self.runtime_data.current_state = "death"
+                            return
+
+            if await check_bablo(self):
+                log(f"Пвп успешно завершено", window_id)
+                await asyncio.sleep(1)
+                break
+
+        rip, btn = await check_rip(self)
+        if rip:
+            log(f"{rip} | Сдох после попытки ответа, мда", window_id)
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+            return
+
+        log(f"Мы живы! Посмотрю на хп пару секунд и вернусь на спот.", window_id)
+        curr_h = self.runtime_data.health
+        for _ in range(10):
+            hlt = self.runtime_data.health
+            if hlt <= curr_h:
+                log("Хп упало, вероятно пвп не завершено? пробую улететь", window_id)
                 xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
 
                 click_x = xy[0]
@@ -576,7 +652,7 @@ class PvPDodge(BaseProfile):
                         if self.settings.TELEGRAM_NOTIFIES:
                             self.tgbot.send_notification(
                                 level="warning",
-                                text="Задоджил пвп успешно (после попытки ответа)",
+                                text="Задоджил пвп успешно (после попытки ответа2)",
                                 nickname=window_id,
                             )
                         return
@@ -588,19 +664,8 @@ class PvPDodge(BaseProfile):
                         self.runtime_data.current_state = "death"
                         return
 
-            if await check_bablo(self):
-                log(f"Пвп успешно завершено, жду 3 сек", window_id)
-                await asyncio.sleep(3)
-                break
+            await asyncio.sleep(0.15)
 
-        rip, btn = await check_rip(self)
-        if rip:
-            log(f"{rip} | Сдох после попытки ответа, мда", window_id)
-            self.events_checker.start_monitoring(window_id, self,
-                                                 monitors=self.get_monitors)
-            return
-
-        log(f"Мы живы! Возвращаюсь на спот, вдруг увели...", window_id)
         self.events_checker.stop_monitoring(window_id)
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT,
                                                 self.settings.SPOT_DO)

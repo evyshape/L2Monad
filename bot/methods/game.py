@@ -359,7 +359,7 @@ async def wait_teleport(profile, need: int = 7) -> bool:
         if teleported:
             success += 1
 
-    if success >= 5:
+    if success >= (need + 1) // 2:
         log(f"tped succ | {success}/{need}", window_id)
         return True
     else:
@@ -432,18 +432,32 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
 
     hunt = await autohunt(profile)
     if hunt:
-        log("Автобой включен", window_id)
         await asyncio.sleep(0.15)
         await energo_mode(profile, "on")
         await asyncio.sleep(0.05)
-        profile.runtime_data.update_last_return()
-        if profile.settings.TELEGRAM_NOTIFIES:
-            profile.tgbot.send_notification(
-                level="trash",
-                text="Тпнулся на спот успешно",
-                nickname=window_id,
-            )
-        return True
+        autohunting = await check_autohunt(profile)
+        if autohunting:
+            log("Автобой включен", window_id)
+            profile.runtime_data.update_last_return()
+            if profile.settings.TELEGRAM_NOTIFIES:
+                profile.tgbot.send_notification(
+                    level="trash",
+                    text="Тпнулся на спот успешно",
+                    nickname=window_id,
+                )
+            return True
+        else:
+            log("Чет не так, автобой не включился?", window_id)
+            if profile.settings.TELEGRAM_NOTIFIES:
+                screenn = screenshot_window(profile.window_info, tg=True)
+                profile.tgbot.send_pic(
+                    photo=screenn,
+                    caption="Кажись залип, не включился автобой?\nПерезапусти окно вручную и отправь фидбек разрабу",
+                    parse_mode="HTML",
+                    nickname=window_id,
+                    reply_markup=delete_screenshot_kb()
+                )
+            return False
 
     return False
 
@@ -458,14 +472,14 @@ async def respawn(profile):
     rip_energo = False
     emode = await check_energo_mode(profile)
     if emode:
-        energokill = parseCBT("you_were_killed_energomode", profile=profile)
+        energokill = parseCBT("you_were_killed_energomode_2", profile=profile)
         xy, rgb = energokill
         rip_energo = await profile.check_pixel(xy, rgb, timeout=2)
         await energo_mode(profile, "off")
         await asyncio.sleep(2)
 
     if rip_energo:
-        xy1, rgb1 = parseCBT("respawn_village", profile=profile)
+        xy1, rgb1 = parseCBT("respawn_village_2", profile=profile)
         await profile.mouse.click(profile.window_info, xy1[0], xy1[1], fast=True)
         await asyncio.sleep(5)
         if emode:
@@ -473,7 +487,7 @@ async def respawn(profile):
             await asyncio.sleep(1)
         return True
     else:
-        xy1, rgb1 = parseCBT("respawn_village", profile=profile)
+        xy1, rgb1 = parseCBT("respawn_village_2", profile=profile)
         await profile.mouse.click(profile.window_info, xy1[0], xy1[1], fast=True)
         await asyncio.sleep(2)
         return True
@@ -492,24 +506,40 @@ async def check_bablo(profile):
     xy, rgb = parseCBT(cbt, profile=profile)
     return await profile.check_pixel(xy, rgb, timeout=1, thr=7, wsize="2x2")
 
-async def check_rip(profile) -> bool:
+async def check_rip(profile) -> tuple[bool, str]:
     window_id = next(iter(profile.window_info))
-    cbts = ["you_were_killed_energomode", "check_death_penalty", "respawn_village"]
 
-    #log("Начал чекать смерть", window_id)
+    rips = {
+        "you_were_killed_energomode": [
+            "you_were_killed_energomode_1",
+            "you_were_killed_energomode_2",
+            "you_were_killed_energomode_3",
+        ],
+        "check_death_penalty": [
+            "check_death_penalty_1",
+            "check_death_penalty_2",
+            "check_death_penalty_3",
+        ],
+        "respawn_village": [
+            "respawn_village_1",
+            "respawn_village_2",
+            "respawn_village_3",
+        ],
+    }
 
     async def check(cbt: str) -> bool:
-        #log(f"Чекаю {cbt}", window_id)
         xy, rgb = parseCBT(cbt, profile=profile)
-        return await profile.check_pixel(xy, rgb, timeout=5)
+        return await profile.check_pixel(xy, rgb, timeout=1, thr=3)
 
-    results = await asyncio.gather(*(check(cbt) for cbt in cbts))
-    for cbt, found in zip(cbts, results):
-        if found:
-            log(f"Детектнул {cbt}", window_id)
-            return True, cbt
+    for key, cbts in rips.items():
+        results = await asyncio.gather(*(check(cbt) for cbt in cbts))
+        if all(results):
+            log(f"Детектнул {key}", window_id)
+            return True, cbts[1]
 
     return False, ""
+
+
 
 # возможно надо будет вернуть старую, бацнул тестовый варик. надо фидбек собрать #todo
 async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int = 5) -> Optional[Dict[str, str]]:
@@ -623,7 +653,7 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                             nickname=window_id,
                             reply_markup=delete_screenshot_kb()
                         )
-                    log("Встал, верну False", window_id)
+                    log("Не нашел нпс, верну False", window_id)
                     return False, None
 
             log("Все условия не пройдены, жесть", window_id)
@@ -639,6 +669,9 @@ async def buy_in_shop(profile, in_town=None, npcs=None, check_loot=False) -> tup
     window_id = next(iter(profile.window_info))
     if in_town is None or npcs is None:
         in_town, npcs = await check_town(profile)
+
+    if not npcs:
+        return False, None, None
 
     if 'shop' not in npcs or npcs['shop'] == "no_data":
         return False, in_town, npcs
@@ -713,6 +746,9 @@ async def go_stash(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
         in_town, npcs = await check_town(profile)
         log(f"in_town: {in_town}, npcs: {npcs}", window_id)
 
+    if not npcs:
+        return False, None, None
+
     if 'stash' not in npcs or npcs['stash'] == "no_data":
         log("стеш не найден", window_id)
         return False, in_town, npcs
@@ -776,6 +812,9 @@ async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict
         log("чекаю нпс", window_id)
         in_town, npcs = await check_town(profile)
         log(f"in_town: {in_town}, npcs: {npcs}", window_id)
+
+    if not npcs:
+        return False, None, None
 
     if 'buyer' not in npcs or npcs['buyer'] == "no_data":
         log("скуп не найден", window_id)

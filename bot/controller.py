@@ -2,7 +2,7 @@ import asyncio
 import threading
 import ctypes
 from bot.clogger import log
-
+from bot.delays import WAIT_BEFORE_START
 from bot.manager import BotManager
 from bot.utils import findAllWindows, getProfiles
 from bot.constans import SUPPORTED_REZ
@@ -21,15 +21,19 @@ class ProfileController:
         return cls._instance
 
     def start_windows(self, profile_class, nicks, **kwargs):
+        log(f"Запуск через {WAIT_BEFORE_START} сек. | {nicks}")
+
         async def start_seq():
             windows = findAllWindows()
             tasks = []
-
             for nick in nicks:
                 window_info = windows[nick]
                 if window_info["Size"] not in SUPPORTED_REZ:
-                    log(f"Окно {nick} имеет насраное разрешение, чини | {window_info['Size']}\nПоддерживаемые: {SUPPORTED_REZ}",
-                        level="ERROR")
+                    log(
+                        f"Окно {nick} имеет насраное разрешение, чини | {window_info['Size']}\n"
+                        f"Поддерживаемые: {SUPPORTED_REZ}",
+                        level="ERROR"
+                    )
                     continue
 
                 settings = load_settings(nick)
@@ -43,7 +47,12 @@ class ProfileController:
 
             await asyncio.gather(*tasks)
 
-        asyncio.run_coroutine_threadsafe(start_seq(), self.loop)
+        def delayed():
+            asyncio.run_coroutine_threadsafe(start_seq(), self.loop)
+
+        self.loop.call_soon_threadsafe(
+            lambda: self.loop.call_later(WAIT_BEFORE_START, delayed)
+        )
 
     def stop_windows(self, nicks):
         for nick in nicks:
