@@ -97,10 +97,10 @@ async def check_lvl_up(profile) -> bool:
     xy, rgb = parseCBT("lvl_up_black", profile=profile)
 
     log("Чекаю лвл ап залупу", window_id)
-    lvl_up_visible = await profile.check_pixel(xy, rgb, timeout=1.2, wsize="2x2", thr=5)
-
+    lvl_up_visible = await profile.check_pixel(xy, rgb, timeout=1.2, wsize="1x1", thr=1)
     if lvl_up_visible:
         log("Лвл ап вылез, закрываю", window_id)
+        print(lvl_up_visible)
         xy_close, rgb_close = parseCBT("lvl_up_close", profile=profile)
         await profile.mouse.click(profile.window_info, *xy_close)
         if profile.settings.TELEGRAM_NOTIFIES:
