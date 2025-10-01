@@ -44,6 +44,25 @@ def curv(p0, p1, p2, steps=70):
         path.append((x, y))
     return path
 
+def move_line(window_info, x_offset, y_offset, steps=55, delay=0.001):
+    window_id, window = next(iter(window_info.items()))
+    x_pos, y_pos = window["Position"]
+    target_x = x_pos + x_offset
+    target_y = y_pos + y_offset
+
+    cur_x, cur_y = inputs.mouse_position()
+
+    dx = (target_x - cur_x) / steps
+    dy = (target_y - cur_y) / steps
+
+    for i in range(steps):
+        nx = int(cur_x + dx * (i + 1))
+        ny = int(cur_y + dy * (i + 1))
+        inputs.move_to(nx, ny)
+        time.sleep(delay)
+
+    inputs.move_to(target_x, target_y)
+
 
 def move_human(window_info, x_offset, y_offset, curve=True):
     window_id, window = next(iter(window_info.items()))
@@ -155,9 +174,15 @@ class MouseEvents:
         await self._add_task(("mouse_up", button, done_event))
         await done_event.wait()
 
-    async def swipe(self, window_info, points, delay_points=0.1):
+    async def swipe(self, window_info, points, delay_points=0.001, no_curve=False):
         done_event = asyncio.Event()
-        await self._add_task(("swipe", window_info, points, delay_points, done_event))
+        await self._add_task(("swipe", window_info, points, delay_points, no_curve, done_event))
+        await done_event.wait()
+
+    async def wheel(self, window_info, points, direction: str = "up", times: int = 1, delay: float = 0.008):
+        done_event = asyncio.Event()
+        task = ("wheel", window_info, points, direction, times, delay, done_event)
+        await self._add_task(task)
         await done_event.wait()
 
     async def key_press(self, key: str, fast=False, profile=None):
@@ -267,6 +292,30 @@ class MouseEvents:
                 done_event.set()
                 await asyncio.sleep(0.2)
 
+        elif action == "wheel":
+            _, window_info, points, direction, times, delay, done_event = task
+            self.clear = True
+            try:
+                loop = asyncio.get_running_loop()
+                if points and len(points) > 0:
+                    first_x, first_y = points[0]
+                    await loop.run_in_executor(
+                        None,
+                        functools.partial(move_mouse, window_info, first_x, first_y)
+                    )
+                    await asyncio.sleep(0.07)
+
+                for _ in range(times):
+                    await loop.run_in_executor(None, functools.partial(inputs.scroll, direction))
+                    await asyncio.sleep(delay)
+
+            except Exception as e:
+                log(f"Ошибка wheel: {e}", self.tname)
+            finally:
+                self.clear = False
+                done_event.set()
+                await asyncio.sleep(0.15)
+
         elif action == "mouse_down":
             _, button, done_event = task
             self.clear = True
@@ -300,7 +349,7 @@ class MouseEvents:
                 await asyncio.sleep(0.03)
 
         elif action == "swipe":
-            _, window_info, points, delay_points, done_event = task
+            _, window_info, points, delay_points, no_curve, done_event = task
             self.clear = True
             try:
                 loop = asyncio.get_running_loop()
@@ -312,18 +361,22 @@ class MouseEvents:
                     first_x, first_y = points[0]
                     await loop.run_in_executor(
                         None,
-                        functools.partial(move_human if curve else move_mouse,
-                                          window_info, first_x, first_y)
+                        functools.partial(
+                            move_line if no_curve else move_human,
+                            window_info, first_x, first_y
+                        )
                     )
-                    await asyncio.sleep(0.08)
+                    await asyncio.sleep(0.05)
 
                     await loop.run_in_executor(None, functools.partial(inputs.mouse_down, "left"))
 
                     for x, y in points[1:]:
                         await loop.run_in_executor(
                             None,
-                            functools.partial(move_human if curve else move_mouse,
-                                              window_info, x, y)
+                            functools.partial(
+                                move_line if no_curve else move_human,
+                                window_info, x, y
+                            )
                         )
                         await asyncio.sleep(delay_points)
 
@@ -334,7 +387,7 @@ class MouseEvents:
             finally:
                 self.clear = False
                 done_event.set()
-                await asyncio.sleep(0.09)
+                await asyncio.sleep(0.06)
 
         elif action == "key_press":
             _, key, done_event = task

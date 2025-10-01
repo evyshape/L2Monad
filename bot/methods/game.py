@@ -365,7 +365,7 @@ async def wait_teleport(profile, need: int = 7) -> bool:
     else:
         lvlup = await check_lvl_up(profile)
         if lvlup:
-            return wait_teleport(profile)
+            return await wait_teleport(profile)
         log(f"tped failed | {success}/{need}", window_id)
         return False
 
@@ -540,17 +540,24 @@ async def check_rip(profile) -> tuple[bool, str]:
     return False, ""
 
 
-
 # возможно надо будет вернуть старую, бацнул тестовый варик. надо фидбек собрать #todo
-async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int = 5) -> Optional[Dict[str, str]]:
+async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int = 2) -> Optional[Dict[str, str]]:
     window_id = next(iter(profile.window_info))
 
-    npc_batches = [[2, 3], [4, 5]]
-    if profile.settings.REGION == "RU":
-        npc_batches.append([6])
-
+    npc_batches = [[2, 3]]
     await check_lvl_up(profile)
 
+    #npc_batches = [[2, 3], [4, 5]]
+
+    #if profile.settings.REGION == "RU":
+    #    npc_batches.append([6])
+
+    await profile.mouse.wheel(
+        profile.window_info,
+        [(30, 100)],
+        direction="up",
+        times=10,
+    )
     for attempt in range(1, retries + 1):
         log(f"Попытка {attempt}/{retries} получить позиции нпс", window_id)
 
@@ -580,12 +587,12 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
                 npc_mapping = {"stash": "npc_list_2", "shop": "npc_list_1", "buyer": "npc_list_4"}
             elif found_j == 3:
                 npc_mapping = {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
-            elif found_j == 4:
-                npc_mapping = {"stash": "npc_list_4", "shop": "npc_list_2", "buyer": "npc_list_6"}
-            elif found_j == 5:
-                npc_mapping = {"stash": "npc_list_5", "shop": "npc_list_3", "buyer": "no_data"}
-            elif found_j == 6:
-                npc_mapping = {"stash": "npc_list_6", "shop": "npc_list_4", "buyer": "no_data"}
+            #elif found_j == 4:
+            #    npc_mapping = {"stash": "npc_list_4", "shop": "npc_list_2", "buyer": "npc_list_6"}
+            #elif found_j == 5:
+            #    npc_mapping = {"stash": "npc_list_5", "shop": "npc_list_3", "buyer": "no_data"}
+            #elif found_j == 6:
+            #    npc_mapping = {"stash": "npc_list_6", "shop": "npc_list_4", "buyer": "no_data"}
 
             profile.runtime_data.update_last_mapping(npc_mapping)
             log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", window_id)
@@ -593,7 +600,31 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
 
         await asyncio.sleep(0.3)
 
-    log(f"get_npc_positions false, не обнаружил npc за {retries} попыток", window_id)
+    log(f"get_npc_positions false, не обнаружил npc за {retries} попыток, пробую прокруткой", window_id)
+    for _ in range(2):
+        await profile.mouse.wheel(
+            profile.window_info,
+            [(30, 100)],
+            direction="down",
+            times=15,
+        )
+        await asyncio.sleep(random.uniform(0.2, 0.5))
+
+    await asyncio.sleep(random.uniform(0.2, 0.5))
+    if profile.settings.REGION == "RU":
+        for _ in range(1): #6 для мелких
+            await profile.mouse.wheel(profile.window_info, [(38, 104)], direction="up", times=9)
+            await asyncio.sleep(0.35)
+
+        return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
+
+    elif profile.settings.REGION == "JP":
+        for _ in range(1): #6 для мелких
+            await profile.mouse.wheel(profile.window_info, [(38, 104)], direction="up", times=7)
+            await asyncio.sleep(0.35)
+
+        return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
+
     return None
 
 

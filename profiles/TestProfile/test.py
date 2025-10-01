@@ -1,7 +1,7 @@
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_rip
+from bot.methods.game import check_rip, get_npc_positions
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.clogger import log
@@ -33,9 +33,8 @@ class Test(BaseProfile):
         try:
             self.events_checker.start_monitoring(window_id, self,
                                                  monitors=[MonitorType.HEALTH])
-            #r = await check_rip(self)
-            #log(r, window_id)
-
+            r = await get_npc_positions(self)
+            log(r, window_id)
             while True:
                 await asyncio.sleep(0.1)
                 pass
