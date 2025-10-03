@@ -94,25 +94,30 @@ async def safe_tp(profile) -> bool:
 
 async def check_lvl_up(profile) -> bool:
     window_id = next(iter(profile.window_info))
-    xy, rgb = parseCBT("lvl_up_black", profile=profile)
+    need = ["lvl_up_black_2", "lvl_up_black"]
 
-    log("Чекаю лвл ап залупу", window_id)
-    lvl_up_visible = await profile.check_pixel(xy, rgb, timeout=1.2, wsize="1x1", thr=1)
-    if lvl_up_visible:
+    results = [
+        await profile.check_pixel(*parseCBT(lvl_name, profile=profile), timeout=1.2, wsize="1x1", thr=1)
+        for lvl_name in need
+    ]
+
+    if all(results):
         log("Лвл ап вылез, закрываю", window_id)
-        print(lvl_up_visible)
         xy_close, rgb_close = parseCBT("lvl_up_close", profile=profile)
         await profile.mouse.click(profile.window_info, *xy_close)
+
         if profile.settings.TELEGRAM_NOTIFIES:
             profile.tgbot.send_notification(
                 level="info",
                 text="Перс апнул лвл, будь во внимании и качни поинт!",
                 nickname=window_id,
             )
+        await asyncio.sleep(1.3)
         return True
     else:
-        log(f"Вероятно лвл апа не было {lvl_up_visible}", window_id)
+        log(f"Вероятно лвл апа не было {results}", window_id)
         return False
+
 
 async def energo_mode(profile, state: str) -> bool:
     window_id, window = next(iter(profile.window_info.items()))
@@ -389,16 +394,37 @@ async def check_autohunt(profile) -> bool:
         return False
 
 async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=True) -> bool:
+
+    async def ah() -> bool:
+        hunt = await autohunt(profile)
+        if not hunt:
+            return False
+
+        await asyncio.sleep(0.15)
+        await energo_mode(profile, "on")
+        await asyncio.sleep(0.05)
+
+        if await check_autohunt(profile):
+            log("Автобой включен", window_id)
+            profile.runtime_data.update_last_return()
+            if profile.settings.TELEGRAM_NOTIFIES:
+                profile.tgbot.send_notification(
+                    level="trash",
+                    text="Тпнулся на спот успешно",
+                    nickname=window_id,
+                )
+            return True
+        return False
+
     await asyncio.sleep(0.5)
     window_id = next(iter(profile.window_info))
     spot = random.randint(from_, to_)
 
     log(f"Пробую тпнуться на спот №{spot}", window_id)
 
-    if not fast:
-        if await check_energo_mode(profile):
-            log(f"Был в энерго, вырубаю перед тп", window_id)
-            await energo_mode(profile, "off")
+    if not fast and await check_energo_mode(profile):
+        log("Был в энерго, вырубаю перед тп", window_id)
+        await energo_mode(profile, "off")
 
     await asyncio.sleep(0.05)
 
@@ -422,44 +448,44 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
 
         await asyncio.sleep(random.uniform(0.2, 0.5))
 
-    tped = await wait_teleport(profile)
-
-    if not tped:
-        log("Телепорт не подтвержден — недостаточно срабатываний залупки", window_id)
+    if not await wait_teleport(profile):
+        log("Недостаточно срабатываний залупки", window_id)
         return False
 
     log("Залупка найдена, включаю автобой и энерго", window_id)
 
-    hunt = await autohunt(profile)
-    if hunt:
-        await asyncio.sleep(0.15)
-        await energo_mode(profile, "on")
-        await asyncio.sleep(0.05)
-        autohunting = await check_autohunt(profile)
-        if autohunting:
-            log("Автобой включен", window_id)
-            profile.runtime_data.update_last_return()
-            if profile.settings.TELEGRAM_NOTIFIES:
-                profile.tgbot.send_notification(
-                    level="trash",
-                    text="Тпнулся на спот успешно",
-                    nickname=window_id,
-                )
+    if await ah():
+        return True
+
+    log("Чет не так, автобой не включился?", window_id)
+
+    rip, btn = await check_rip(profile)
+    if rip:
+        log("Сдох, мдо?", window_id)
+        return True
+
+    if await check_energo_mode(profile):
+        log("Не сдох но стою без автобоя, чинюсь", window_id)
+        await energo_mode(profile, "off")
+        await asyncio.sleep(0.1)
+        if await ah():
             return True
-        else:
-            log("Чет не так, автобой не включился?", window_id)
-            if profile.settings.TELEGRAM_NOTIFIES:
-                screenn = screenshot_window(profile.window_info, tg=True)
-                profile.tgbot.send_pic(
-                    photo=screenn,
-                    caption="Кажись залип, не включился автобой?\nПерезапусти окно вручную и отправь фидбек разрабу",
-                    parse_mode="HTML",
-                    nickname=window_id,
-                    reply_markup=delete_screenshot_kb()
-                )
-            return False
+    else:
+        log("Почему окно не в энерго?", window_id)
+
+    if profile.settings.TELEGRAM_NOTIFIES:
+        screenn = screenshot_window(profile.window_info, tg=True)
+        profile.tgbot.send_pic(
+            photo=screenn,
+            caption="Кажись залип, не включился автобой?\n"
+                    "Перезапусти окно вручную и отправь фидбек разрабу",
+            parse_mode="HTML",
+            nickname=window_id,
+            reply_markup=delete_screenshot_kb()
+        )
 
     return False
+
 
 async def respawn(profile):
     window_id = next(iter(profile.window_info))
@@ -664,7 +690,7 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                 log("Список нпс уже открыт, мы в городе", window_id)
                 return True, allNPC
 
-            rip = await check_rip(profile)
+            rip, btn = await check_rip(profile)
             if rip:
                 log("Умер прямо в момент тпшки в город, ресаюсь", window_id)
                 res = await respawn(profile)

@@ -13,7 +13,7 @@ from aiogram.types import FSInputFile
 from bot.clogger import log
 from interception import inputs
 from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swipes, curve
-from bot.delays import CLICK_DELAY
+from bot.delays import CLICK_DELAY, MOUSE_SCROLL
 from bot.constans import SCREENSHOT_DIR
 
 
@@ -179,7 +179,7 @@ class MouseEvents:
         await self._add_task(("swipe", window_info, points, delay_points, no_curve, done_event))
         await done_event.wait()
 
-    async def wheel(self, window_info, points, direction: str = "up", times: int = 1, delay: float = 0.008):
+    async def wheel(self, window_info, points, direction: str = "up", times: int = 1, delay: float = MOUSE_SCROLL):
         done_event = asyncio.Event()
         task = ("wheel", window_info, points, direction, times, delay, done_event)
         await self._add_task(task)
@@ -303,7 +303,7 @@ class MouseEvents:
                         None,
                         functools.partial(move_mouse, window_info, first_x, first_y)
                     )
-                    await asyncio.sleep(0.07)
+                    await asyncio.sleep(MOUSE_SCROLL)
 
                 for _ in range(times):
                     await loop.run_in_executor(None, functools.partial(inputs.scroll, direction))

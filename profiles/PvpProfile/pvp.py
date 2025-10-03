@@ -614,8 +614,11 @@ class PvPDodge(BaseProfile):
         curr_h = self.runtime_data.health
         for _ in range(10):
             hlt = self.runtime_data.health
-            if hlt <= curr_h:
-                log("Хп упало, вероятно пвп не завершено? пробую улететь", window_id)
+            hp_diff = curr_h - hlt
+            diff = (hp_diff / curr_h) * 100
+
+            if diff >= 15: # проценты, в целом можно вынести в /bot/misc.py
+                log(f"Хп упало на {diff:.1f}%, улетаю!", window_id)
                 xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
 
                 click_x = xy[0]
@@ -664,7 +667,7 @@ class PvPDodge(BaseProfile):
                         self.runtime_data.current_state = "death"
                         return
 
-            await asyncio.sleep(0.15)
+            await asyncio.sleep(0.1)
 
         self.events_checker.stop_monitoring(window_id)
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT,
