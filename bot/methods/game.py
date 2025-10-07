@@ -14,8 +14,158 @@ from bot.methods.base import parseCBT
 from bot.methods.other import screenshot_window
 from bot.clogger import log
 from bot.constans import DAILY, BATTLE_PASS
+from profiles.base import BaseProfile
 
 from tgbot.keyboards.screenshot import delete_screenshot_kb
+
+async def check_ethernet2_error(profile: BaseProfile):
+    window_id = next(iter(profile.window_info))
+
+    c = {
+        "error_disconnect_to_menu_with_err": [
+            "error_disconnect_to_menu_with_err_trigger1",
+            "error_disconnect_to_menu_with_err_trigger2",
+            "error_disconnect_to_menu_with_err_trigger3",
+            "error_disconnect_to_menu_with_err_trigger4",
+        ]
+    }
+
+    async def check(cbt: str) -> bool:
+        xy, rgb = parseCBT(cbt, profile=profile)
+        return await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+
+    total = 0
+
+    for key, cbts in c.items():
+        for _ in range(5):
+            results = await asyncio.gather(*(check(cbt) for cbt in cbts))
+            if all(results):
+                total += 1
+                if total > 4:
+                    log(f"Детектнул {key} =(", window_id)
+                    return True
+
+            await asyncio.sleep(3)
+
+    return False
+
+async def close_ethernet2_error(profile: BaseProfile):
+    await asyncio.sleep(2)
+    window_id = next(iter(profile.window_info))
+    log("Пробую закрыть инет2 ошибку", window_id)
+    xy, rgb = parseCBT("error_disconnect_to_menu_with_err", profile)
+    ex = await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+    if ex:
+        await profile.mouse.click(profile.window_info, xy[0], xy[1])
+        await asyncio.sleep(1)
+        return True
+
+    return False
+
+async def check_ethernet1_error(profile: BaseProfile): # (P:3102:500)
+    window_id = next(iter(profile.window_info))
+
+    c = {
+        "error_ethernet_1": [
+            "error_ethernet_1_trigger1",
+            "error_ethernet_1_trigger2",
+            "error_ethernet_1_trigger3",
+            "error_ethernet_1_trigger4",
+        ]
+    }
+
+    async def check(cbt: str) -> bool:
+        xy, rgb = parseCBT(cbt, profile=profile)
+        return await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+
+    total = 0
+
+    for key, cbts in c.items():
+        for _ in range(5):
+            results = await asyncio.gather(*(check(cbt) for cbt in cbts))
+            if all(results):
+                total += 1
+                if total > 4:
+                    log(f"Детектнул {key} =(", window_id)
+                    return True
+
+            await asyncio.sleep(3)
+
+    return False
+
+async def close_ethernet1_error(profile: BaseProfile):
+    await asyncio.sleep(2)
+    window_id = next(iter(profile.window_info))
+    log("Пробую закрыть инет ошибку", window_id)
+    xy, rgb = parseCBT("error_ethernet_1", profile)
+    ex = await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+    if ex:
+        await profile.mouse.click(profile.window_info, xy[0], xy[1])
+        await asyncio.sleep(1)
+        return True
+
+    return False
+
+async def connect_to_server(profile: BaseProfile):
+    window_id = next(iter(profile.window_info))
+    await asyncio.sleep(4)
+    xy, rgb = parseCBT("error_disconnect_to_menu", profile)
+    # жесть накостылил но клики иногда не регает =)
+    await profile.mouse.click(profile.window_info, xy[0], xy[1])
+    await asyncio.sleep(8)
+    await profile.mouse.click(profile.window_info, xy[0], xy[1])
+    await asyncio.sleep(2)
+    await profile.mouse.click(profile.window_info, xy[0], xy[1])
+    xy, rgb = parseCBT("enter_to_server", profile)
+    found = None
+    for _ in range(7):
+        found = await profile.check_pixel(xy, rgb, timeout=3, wsize="2x2")
+        if found:
+            break
+        else:
+            await asyncio.sleep(1.5)
+    if found:
+        log("Пробую конект к серверу, загрузился к выбору персов", window_id)
+        await asyncio.sleep(random.uniform(1, 2))
+        await profile.mouse.click(profile.window_info, xy[0], xy[1])
+        await asyncio.sleep(SLEEP_AFTER_CONNECT)
+        log("Законектился на сервер", window_id)
+        return True
+    else:
+        log("Шото страшное и необработанное =(", window_id)
+
+    return False
+
+async def check_disconnect(profile: BaseProfile) -> bool:
+    window_id = next(iter(profile.window_info))
+
+    c = {
+        "error_disconnect_to_menu": [
+            "error_disconnect_to_menu_trigger1",
+            "error_disconnect_to_menu_trigger2",
+            "error_disconnect_to_menu_trigger3",
+            "error_disconnect_to_menu_trigger4",
+        ]
+    }
+
+    async def check(cbt: str) -> bool:
+        xy, rgb = parseCBT(cbt, profile=profile)
+        return await profile.check_pixel(xy, rgb, timeout=3, thr=0)
+
+    total = 0
+
+    for key, cbts in c.items():
+        for _ in range(5):
+            results = await asyncio.gather(*(check(cbt) for cbt in cbts))
+            if all(results):
+                total += 1
+                if total > 4:
+                    log(f"Детектнул {key}, нас дисконектнуло =(", window_id)
+                    return True
+
+            await asyncio.sleep(3)
+
+    return False
 
 async def skip_vitlity(profile, mode: Literal["skip", "claim"] = "skip"):
     if mode == "skip":
@@ -507,7 +657,7 @@ async def respawn(profile):
     if rip_energo:
         xy1, rgb1 = parseCBT("respawn_village_2", profile=profile)
         await profile.mouse.click(profile.window_info, xy1[0], xy1[1], fast=True)
-        await asyncio.sleep(5)
+        await asyncio.sleep(8)
         if emode:
             await energo_mode(profile, "on")
             await asyncio.sleep(1)
@@ -571,6 +721,11 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
     window_id = next(iter(profile.window_info))
 
     npc_batches = [[2, 3]]
+    eth_err = await check_ethernet1_error(profile)
+    if eth_err:
+        await close_ethernet1_error(profile)
+        await asyncio.sleep(1)
+
     await check_lvl_up(profile)
 
     #npc_batches = [[2, 3], [4, 5]]
@@ -660,6 +815,10 @@ async def check_town(profile) -> tuple[bool, dict | None]:
     timeout = 50
     start_time = asyncio.get_event_loop().time()
     log(f"Начал проверять в городе ли я, таймаут: {timeout}", window_id)
+    eth_err = await check_ethernet1_error(profile)
+    if eth_err:
+        await close_ethernet1_error(profile)
+        await asyncio.sleep(1)
 
     while asyncio.get_event_loop().time() - start_time < timeout:
         xy, rgb = parseCBT("white_cube_in_minimap", profile=profile)
@@ -684,7 +843,7 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                     log("Нахожусь в городе, список нпс открыт", window_id)
                     return True, allNPC
         else:
-            log(f"Белого кубика не было, чекаю позиции в тупую", window_id)
+            log(f"Белого кубика не было, карты нет. чекаю позиции в тупую", window_id)
             allNPC = await get_npc_positions(profile)
             if allNPC:
                 log("Список нпс уже открыт, мы в городе", window_id)
@@ -1285,17 +1444,17 @@ async def claim_achiv(profile) -> bool:
         return False
 
     while True:
-        found_claim = await wait_and_click("achiv_claim_1", timeout=6)
+        found_claim = await wait_and_click("achiv_claim_1", timeout=8)
         await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
-        found_accept = await wait_and_click("achiv_claim_accept", timeout=5)
+        found_accept = await wait_and_click("achiv_claim_accept", timeout=7)
 
         if not found_claim:
             claimed = True
             await wait_and_click("npc_global_quit_button", timeout=5)
             break
 
-    await asyncio.sleep(2)
-    q = await wait_and_click("achiv_claim_accept", timeout=2)
+    await asyncio.sleep(5)
+    q = await wait_and_click("achiv_claim_accept", timeout=4)
     if q:
         await wait_and_click("npc_global_quit_button", timeout=3)
 

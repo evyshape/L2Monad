@@ -197,6 +197,28 @@ CBT_RU = {
     "alliance_donate_1_button": ["58, 174", "215, 103, 11"],
     "alliance_donate_2_button": ["164, 184", "209, 95, 9"],
     "alliance_close_donate": ["357, 31", "36, 40, 47"],
+
+    "error_disconnect_to_menu": ["192, 46", "234, 145, 94"], # куда кликнуть для входа на серв | +
+    "error_disconnect_to_menu_trigger1": ["192, 46", "234, 145, 94"], # | +
+    "error_disconnect_to_menu_trigger2": ["208, 127", "207, 145, 93"], # | +
+    "error_disconnect_to_menu_trigger3": ["191, 106", "244, 239, 173"], # | +
+    "error_disconnect_to_menu_trigger4": ["143, 83", "252, 248, 224"], # | +
+    "error_disconnect_to_menu_with_err": ["190, 150", "217, 109, 12"], # куда кликнуть шоб закрыть табличку | +
+    "error_disconnect_to_menu_with_err_trigger1": ["151, 95", "135, 136, 138"], # | +
+    "error_disconnect_to_menu_with_err_trigger2": ["244, 106", "113, 115, 117"], # | +
+    "error_disconnect_to_menu_with_err_trigger3": ["248, 98", "182, 183, 183"], # | +
+    "error_disconnect_to_menu_with_err_trigger4": ["157, 105", "154, 155, 156"], # | +
+    "enter_to_server": ["315, 199", "216, 105, 11"], # выбор персов, просто кнопка Enter
+    "error_disconnect_full": ["188, 151", "223, 148, 95"], # куда кликнуть шоб закрыть окно после 10 мин афк
+    "error_disconnect_full_trigger1": ["270, 103", "92, 94, 97"],
+    "error_disconnect_full_trigger2": ["133, 100", "54, 56, 60"],
+    "error_disconnect_full_trigger3": ["190, 101", "83, 85, 88"],
+    "error_disconnect_full_trigger4": ["193, 103", "180, 180, 181"],
+    "error_ethernet_1": ["202, 151", "224, 152, 101"], # (P:3102:500)
+    "error_ethernet_1_trigger1": ["166, 95", "59, 62, 65"],
+    "error_ethernet_1_trigger2": ["221, 95", "117, 118, 120"],
+    "error_ethernet_1_trigger3": ["135, 103", "114, 116, 118"],
+    "error_ethernet_1_trigger4": ["265, 107", "104, 106, 109"],
 }
 
 CBT_JP = {
@@ -370,6 +392,28 @@ CBT_JP = {
     "trash_god_statue_trigger_2": ["282, 34", "149, 157, 176"],
     "trash_god_statue_trigger_3": ["22, 40", "255, 255, 255"],
     "trash_god_statue_trigger_4": ["230, 46", "103, 115, 128"],
+
+    "error_disconnect_to_menu": ["192, 46", "234, 145, 94"], # куда кликнуть для входа на серв
+    "error_disconnect_to_menu_trigger1": ["192, 46", "234, 145, 94"],
+    "error_disconnect_to_menu_trigger2": ["208, 127", "207, 145, 93"],
+    "error_disconnect_to_menu_trigger3": ["191, 106", "244, 239, 173"],
+    "error_disconnect_to_menu_trigger4": ["143, 83", "252, 248, 224"],
+    "error_disconnect_to_menu_with_err": ["190, 150", "217, 109, 12"], # куда кликнуть шоб закрыть табличку дисконекта из-за инета
+    "error_disconnect_to_menu_with_err_trigger1": ["150, 106", "102, 104, 106"],
+    "error_disconnect_to_menu_with_err_trigger2": ["249, 106", "113, 115, 117"],
+    "error_disconnect_to_menu_with_err_trigger3": ["194, 98", "129, 130, 132"],
+    "error_disconnect_to_menu_with_err_trigger4": ["237, 98", "83, 85, 88"],
+    "enter_to_server": ["315, 199", "216, 105, 11"], # выбор персов, просто кнопка Enter
+    "error_disconnect_full": ["188, 151", "223, 148, 95"], # куда кликнуть шоб закрыть окно после 10 мин афк
+    "error_disconnect_full_trigger1": ["270, 103", "92, 94, 97"],
+    "error_disconnect_full_trigger2": ["133, 100", "54, 56, 60"],
+    "error_disconnect_full_trigger3": ["190, 101", "83, 85, 88"],
+    "error_disconnect_full_trigger4": ["193, 103", "180, 180, 181"],
+    "error_ethernet_1": ["202, 151", "224, 152, 101"],  # (P:3102:500)
+    "error_ethernet_1_trigger1": ["166, 95", "59, 62, 65"],
+    "error_ethernet_1_trigger2": ["221, 95", "117, 118, 120"],
+    "error_ethernet_1_trigger3": ["135, 103", "114, 116, 118"],
+    "error_ethernet_1_trigger4": ["265, 107", "104, 106, 109"],
 }
 
 BATTLE_PASS = {

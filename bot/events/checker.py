@@ -4,10 +4,11 @@ from typing import Dict
 
 from bot.clogger import log
 from bot.delays import PVP_CHECK_DELAY
+from bot.misc import *
 from bot.events.events import EventsManager
-from bot.events.enums import MonitorType, OverWeight
+from bot.events.enums import MonitorType, OverWeight, ErrorTypes
 from bot.methods.base import parseCBT
-from bot.methods.game import check_rip, find_quiver
+from bot.methods.game import check_rip, find_quiver, check_ethernet1_error, check_disconnect, check_ethernet2_error
 from profiles.base import BaseProfile
 
 
@@ -230,7 +231,6 @@ class EventsChecker:
             await asyncio.sleep(30)
 
     async def _monitor_overweight(self, window_id: str, profile: BaseProfile):
-        await asyncio.sleep(1)
         if profile.runtime_data.has_quiver is None:
             profile.runtime_data.has_quiver = await find_quiver(profile)
 
@@ -320,9 +320,73 @@ class EventsChecker:
 
             await asyncio.sleep(0.1)
 
+    async def _check_ethernet_disc_error(self, window_id: str, profile: BaseProfile):
+        while profile.running:
+            try:
+                found = await check_ethernet2_error(profile)
+                if found:
+                    EventsManager.send_event(window_id, {
+                        "type": "error",
+                        "desc": ErrorTypes.ETHERNET2_ERROR,
+                    })
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log(f"Ошибка в _check_ethernet2_error: {e}", self.tname)
+            await asyncio.sleep(60 * 4)
+
+    async def _check_ethernet_error(self, window_id: str, profile: BaseProfile):
+        while profile.running:
+            try:
+                found = await check_ethernet1_error(profile)
+                if found:
+                    EventsManager.send_event(window_id, {
+                        "type": "error",
+                        "desc": ErrorTypes.ETHERNET_ERROR,
+                    })
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log(f"Ошибка в _check_ethernet_error: {e}", self.tname)
+            await asyncio.sleep(60 * 6)
+
+    async def _check_disconnect(self, window_id: str, profile: BaseProfile):
+        while profile.running:
+            try:
+                found = await check_disconnect(profile)
+                if found:
+                    EventsManager.send_event(window_id, {
+                        "type": "error",
+                        "desc": ErrorTypes.DISCONNECT_TO_MENU,
+                    })
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log(f"Ошибка в _check_disconnect: {e}", self.tname)
+            await asyncio.sleep(60 * 8)
+
+    async def _monitor_errors(self, window_id: str, profile: BaseProfile) -> None:
+        subtasks = []
+
+        if CHECK_ETHERNET1_ERROR:
+            subtasks.append(asyncio.create_task(self._check_ethernet_error(window_id, profile)))
+
+        if CHECK_DISCONNECT_ERROR:
+            subtasks.append(asyncio.create_task(self._check_disconnect(window_id, profile)))
+            subtasks.append(asyncio.create_task(self._check_ethernet_disc_error(window_id, profile)))
+
+        try:
+            while profile.running:
+                await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            for t in subtasks:
+                t.cancel()
 
     def start_monitoring(self, window_id: str, profile: BaseProfile,
                          monitors: list[MonitorType]) -> None:
+
         if window_id in self.tasks:
             log(f"Чекер уже запущен для {window_id}", self.tname)
             return
@@ -330,31 +394,26 @@ class EventsChecker:
         log(f"Запускаю евент чекеры для {window_id} по {[m.value for m in monitors]}", self.tname)
 
         tasks = []
-        for monitor_type in monitors:
-            if monitor_type == MonitorType.PVP:
-                tasks.append(asyncio.create_task(self._monitor_pvp(window_id, profile)))
-            elif monitor_type == MonitorType.HP_BANK:
-                tasks.append(asyncio.create_task(self._monitor_hp_bank(window_id, profile)))
-            elif monitor_type == MonitorType.DEATH:
-                tasks.append(asyncio.create_task(self._monitor_death(window_id, profile)))
-            elif monitor_type == MonitorType.SPOT_BACK:
-                tasks.append(asyncio.create_task(self._monitor_spot_back(window_id, profile)))
-            elif monitor_type == MonitorType.SELL_STASH_BUY:
-                tasks.append(asyncio.create_task(self._monitor_sell_stash_buy(window_id, profile)))
-            elif monitor_type == MonitorType.CLAIM_MAIL:
-                tasks.append(asyncio.create_task(self._monitor_mail(window_id, profile)))
-            elif monitor_type == MonitorType.CLAIM_REWARDS:
-                tasks.append(asyncio.create_task(self._monitor_rewards(window_id, profile)))
-            elif monitor_type == MonitorType.SCHEDULE:
-                tasks.append(asyncio.create_task(self._monitor_schedule_schedule(window_id, profile)))
-            elif monitor_type == MonitorType.SOSKA:
-                tasks.append(asyncio.create_task(self._monitor_soska(window_id, profile)))
-            elif monitor_type == MonitorType.OVERWEIGHT:
-                tasks.append(asyncio.create_task(self._monitor_overweight(window_id, profile)))
-            elif monitor_type == MonitorType.HEALTH:
-                tasks.append(asyncio.create_task(self._monitor_health(window_id, profile)))
-            elif monitor_type == MonitorType.AUCTION:
-                tasks.append(asyncio.create_task(self._monitor_auction(window_id, profile)))
+        checkers = {
+            MonitorType.PVP: self._monitor_pvp,
+            MonitorType.HP_BANK: self._monitor_hp_bank,
+            MonitorType.DEATH: self._monitor_death,
+            MonitorType.SPOT_BACK: self._monitor_spot_back,
+            MonitorType.SELL_STASH_BUY: self._monitor_sell_stash_buy,
+            MonitorType.CLAIM_MAIL: self._monitor_mail,
+            MonitorType.CLAIM_REWARDS: self._monitor_rewards,
+            MonitorType.SCHEDULE: self._monitor_schedule_schedule,
+            MonitorType.SOSKA: self._monitor_soska,
+            MonitorType.OVERWEIGHT: self._monitor_overweight,
+            MonitorType.HEALTH: self._monitor_health,
+            MonitorType.AUCTION: self._monitor_auction,
+            MonitorType.ERROR: self._monitor_errors,
+        }
+
+        for mtype in monitors:
+            func = checkers.get(mtype)
+            if func:
+                tasks.append(asyncio.create_task(func(window_id, profile)))
 
         self.tasks[window_id] = tasks
 

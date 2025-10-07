@@ -9,7 +9,7 @@ from bot.clogger import log
 
 from profiles.base import BaseProfile
 from bot.events.checker import EventsChecker
-from bot.events.enums import MonitorType, PRIORITIES
+from bot.events.enums import MonitorType, PRIORITIES, ErrorTypes
 from bot.methods.base import parseCBT
 from bot.delays import DELAY_PVP_ANSWER, MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP, MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP
 from bot.methods.other import MouseEvents, screenshot_window
@@ -37,7 +37,11 @@ from bot.methods.game import (
     schedule,
     safe_tp,
     sell_buyer,
-    go_stash, auction_rereg,
+    go_stash,
+    auction_rereg,
+    connect_to_server,
+    close_ethernet1_error,
+    close_ethernet2_error,
 )
 from bot.windows.runtime import RuntimeData
 
@@ -65,7 +69,7 @@ class PvPDodge(BaseProfile):
     # todo переделать, хочу class MonitorRule в который суну условия
     @property
     def get_monitors(self) -> list:
-        monitors = [MonitorType.SPOT_BACK]
+        monitors = [MonitorType.SPOT_BACK, MonitorType.ERROR]
 
         if getattr(self.settings, "PVP_EVADE", False):
             monitors.append(MonitorType.PVP)
@@ -162,6 +166,20 @@ class PvPDodge(BaseProfile):
                 self.runtime_data.current_state = "combat"
                 self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
                 return True
+            else:
+                #todo почему автобой не включился?
+                if self.settings.TELEGRAM_NOTIFIES:
+                    screenn = screenshot_window(self.window_info, tg=True)
+                    self.tgbot.send_pic(
+                        photo=screenn,
+                        caption=f"Шось пошло не так, не тпнулся на спот либо не включился автобой?",
+                        parse_mode="HTML",
+                        nickname=window_id,
+                        reply_markup=delete_screenshot_kb()
+                    )
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                return
         else:
             self.events_checker.stop_monitoring(window_id)
             path = screenshot_window(self.window_info)
@@ -617,7 +635,7 @@ class PvPDodge(BaseProfile):
             hp_diff = curr_h - hlt
             diff = (hp_diff / curr_h) * 100
 
-            if diff >= 15: # проценты, в целом можно вынести в /bot/misc.py
+            if diff >= 9: # проценты, в целом можно вынести в /bot/misc.py
                 log(f"Хп упало на {diff:.1f}%, улетаю!", window_id)
                 xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
 
@@ -669,6 +687,13 @@ class PvPDodge(BaseProfile):
 
             await asyncio.sleep(0.1)
 
+        rip, btn = await check_rip(self)
+        if rip:
+            log(f"{rip} | Сдох после попытки ответа, мда2", window_id)
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
+            return
+
         self.events_checker.stop_monitoring(window_id)
         to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT,
                                                 self.settings.SPOT_DO)
@@ -687,7 +712,8 @@ class PvPDodge(BaseProfile):
                     nickname=window_id,
                     reply_markup=delete_screenshot_kb()
                 )
-            self.runtime_data.current_state = "afk"
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
             return
 
     async def auction(self):
@@ -728,6 +754,56 @@ class PvPDodge(BaseProfile):
         await asyncio.sleep(1)
         return True
 
+    async def errors(self, desc):
+        window_id = next(iter(self.window_info))
+        f = desc.value
+        func = globals().get(f)
+
+        if func:
+            self.events_checker.stop_monitoring(window_id)
+            result = await func(self)
+            if result:
+                self.runtime_data.set_state("afk")
+                if desc == ErrorTypes.ETHERNET2_ERROR:
+                    res2 = await connect_to_server(self)
+                    if res2:
+                        self.runtime_data.spot_time = (datetime.now() + timedelta(
+                            minutes=3)).strftime("%H:%M")
+
+                        await energo_mode(self, "on")
+                    else:
+                        if self.settings.TELEGRAM_NOTIFIES:
+                            screenn = screenshot_window(self.window_info, tg=True)
+                            self.tgbot.send_pic(
+                                photo=screenn,
+                                caption=f"Чет супер злое после попытки подрубиться на сервер",
+                                parse_mode="HTML",
+                                nickname=window_id,
+                                reply_markup=delete_screenshot_kb()
+                            )
+
+                elif desc == ErrorTypes.ETHERNET_ERROR:
+                    if self.runtime_data.current_state == "combat":
+                        await energo_mode(self, "on")
+
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                return
+            else:
+                if self.settings.TELEGRAM_NOTIFIES:
+                    screenn = screenshot_window(self.window_info, tg=True)
+                    self.tgbot.send_pic(
+                        photo=screenn,
+                        caption=f"Чет злое в обработке ошибок #важно | {f}",
+                        parse_mode="HTML",
+                        nickname=window_id,
+                        reply_markup=delete_screenshot_kb()
+                    )
+        else:
+            log(f"{f}", window_id)
+            return
+
+
     async def _event_worker(self) -> None:
         window_id = next(iter(self.window_info))
         while self.running:
@@ -753,7 +829,12 @@ class PvPDodge(BaseProfile):
     async def _process_event(self, event: dict) -> None:
         window_id = next(iter(self.window_info))
         etype = event.get("type")
-        log(f"Обработка: {etype}", window_id)
+        desc = event.get("desc")
+
+        if desc:
+            log(f"Обработка: {etype} ({desc})", window_id)
+        else:
+            log(f"Обработка: {etype}", window_id)
 
         if etype == "pvp":
             if self.settings.PVP_EVADE:
@@ -762,6 +843,7 @@ class PvPDodge(BaseProfile):
                 await self.pvp_answer()
             else:
                 log(f"Скипаю событие, пвп ответ и додж выключены: {etype}", window_id)
+
         elif etype == "hp_bank":
             await self.bank_restore()
         elif etype == "death":
@@ -782,8 +864,10 @@ class PvPDodge(BaseProfile):
             await self.overweight_check()
         elif etype == "auction":
             await self.auction()
+        elif etype == "error" and desc is not None:
+            await self.errors(desc)
         else:
-            log(f"Что за нах: {etype}", window_id)
+            log(f"Шось страшное и необработанное: {etype}", window_id)
 
     def send_event(self, event: dict) -> None:
         window_id = next(iter(self.window_info))

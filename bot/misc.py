@@ -7,3 +7,6 @@ NEED_CLAIM_CLAN = True # при сборе наград нужен ли клан
 NEED_CLAIM_ALI = True # при сборе наград нужен ли альянс?
 NEED_CLAIM_BATTLE_PASS = True # при сборе наград нужен ли батл пасс?
 NEED_CLAIM_DONATE_SHOP = True # при сборе наград нужен ли донат шоп?
+
+CHECK_ETHERNET1_ERROR = True # проверка ошибки инета раз в 8 минут
+CHECK_DISCONNECT_ERROR = True # проверка дисконекта от сервака раз в 8 минут

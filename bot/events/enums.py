@@ -6,11 +6,20 @@ class OverWeight(IntEnum):
     FIFTY = 50
     EIGHTY = 80
 
+
+class ErrorTypes(StrEnum):
+    DISCONNECT_TO_MENU = "connect_to_server" # выбросило просто в меню без таблички
+    DISCONNECT_FULL = "check_disconnect_full" # фулл выбросило в меню + из игры app closed todo
+    ETHERNET_ERROR = "close_ethernet1_error" # ошибка на ру сервах с цифрами (P:3102:500)
+    ETHERNET2_ERROR = "close_ethernet2_error" # выбросило в меню с табличкой, если ее ловим то вручную надо отправить ивент дисконект ту меню
+
+
 # все возможные ивенты которые бот умеет отслеживать. смотрите в bot.events.checker.py
 class MonitorType(StrEnum):
     PVP = "pvp"
     DEATH = "death"
     HP_BANK = "hp_bank"
+    ERROR = "error"
     SOSKA = "soska"
     HEALTH = "health"
     OVERWEIGHT = "overweight"
@@ -21,18 +30,20 @@ class MonitorType(StrEnum):
     SCHEDULE = "schedule"
     AUCTION = "auction"
 
+
 # приорететы, если одновременно прилетает 2 ивента условный пвп и условный клайм мейл сначала обработается пвп
 PRIORITIES = {
     MonitorType.PVP: 1,
     MonitorType.DEATH: 2,
-    MonitorType.HP_BANK: 3,
-    MonitorType.SOSKA: 4,
-    MonitorType.HEALTH: 5,
-    MonitorType.OVERWEIGHT: 6,
-    MonitorType.CLAIM_REWARDS: 7,
-    MonitorType.CLAIM_MAIL: 8,
-    MonitorType.SPOT_BACK: 9,
-    MonitorType.SELL_STASH_BUY: 10,
-    MonitorType.SCHEDULE: 11,
-    MonitorType.AUCTION: 12,
+    MonitorType.ERROR: 3,
+    MonitorType.HP_BANK: 4,
+    MonitorType.SOSKA: 5,
+    MonitorType.HEALTH: 6,
+    MonitorType.OVERWEIGHT: 7,
+    MonitorType.CLAIM_REWARDS: 8,
+    MonitorType.CLAIM_MAIL: 9,
+    MonitorType.SPOT_BACK: 10,
+    MonitorType.SELL_STASH_BUY: 1,
+    MonitorType.SCHEDULE: 12,
+    MonitorType.AUCTION: 13,
 }

@@ -1,7 +1,7 @@
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_rip, get_npc_positions
+from bot.methods.game import check_disconnect, connect_to_server, energo_mode
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.clogger import log
@@ -32,9 +32,8 @@ class Test(BaseProfile):
         window_id, window = next(iter(self.window_info.items()))
         try:
             self.events_checker.start_monitoring(window_id, self,
-                                                 monitors=[MonitorType.HEALTH])
-            r = await get_npc_positions(self)
-            log(r, window_id)
+                                                 monitors=[MonitorType.ERROR])
+
             while True:
                 await asyncio.sleep(0.1)
                 pass
@@ -74,9 +73,10 @@ class Test(BaseProfile):
     async def _process_event(self, event: dict) -> None:
         window_id = next(iter(self.window_info))
         etype = event.get("type")
-        log(f"Обработка: {etype}", window_id)
+        desc = event.get("desc")
+        log(f"Обработка: {etype} ({desc})", window_id)
 
-        if etype == "health":
+        if etype == "error":
             pass
 
     def send_event(self, event: dict) -> None:

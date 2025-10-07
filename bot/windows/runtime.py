@@ -140,6 +140,8 @@ class RuntimeData:
         cbt_map = CBT_JP if region == "JP" else CBT_RU
 
         for key, value in cbt_map.items():
+            if value is ...:
+                continue
             if xy_str in value or (isinstance(rgb, str) and rgb in value):
                 matched_key = key
                 break
