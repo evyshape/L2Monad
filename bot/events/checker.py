@@ -348,7 +348,7 @@ class EventsChecker:
                 break
             except Exception as e:
                 log(f"Ошибка в _check_ethernet_error: {e}", self.tname)
-            await asyncio.sleep(60 * 6)
+            await asyncio.sleep(60 * 3)
 
     async def _check_disconnect(self, window_id: str, profile: BaseProfile):
         while profile.running:

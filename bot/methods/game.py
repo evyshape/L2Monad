@@ -76,20 +76,20 @@ async def check_ethernet1_error(profile: BaseProfile): # (P:3102:500)
 
     async def check(cbt: str) -> bool:
         xy, rgb = parseCBT(cbt, profile=profile)
-        return await profile.check_pixel(xy, rgb, timeout=2, thr=1)
+        return await profile.check_pixel(xy, rgb, timeout=0.5, thr=1)
 
     total = 0
 
     for key, cbts in c.items():
-        for _ in range(5):
+        for _ in range(2): # мб вернуть 5
             results = await asyncio.gather(*(check(cbt) for cbt in cbts))
             if all(results):
                 total += 1
-                if total > 4:
+                if total > 1:
                     log(f"Детектнул {key} =(", window_id)
                     return True
 
-            await asyncio.sleep(3)
+            await asyncio.sleep(1.2)
 
     return False
 
@@ -1421,9 +1421,9 @@ async def claim_achiv(profile) -> bool:
     claimed = False
     window_id = next(iter(profile.window_info))
 
-    async def wait_and_click(tag, timeout=5):
+    async def wait_and_click(tag, timeout=5, thr=1):
         xy, rgb = parseCBT(tag, profile=profile)
-        if await profile.check_pixel(xy, rgb, timeout=timeout):
+        if await profile.check_pixel(xy, rgb, timeout=timeout, thr=thr):
             x, y = xy
             await profile.mouse.click(profile.window_info, x, y)
             return True
@@ -1443,13 +1443,15 @@ async def claim_achiv(profile) -> bool:
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
+    await asyncio.sleep(3)
     while True:
-        found_claim = await wait_and_click("achiv_claim_1", timeout=8)
+        found_claim = await wait_and_click("achiv_claim_1", timeout=8, thr=3)
         await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
         found_accept = await wait_and_click("achiv_claim_accept", timeout=7)
 
         if not found_claim:
             claimed = True
+            await wait_and_click("achiv_claim_accept", timeout=2) #kostyl
             await wait_and_click("npc_global_quit_button", timeout=5)
             break
 
