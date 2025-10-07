@@ -294,6 +294,12 @@ async def energo_mode(profile, state: str) -> bool:
 
         xy1, rgb1 = parseCBT("zalupka_gui", profile=profile)
         await asyncio.sleep(SLEEP_AFTER_UNBLOCK)
+
+        eth_err = await check_ethernet1_error(profile)
+        if eth_err:
+            await close_ethernet1_error(profile)
+            await asyncio.sleep(3)
+
         teleported = await profile.check_pixel(xy1, rgb1, timeout=10, thr=15 if profile.settings.REGION == "RU" else 2)
         if teleported:
             return True
