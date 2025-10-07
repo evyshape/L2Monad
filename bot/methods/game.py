@@ -507,6 +507,11 @@ async def wait_teleport(profile, need: int = 7) -> bool:
     success = 0
     await asyncio.sleep(DELAY_WAIT_WAIT_TELEPORT)
 
+    eth_err = await check_ethernet1_error(profile)
+    if eth_err:
+        await close_ethernet1_error(profile)
+        await asyncio.sleep(1)
+
     for _ in range(need):
         await asyncio.sleep(0.25)
         teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=18 if profile.settings.REGION == "RU" else 2)
@@ -614,10 +619,16 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         log("Сдох, мдо?", window_id)
         return True
 
+    await asyncio.sleep(2)
+
     if await check_energo_mode(profile):
+        rip, btn = await check_rip(profile)
+        if rip:
+            log("Сдох, мдо?", window_id)
+            return True
         log("Не сдох но стою без автобоя, чинюсь", window_id)
         await energo_mode(profile, "off")
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(3)
         if await ah():
             return True
     else:

@@ -635,6 +635,15 @@ class PvPDodge(BaseProfile):
             hp_diff = curr_h - hlt
             diff = (hp_diff / curr_h) * 100
 
+            rip, _ = await check_rip(self)
+            if rip:
+                log("Смерть во время проверок хп, итс овер...", window_id)
+                self.runtime_data.current_state = "death"
+                self.events_checker.stop_monitoring(window_id)
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                return
+
             if diff >= 9: # проценты, в целом можно вынести в /bot/misc.py
                 log(f"Хп упало на {diff:.1f}%, улетаю!", window_id)
                 xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
@@ -783,7 +792,10 @@ class PvPDodge(BaseProfile):
                             )
 
                 elif desc == ErrorTypes.ETHERNET_ERROR:
+                    print(1)
                     if self.runtime_data.current_state == "combat":
+                        print(2)
+                        await asyncio.sleep(2)
                         await energo_mode(self, "on")
 
                 self.events_checker.start_monitoring(window_id, self,
