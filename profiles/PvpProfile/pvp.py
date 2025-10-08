@@ -636,6 +636,7 @@ class PvPDodge(BaseProfile):
             diff = (hp_diff / curr_h) * 100
 
             rip, _ = await check_rip(self)
+            log(f"data|{curr_h}|{hlt}|{hp_diff}|{rip}|", window_id)
             if rip:
                 log("Смерть во время проверок хп, итс овер...", window_id)
                 self.runtime_data.current_state = "death"
@@ -695,7 +696,7 @@ class PvPDodge(BaseProfile):
                         return
 
             await asyncio.sleep(0.1)
-
+        log("exited", window_id)
         rip, btn = await check_rip(self)
         if rip:
             log(f"{rip} | Сдох после попытки ответа, мда2", window_id)

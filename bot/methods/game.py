@@ -543,7 +543,7 @@ async def check_autohunt(profile) -> bool:
 
     for _ in range(5):
         await asyncio.sleep(0.1)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=5)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=8)
         if teleported:
             success += 1
 

@@ -1,20 +1,27 @@
 STYLE = """
-    QWidget {
-        background-color: #111217;
-        color: #00ffcc;
-    }
-    QPushButton {
-        background-color: #1f1f2f;
-        border: 1px solid #00ffcc;
-        border-radius: 4px;
-    }
-    QPushButton:hover {
-        background-color: #2c2c3f;
-    }
-    QPushButton:pressed {
-        background-color: #00ffcc;
-        color: #000000;
-    }
+QWidget {
+    background-color: #111217;
+    color: #00ffcc;
+    font-family: 'Segoe UI', 'JetBrains Mono', 'Segoe UI Emoji', monospace;
+    font-size: 11pt;
+}
+
+QPushButton {
+    background-color: #1f1f2f;
+    border: 1px solid #00ffcc;
+    border-radius: 4px;
+    color: #00ffcc;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #2c2c3f;
+}
+
+QPushButton:pressed {
+    background-color: #00ffcc;
+    color: #000000;
+}
 """
 
 SCROLL = """

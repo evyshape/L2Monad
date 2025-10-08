@@ -83,6 +83,9 @@ class NedoGui(QWidget):
         self.update_checker = UpdateChecker()
         self.update_checker.update_available.connect(self.show_update_button)
         self.update_checker.start()
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_state)
+        self.update_timer.start(1000)
 
     def load_window_position(self):
         if os.path.exists(WINDOWS_CACHE):
@@ -287,6 +290,23 @@ class NedoGui(QWidget):
 
         return {nick: "RU" for nick in new_windows}
 
+    def update_state(self):
+        active = self.controller.bot_manager.bots
+        running = {}
+
+        for bot in active.values():
+            profile_name = type(bot).__name__
+            running[profile_name] = running.get(profile_name, 0) + 1
+
+        for i in range(self.layout_main.count()):
+            item = self.layout_main.itemAt(i)
+            w = item.widget()
+            if isinstance(w, QPushButton) and "ВСЕ" in w.text(): # эбат накостылил, потом переделать #todo
+                base_text = w.text().split(" (")[0]
+                profile_name = base_text.replace(" ВСЕ", "")
+                count = running.get(profile_name, 0)
+                w.setText(f"{base_text} ({count})")
+
     def show_update_button(self):
         if hasattr(self, 'btn_update'):
             return
@@ -303,7 +323,7 @@ class NedoGui(QWidget):
         reply = QMessageBox.question(
             self,
             "Обнова!",
-            "Качаем и ставим?\nНа всякий случай сохрани\nСохраненный бэкап будет в папочке /backups",
+            "Качаем и ставим?\n\nСохраненный бэкап будет в папочке /backups",
             QMessageBox.Yes | QMessageBox.No
         )
         if reply == QMessageBox.Yes:
