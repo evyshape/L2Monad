@@ -153,7 +153,7 @@ class WindowControlDialog(QDialog):
 
         self.window_buttons[nick] = {"profiles": profile_buttons, "stop": stop_button}
         self.window_status[nick] = status_label
-        self.window_active_profile = {nick: active_profile}
+        self.window_active_profile[nick] = active_profile
         self.update_buttons(nick)
         return row
 
