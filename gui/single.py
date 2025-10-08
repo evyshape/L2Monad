@@ -3,7 +3,7 @@ import os
 from functools import partial
 
 from PyQt5.QtCore import QTimer, Qt, QPoint, QSize
-from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtGui import QFont, QIcon, QFontMetrics
 from PyQt5.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
 )
 
 from bot.windows.settings_loader import load_settings
-from bot.controller import ProfileController  # синглтон
+from bot.controller import ProfileController
 from bot.utils import findAllWindows
 from gui.styles import STYLE, NICK_STYLE, SCROLL
 from gui.region_selector import Selector
@@ -118,29 +118,30 @@ class WindowControlDialog(QDialog):
         row = QW()
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(5)
+        layout.setSpacing(8)
         row.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         nick_label = self._create_label(nick, width=120, bold=True, style=NICK_STYLE)
-        status_label = self._create_label("Остановлено", width=80, bold=True,
+        status_label = self._create_label("Остановлено", width=100, bold=True,
                                           color="red")
 
-        active_profile = self._create_label("", width=120, bold=True,
-                                                  color="#00ff00")
+        active_profile = self._create_label("", width=120, bold=True, color="#00ff00")
         active_profile.setVisible(False)
 
         profile_buttons = []
         for name, cls in self.profiles.items():
-            btn = self._create_button(name, partial(self.start_profile, nick, cls,
-                                                    active_profile, name))
-
-            if name in ["MainAlchemy"]: #todo maybe add mini alch?
+            if name in ["MainAlchemy"]:
                 continue
 
+            btn = self._create_button(name, partial(self.start_profile, nick, cls,
+                                                    active_profile, name))
+            btn.setMinimumWidth(60)
+            btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
             profile_buttons.append(btn)
 
         stop_button = self._create_button("STOP", partial(self.stop_profile, nick,
                                                           active_profile))
+        stop_button.setFixedWidth(70)
 
         layout.addWidget(nick_label)
         layout.addWidget(status_label)
@@ -172,7 +173,10 @@ class WindowControlDialog(QDialog):
 
     def _create_button(self, text, callback):
         btn = QPushButton(text)
-        btn.setFixedWidth(60)
+        fm = QFontMetrics(btn.font())
+        text_width = fm.width(text) + 24
+        btn.setMinimumWidth(text_width)
+        btn.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
         btn.clicked.connect(callback)
         return btn
 
