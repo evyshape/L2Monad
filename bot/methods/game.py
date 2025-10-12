@@ -513,14 +513,15 @@ async def wait_teleport(profile, need: int = 7) -> bool:
     success = 0
     await asyncio.sleep(DELAY_WAIT_WAIT_TELEPORT)
 
-    eth_err = await check_ethernet1_error(profile)
-    if eth_err:
-        await close_ethernet1_error(profile)
-        await asyncio.sleep(1)
+    if need != 1:
+        eth_err = await check_ethernet1_error(profile)
+        if eth_err:
+            await close_ethernet1_error(profile)
+            await asyncio.sleep(1)
 
     for _ in range(need):
         await asyncio.sleep(0.25)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=18 if profile.settings.REGION == "RU" else 2)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=30 if profile.settings.REGION == "RU" else 2)
         #print(teleported)
         if teleported:
             success += 1
@@ -1204,6 +1205,7 @@ async def claim_mail(profile) -> bool:
 
     if await check_energo_mode(profile):
         await energo_mode(profile, "off")
+        await asyncio.sleep(3)
 
     if not await wait_and_click("main_menu_gui", timeout=7):
         log(f"Не удалось открыть главное меню", window_id)

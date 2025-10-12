@@ -138,7 +138,7 @@ class PvPDodge(BaseProfile):
         if respawned:
             self.events_checker.stop_monitoring(window_id)
             log("Стопнул мониторинг новых ивентов на время сна", window_id)
-            await asyncio.sleep(9)
+            await asyncio.sleep(15) #todo
             await energo_mode(self, "on")
             await asyncio.sleep(1)
 
