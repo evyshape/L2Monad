@@ -194,6 +194,8 @@ class SettingsChanger(QWidget):
 
         nick = nicks[0]
         settings = load_settings(nick)
+        #print(settings)
+        #print(nick)
         dlg = Editor(nick, settings, self)
         dlg.exec_()
         self.load()

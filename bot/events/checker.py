@@ -14,7 +14,7 @@ from profiles.base import BaseProfile
 
 class EventsChecker:
     def __init__(self):
-        self.tasks: Dict[str, list[asyncio.Task]] = {}
+        self.tasks: Dict[str, Dict[MonitorType, asyncio.Task]] = {}
         self._last_event_time: Dict[str, Dict[str, float]] = {}
         self._last_time: Dict[str, Dict[str, int | None]] = {}
         self.tname = "-EventsChecker-"
@@ -269,9 +269,6 @@ class EventsChecker:
             await asyncio.sleep(50)
 
     async def _monitor_health(self, window_id: str, profile: BaseProfile) -> None:
-        if profile.runtime_data.has_quiver is None:
-            profile.runtime_data.has_quiver = await find_quiver(profile)
-
         #start_xy, _ = parseCBT("hp_start", profile=profile)
         #end_xy, _ = parseCBT("hp_end", profile=profile)
 
@@ -282,34 +279,29 @@ class EventsChecker:
         x2, y2 = map(int, end_xy.split(","))
 
         bar = abs(x2 - x1)
-
         while profile.running:
-            health_thr = profile.settings.HEALTH_BACK or []
+            health_thr = profile.settings.HEALTH_BACK or [10, 20, 30]
             if not health_thr:
                 await asyncio.sleep(1.0)
                 continue
-
             step = 3
             tasks = []
             for dx in range(0, bar + 1, step):
                 x = x1 + dx
                 tasks.append(
-                    profile.check_pixel((x, y1), (160, 40, 10), timeout=0.05, thr=60,
+                    profile.check_pixel((x, y1), (160, 40, 10), timeout=0.05, thr=88,
                                         wsize="1x1")
                 )
-
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             red = sum(1 for res in results if res is True)
             total = len(results)
-
             if total > 0:
                 hp_percent = int((red / total) * 100)
             else:
                 hp_percent = 0
 
             profile.runtime_data.health = hp_percent
-            #print(hp_percent)
             now = time.monotonic()
             last_events = self._last_event_time.setdefault(window_id, {})
             last_time = last_events.get("health", 0)
@@ -319,6 +311,39 @@ class EventsChecker:
                 # EventsManager.send_event(window_id, {"type": "health"})
 
             await asyncio.sleep(0.1)
+
+    async def low_hp_dodge(self, window_id: str, profile: BaseProfile):
+        window_id, window = next(iter(profile.window_info.items()))
+        await asyncio.sleep(0.3)
+        if profile.settings.LOW_HP_DODGE:
+            if profile.runtime_data.current_state == "combat":
+                self.start_monitoring(window_id, profile, [MonitorType.HEALTH])
+            else:
+                return '{"errors": 1, "description": "need combat state before calling this func"}'
+
+            await asyncio.sleep(3)
+            hb = profile.settings.HEALTH_BACK
+            m = max(hb or [30])
+            while profile.runtime_data.current_state == "combat":
+                #log(f"{profile.runtime_data.current_state}", window_id)
+                await asyncio.sleep(0.25)
+                hp = profile.runtime_data.health
+                #log(hp, window_id)
+                if hp == 0:
+                    #log(f"[в лоу хп] Хп вероятно еще не получено либо шось сломалось", window_id)
+                    await asyncio.sleep(0.05)
+                    continue
+
+                if hp <= m:
+                    self.stop_once(window_id, MonitorType.HEALTH)
+                    log(f"Больше не терпим, мало хп! | {hp}/{m}", window_id)
+                    EventsManager.send_event(window_id, {"type": "low_hp_dodge"})
+                    self.stop_once(window_id, MonitorType.LOW_HP_DODGE)
+                else:
+                    #log(f"Терпим, нас ебут а мы крепчаем... | {hp}/{m}", window_id)
+                    pass
+
+            await asyncio.sleep(20)
 
     async def _check_ethernet_disc_error(self, window_id: str, profile: BaseProfile):
         while profile.running:
@@ -387,13 +412,10 @@ class EventsChecker:
     def start_monitoring(self, window_id: str, profile: BaseProfile,
                          monitors: list[MonitorType]) -> None:
 
-        if window_id in self.tasks:
-            log(f"Чекер уже запущен для {window_id}", self.tname)
-            return
+        if window_id not in self.tasks:
+            self.tasks[window_id] = {}
 
-        log(f"Запускаю евент чекеры для {window_id} по {[m.value for m in monitors]}", self.tname)
-
-        tasks = []
+        ex = self.tasks[window_id]
         checkers = {
             MonitorType.PVP: self._monitor_pvp,
             MonitorType.HP_BANK: self._monitor_hp_bank,
@@ -408,16 +430,58 @@ class EventsChecker:
             MonitorType.HEALTH: self._monitor_health,
             MonitorType.AUCTION: self._monitor_auction,
             MonitorType.ERROR: self._monitor_errors,
+            MonitorType.LOW_HP_DODGE: self.low_hp_dodge
         }
 
+        started = []
+
         for mtype in monitors:
+            if mtype in ex:
+                continue
+
             func = checkers.get(mtype)
             if func:
-                tasks.append(asyncio.create_task(func(window_id, profile)))
+                task = asyncio.create_task(func(window_id, profile))
+                ex[mtype] = task
+                started.append(mtype.value)
 
-        self.tasks[window_id] = tasks
+        if started:
+            # da eto jesko
+            if len(started) == 1:
+                log(f"Чекер {started[0]} запущен для {window_id}", self.tname)
+            else:
+                joined = " | ".join(started)
+                log(f"Чекеры [{joined}] запущены для {window_id}", self.tname)
 
+    # стопает все чекеры для переданного окна
     def stop_monitoring(self, window_id: str) -> None:
-        tasks = self.tasks.pop(window_id, [])
-        for task in tasks:
+        tasks = self.tasks.pop(window_id, {})
+        if not tasks:
+            return
+
+        stopped = []
+
+        for mtype, task in tasks.items():
             task.cancel()
+            stopped.append(mtype.value)
+
+        if stopped:
+            if len(stopped) == 1:
+                log(f"Чекер {stopped[0]} остановлен для {window_id}", self.tname)
+            else:
+                joined = " | ".join(stopped)
+                log(f"Чекеры [{joined}] остановлены для {window_id}", self.tname)
+
+    # стопает конкретный переданный чекер для переданного окна
+    def stop_once(self, window_id: str, mtype: MonitorType) -> None:
+        tasks = self.tasks.get(window_id)
+        if not tasks:
+            return
+
+        task = tasks.pop(mtype, None)
+        if task:
+            task.cancel()
+            log(f"Чекер {mtype.value} остановлен для {window_id}", self.tname)
+
+        if not tasks:
+            self.tasks.pop(window_id, None)

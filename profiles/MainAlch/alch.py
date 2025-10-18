@@ -1,5 +1,5 @@
 import random
-
+import json
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents, screenshot_window

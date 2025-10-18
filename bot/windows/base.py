@@ -8,8 +8,10 @@ SCHEDULE_LOG_DIR = os.path.join("settings", "schedules")
 @dataclass
 class BaseSettings:
     REGION: str  # "JP" или "RU"
+    PEACE_MODE: bool # тру = включена мирка, фолс = выключена мирка
     PVP_EVADE: bool # тру фолс, не может быть одновременно включено с PVP_ANSWER
     PVP_ANSWER: bool # тру фолс, не может быть одновременно включено с PVP_EVADE
+    LOW_HP_DODGE: bool # тру фолс, хочет не пустой HEALTH_BACK
     HEALTH_BACK: List[int] # [30, 40, 50], это если включен ответ пвп при каком пороге улетать в город
     HP_BANK_CHECKER: bool # тру фолс
     SOSKA_CHECKER: bool # тру фолс
@@ -147,8 +149,10 @@ class BaseSettings:
 
 default_values = {
     "REGION": "RU",
+    "PEACE_MODE": False,
     "PVP_EVADE": True,
     "PVP_ANSWER": False,
+    "LOW_HP_DODGE": False,
     "HEALTH_BACK": [10, 20, 30, 40],
     "HP_BANK_CHECKER": True,
     "SOSKA_CHECKER": False,

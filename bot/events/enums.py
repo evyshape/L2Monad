@@ -29,6 +29,7 @@ class MonitorType(StrEnum):
     SELL_STASH_BUY = "sell_stash_buy"
     SCHEDULE = "schedule"
     AUCTION = "auction"
+    LOW_HP_DODGE = "low_hp_dodge"
 
 
 # приорететы, если одновременно прилетает 2 ивента условный пвп и условный клайм мейл сначала обработается пвп
@@ -46,4 +47,5 @@ PRIORITIES = {
     MonitorType.SELL_STASH_BUY: 1,
     MonitorType.SCHEDULE: 12,
     MonitorType.AUCTION: 13,
+    MonitorType.LOW_HP_DODGE: 14,
 }

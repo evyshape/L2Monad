@@ -11,7 +11,8 @@ from profiles.base import BaseProfile
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES, ErrorTypes
 from bot.methods.base import parseCBT
-from bot.delays import DELAY_PVP_ANSWER, MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP, MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP
+from bot.delays import DELAY_PVP_ANSWER, MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP, \
+    MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP, MAX_LOW_HP_DODGE_SLEEP, MIN_LOW_HP_DODGE_SLEEP
 from bot.methods.other import MouseEvents, screenshot_window
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.misc import *
@@ -83,6 +84,8 @@ class PvPDodge(BaseProfile):
             monitors.append(MonitorType.HP_BANK)
         if getattr(self.settings, "OVERWEIGHT_CHECKER", False):
             monitors.append(MonitorType.OVERWEIGHT)
+        if getattr(self.settings, "LOW_HP_DODGE", False):
+            monitors.append(MonitorType.LOW_HP_DODGE)
 
         if getattr(self.settings, "SCHEDULE_BUYING", ""):
             monitors.append(MonitorType.SELL_STASH_BUY)
@@ -221,10 +224,44 @@ class PvPDodge(BaseProfile):
         return True
 
     async def dodge(self) -> None:
+        self.runtime_data.set_state("pvp")
+        window_id, window = next(iter(self.window_info.items()))
+        self.events_checker.stop_monitoring(window_id)
+        if not FAST_DODGE and self.settings.LOW_HP_DODGE:
+            self.events_checker.start_monitoring(window_id, self, monitors=[MonitorType.HEALTH])
+            hb = self.settings.HEALTH_BACK
+            m = max(hb or [30])
+            xy, rgb = parseCBT("pvp_energo_trigger", profile=self)
+            await asyncio.sleep(1)
+
+            while await self.check_pixel(xy, rgb, timeout=1, thr=13):
+                await asyncio.sleep(0.25)
+                hp = self.runtime_data.health
+                if hp == 0:
+                    log(f"[в додже] Хп вероятно еще не получено либо шось сломалось", window_id)
+                    await asyncio.sleep(0.05)
+                    continue
+
+                if hp <= m:
+                    self.events_checker.stop_monitoring(window_id)
+                    log(f"Больше не терпим, траю доджить! | {hp}/{m}", window_id)
+                    break
+                else:
+                    #log(f"Терпим, нас ебут а мы крепчаем... | {hp}/{m}", window_id)
+                    pass
+            else:
+                log("Вышел с цикла, не нашел мечи? если хп в норме не буду доджить...", window_id)
+                self.events_checker.stop_monitoring(window_id)
+                hp = self.runtime_data.health
+                if hp >= m:
+                    self.events_checker.start_monitoring(window_id, self,
+                                                         monitors=self.get_monitors)
+                    log(f"Вроде все ок, хп +- {hp}%, выхожу с доджа", window_id)
+                    return
+
         self.runtime_data.update_last_dodge()
         self.runtime_data.update_dodge_attempt()
         x = False
-        window_id, window = next(iter(self.window_info.items()))
         xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
         xy2, rgb2 = parseCBT("home_scroll_button_no_energomode", profile=self)
 
@@ -234,6 +271,7 @@ class PvPDodge(BaseProfile):
         await self.mouse.click(self.window_info, click_x, click_y, fast=True)
         await asyncio.sleep(2)
         await self.mouse.click(self.window_info, xy2[0], xy2[1], fast=True)
+        self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
         pixel = await self.check_pixel(xy2, rgb2, 7)
         if pixel:
             log(f"Контрольный тп вжат", window_id)
@@ -251,7 +289,7 @@ class PvPDodge(BaseProfile):
         if result and not x:
             sleept = randint(MIN_PVP_DODGE_SLEEP, MAX_PVP_DODGE_SLEEP)
             await energo_mode(self, "on")
-            log(f"Сплю {sleept} минут", window_id)
+            log(f"Сплю {sleept} мин.", window_id)
             self.runtime_data.update_last_succ_dodge()
             self.runtime_data.current_state = "afk"
             self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M")
@@ -290,8 +328,7 @@ class PvPDodge(BaseProfile):
 
         self.runtime_data.current_state = "shopping"
         xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
-        if xy is None:
-            return
+
         click_x = xy[0]
         click_y = xy[1]
         await self.mouse.click(self.window_info, click_x, click_y)
@@ -364,13 +401,18 @@ class PvPDodge(BaseProfile):
                 )
         else:
             log(f"Нет новой почты или не удалось собрать", window_id)
-        self.runtime_data.current_state = cstate
-        self.events_checker.start_monitoring(window_id, self,
-                                             monitors=self.get_monitors)
+
         if not await check_energo_mode(self):
             if cstate != "death":
                 await energo_mode(self, "on")
+                self.runtime_data.current_state = cstate
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
                 return True
+            else:
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                self.runtime_data.set_state("death") #wtf если смерть уже была, ну пох
 
         await asyncio.sleep(1)
 
@@ -442,14 +484,18 @@ class PvPDodge(BaseProfile):
                 text="Собрал награды по расписанию",
                 nickname=window_id,
             )
-        self.runtime_data.current_state = cstate
-        self.events_checker.start_monitoring(window_id, self,
-                                             monitors=self.get_monitors)
 
         if not await check_energo_mode(self):
             if cstate != "death":
                 await energo_mode(self, "on")
+                self.runtime_data.current_state = cstate
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
                 return True
+        else:
+            self.runtime_data.current_state = cstate
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=self.get_monitors)
 
         await asyncio.sleep(1)
 
@@ -630,13 +676,13 @@ class PvPDodge(BaseProfile):
 
         log(f"Мы живы! Посмотрю на хп пару секунд и вернусь на спот.", window_id)
         curr_h = self.runtime_data.health
-        for _ in range(10):
+        for _ in range(PVP_ANSWER_CHECK_HP_ITERATIONS):
             hlt = self.runtime_data.health
             hp_diff = curr_h - hlt
             diff = (hp_diff / curr_h) * 100
 
             rip, _ = await check_rip(self)
-            log(f"data|{curr_h}|{hlt}|{hp_diff}|{rip}|", window_id)
+            log(f"data|{curr_h}|{hlt}|{hp_diff}|{rip}", window_id)
             if rip:
                 log("Смерть во время проверок хп, итс овер...", window_id)
                 self.runtime_data.current_state = "death"
@@ -645,7 +691,7 @@ class PvPDodge(BaseProfile):
                                                      monitors=self.get_monitors)
                 return
 
-            if diff >= 9: # проценты, в целом можно вынести в /bot/misc.py
+            if diff >= 15: # проценты, в целом можно вынести в /bot/misc.py
                 log(f"Хп упало на {diff:.1f}%, улетаю!", window_id)
                 xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
 
@@ -710,6 +756,12 @@ class PvPDodge(BaseProfile):
         if to_spot:
             self.runtime_data.current_state = "combat"
             self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="warning",
+                    text="Успешно завершил пвп, вероятно кого-то убил?",
+                    nickname=window_id,
+                )
         else:
             log("Не смог тпнуться на спот, если включено тг - смотри скриншот.")
             await asyncio.sleep(4)
@@ -816,6 +868,27 @@ class PvPDodge(BaseProfile):
             log(f"{f}", window_id)
             return
 
+    async def lowhp_zatichka(self):
+        window_id, window = next(iter(self.window_info.items()))
+        xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
+        self.events_checker.stop_once(window_id, MonitorType.LOW_HP_DODGE)
+        click_x = xy[0]
+        click_y = xy[1]
+        await self.mouse.click(self.window_info, click_x, click_y)
+        result = await wait_teleport(self)
+        if result:
+            sleept = randint(MIN_LOW_HP_DODGE_SLEEP, MAX_LOW_HP_DODGE_SLEEP)
+            await energo_mode(self, "on")
+            log(f"Сплю {sleept} мин.", window_id)
+            #self.runtime_data.update_last_succ_dodge()
+            self.runtime_data.current_state = "afk"
+            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M")
+            if self.settings.TELEGRAM_NOTIFIES:
+                self.tgbot.send_notification(
+                    level="warning",
+                    text=f"Мало хп, улетел со спота\nПосплю {sleept} мин.",
+                    nickname=window_id,
+                )
 
     async def _event_worker(self) -> None:
         window_id = next(iter(self.window_info))
@@ -854,9 +927,9 @@ class PvPDodge(BaseProfile):
                 await self.dodge()
             elif self.settings.PVP_ANSWER:
                 await self.pvp_answer()
-            else:
-                log(f"Скипаю событие, пвп ответ и додж выключены: {etype}", window_id)
 
+        elif etype == "low_hp_dodge":
+            await self.lowhp_zatichka()
         elif etype == "hp_bank":
             await self.bank_restore()
         elif etype == "death":

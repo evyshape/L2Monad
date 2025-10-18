@@ -1,11 +1,11 @@
 from PyQt5.QtWidgets import (
     QButtonGroup, QComboBox, QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-    QLabel, QCheckBox, QLineEdit, QSpinBox, QDialogButtonBox
+    QLabel, QCheckBox, QLineEdit, QSpinBox, QDialogButtonBox, QScrollArea, QWidget
 )
 from PyQt5.QtCore import Qt
 from bot.windows.settings_loader import save_settings
 from bot.clogger import log
-from gui.styles import STYLE
+from gui.styles import STYLE, SCROLL
 from PyQt5.QtGui import QIcon
 import os
 
@@ -18,8 +18,10 @@ class Editor(QDialog):
         self.nick = nick
         self.settings = settings
         self.apply_to = apply_to or [nick] # оч жесткий костыль #todo починить и добавить mode=some
-
-        self.setWindowTitle(f"⚙️ Настройки") # мб сюда пхнуть ник окна либо "⚙️ Настройки множества"
+        if len(self.apply_to) == 1:
+            self.setWindowTitle(f"⚙️ Настройки {self.apply_to[0]}")
+        else:
+            self.setWindowTitle(f"⚙️ Настройки множества ({len(self.apply_to)})")
         self.resize(480, 580)
         self.setWindowIcon(QIcon(FAVICON))
         self.widgets = {}
@@ -47,6 +49,24 @@ class Editor(QDialog):
         rb.setLayout(rl)
         ml.addWidget(rb)
 
+        self.mirka = self._spawn("🕊 Мирный режим")
+        mirkaa = QHBoxLayout()
+        self.mirka_mode = QCheckBox("Включить")
+        self.mirka_mode.setChecked(settings.PEACE_MODE)
+       #self.mirka_mode.stateChanged.connect(self._mirka_change)
+        mirkaa.addWidget(self.mirka_mode)
+        self.mirka.setLayout(mirkaa)
+        ml.addWidget(self.mirka)
+
+        self.low_hp_box = self._spawn("💔 Уход при малом HP")
+        low_hp_layout = QHBoxLayout()
+        self.low_hp_cb = QCheckBox("Включить")
+        self.low_hp_cb.setChecked(settings.LOW_HP_DODGE)
+        self.low_hp_cb.stateChanged.connect(self._health)  # HEALTH_BACK обновлялка
+        low_hp_layout.addWidget(self.low_hp_cb)
+        self.low_hp_box.setLayout(low_hp_layout)
+        ml.addWidget(self.low_hp_box)
+
         pb = self._spawn("⚔️ PVP")
         pl = QHBoxLayout()
         self.pvp_evade = QCheckBox("Додж")
@@ -60,7 +80,7 @@ class Editor(QDialog):
         pb.setLayout(pl)
         ml.addWidget(pb)
 
-        self.hb = self._spawn("❤️ Пороги для улета после ответа")
+        self.hb = self._spawn("❤️ Пороги для улета (% хп)")
         self.hg = QGridLayout()
         self.hc = []
         for i, val in enumerate(range(10, 100, 10)):
@@ -146,9 +166,25 @@ class Editor(QDialog):
         btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btn_box.accepted.connect(self._confirm)
         btn_box.rejected.connect(self.reject)
-        ml.addWidget(btn_box)
 
-        self.setLayout(ml)
+
+        container = QWidget()
+        container.setLayout(ml)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(container)
+        scroll.setStyleSheet(SCROLL + """
+             QScrollArea {
+                 border: none;
+                 background-color: #151515;
+             }
+         """)
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(scroll)  # скролл с настрами
+        main_layout.addWidget(btn_box)  # кнопки ок и канцел снизу
+        self.setLayout(main_layout)
+
         self.setStyleSheet(STYLE)
 
     def _spawn(self, title: str):
@@ -211,7 +247,9 @@ class Editor(QDialog):
         self._health()
 
     def _health(self):
-        if self.pvp_evade.isChecked():
+        show_health = self.pvp_answer.isChecked() or self.low_hp_cb.isChecked()
+
+        if self.pvp_evade.isChecked() and not show_health:
             self.hb.setVisible(False)
             for cb in self.hc:
                 cb.setChecked(False)
@@ -219,10 +257,8 @@ class Editor(QDialog):
                 for cb in self.hc:
                     if int(cb.text()) == val:
                         cb.setChecked(True)
-        elif self.pvp_answer.isChecked():
-            self.hb.setVisible(True)
         else:
-            self.hb.setVisible(False)
+            self.hb.setVisible(show_health)
 
     def _confirm(self):
         try:
@@ -234,6 +270,8 @@ class Editor(QDialog):
                 self.region_ru.setChecked(True)
                 self.settings.REGION = "RU"
 
+            self.settings.LOW_HP_DODGE = self.low_hp_cb.isChecked()
+            self.settings.PEACE_MODE = self.mirka_mode.isChecked()
             self.settings.PVP_EVADE = self.pvp_evade.isChecked()
             self.settings.PVP_ANSWER = self.pvp_answer.isChecked()
             self.settings.HEALTH_BACK = [int(cb.text()) for cb in self.hc if cb.isChecked()]

@@ -136,3 +136,31 @@ MONITOR = """
         color: #ffffff;
     }
 """
+
+PAYMENT_CARD_STYLE = """
+QWidget#payment_card {
+    background-color: #2a2a2a;
+    border: 2px solid #3a3a3a;
+    border-radius: 12px;
+    padding: 8px;
+}
+QWidget#payment_card:hover {
+    border: 2px solid #4a9eff;
+    background-color: #2f2f2f;
+}
+"""
+
+PAYMENT_VALUE_LABEL_STYLE = """
+QLabel {
+    color: #4a9eff;
+    font-weight: bold;
+    padding: 6px 12px;
+    background-color: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+}
+QLabel:hover {
+    background-color: #252525;
+    border: 1px solid #4a9eff;
+}
+"""

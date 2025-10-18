@@ -118,7 +118,7 @@ class RuntimeData:
         self.current_state = new_state
 
     def reset(self) -> None:
-        """Сброс всего кэша"""
+        """Сброс всего кэша (не всего, мне впадлу)"""
         self.stashing_count = 0
         self.buy_count = 0
         self.purc_count = 0

@@ -247,7 +247,7 @@ async def check_lvl_up(profile) -> bool:
     need = ["lvl_up_black_2", "lvl_up_black"]
 
     results = [
-        await profile.check_pixel(*parseCBT(lvl_name, profile=profile), timeout=1.2, wsize="1x1", thr=1)
+        await profile.check_pixel(*parseCBT(lvl_name, profile=profile), timeout=0.3, wsize="1x1", thr=1)
         for lvl_name in need
     ]
 
@@ -322,8 +322,17 @@ async def energo_mode(profile, state: str) -> bool:
     elif state == "on":
         await profile.mouse.click(profile.window_info, button_x, button_y)
         await asyncio.sleep(DELAY_AFTER_CLICK_ENERGO)
+        await asyncio.sleep(0.1) # шоб было
         center_x = width // 2
         center_y = height // 2
+        if profile.settings.PEACE_MODE:
+            peace_xy, peace_rgb = parseCBT("peace_off", profile=profile)
+            peace = await profile.check_pixel(peace_xy, peace_rgb, timeout=0.2, thr=5)
+            if peace:
+                await profile.mouse.click(profile.window_info, peace_xy[0], peace_xy[1])
+                log("Врубил мирку, была выключена", window_id)
+                await asyncio.sleep(0.15)
+
         await profile.mouse.click(profile.window_info, center_x, center_y)
         return True
 
@@ -540,11 +549,11 @@ async def check_autohunt(profile) -> bool:
     xy1, rgb1 = parseCBT("auto_combat_ON", profile=profile)
     window_id = next(iter(profile.window_info))
     success = 0
-    await asyncio.sleep(2)
+    await asyncio.sleep(0.6)
 
     for _ in range(5):
         await asyncio.sleep(0.1)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=8)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=10)
         if teleported:
             success += 1
 
@@ -795,6 +804,15 @@ async def get_npc_positions(profile, thr=THR_CHECK_NPC_POSITIONS, retries: int =
 
             profile.runtime_data.update_last_mapping(npc_mapping)
             log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", window_id)
+            await profile.mouse.wheel(
+                profile.window_info,
+                [[
+                    random.randint(141, 246),
+                    random.randint(50, 139)
+                ]],
+                direction="down",
+                times=15,
+            )
             return npc_mapping
 
         await asyncio.sleep(0.3)

@@ -26,6 +26,9 @@ from gui.alch_gui import AlchemyDialog
 from gui.alch_presets import PresetDialog
 from gui.settings_changer import SettingsChanger
 from gui.styles import STYLE, UPD
+from gui.donate import Donate
+from gui.windows_selector import WorkAccs
+from gui.windows_selector import load_workaccs
 from gui.region_selector import Selector
 from bot.updater import needs_update, update, get_my_version
 
@@ -156,20 +159,32 @@ class NedoGui(QWidget):
         self.btn_stop_all.clicked.connect(self.stop_profile)
         self.layout_main.addWidget(self.btn_stop_all)
 
-        layout_ver = QHBoxLayout()
+        layout_mini = QHBoxLayout()
 
         self.btn_settings = QPushButton("⚙️")
-        self.btn_settings.setFixedSize(25, 25)
+        self.btn_settings.setFixedSize(30, 30)
         self.btn_settings.setCursor(Qt.PointingHandCursor)
         self.btn_settings.clicked.connect(self.open_settings)
-        layout_ver.addWidget(self.btn_settings, alignment=Qt.AlignLeft)
+        layout_mini.addWidget(self.btn_settings, alignment=Qt.AlignLeft)
+
+        self.windows_sel = QPushButton("👤")
+        self.windows_sel.setFixedSize(30, 30)
+        self.windows_sel.setCursor(Qt.PointingHandCursor)
+        self.windows_sel.clicked.connect(self.winsel)
+        layout_mini.addWidget(self.windows_sel, alignment=Qt.AlignLeft)
+
+        self.don = QPushButton("💰")
+        self.don.setFixedSize(30, 30)
+        self.don.setCursor(Qt.PointingHandCursor)
+        self.don.clicked.connect(self.donate)
+        layout_mini.addWidget(self.don, alignment=Qt.AlignLeft)
 
         version = QLabel(f"v{get_my_version()} | tg: @BotLineage2M")
         version.setStyleSheet("color: gray; font-size: 8pt;")
         version.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        layout_ver.addWidget(version, stretch=1)
+        layout_mini.addWidget(version, stretch=1)
 
-        self.layout_main.addLayout(layout_ver)
+        self.layout_main.addLayout(layout_mini)
 
         self.setLayout(self.layout_main)
         self.setStyleSheet(STYLE)
@@ -215,6 +230,14 @@ class NedoGui(QWidget):
         self.settings_win.setWindowModality(Qt.NonModal)
         self.settings_win.show()
 
+    def winsel(self):
+        dlg = WorkAccs(self)
+        dlg.exec_()
+
+    def donate(self):
+        dlg = Donate(self)
+        dlg.exec_()
+
     def open_otdel(self):
         self.dlg = WindowControlDialog(self)
         self.dlg.show()
@@ -229,6 +252,14 @@ class NedoGui(QWidget):
         windows = list(findAllWindows().keys())
         if not windows:
             QMessageBox.information(self, "Info", "Окон не найдено")
+            return
+
+        work = load_workaccs()
+        enabled = set(work.get("enabled", []))
+        windows = [w for w in windows if w in enabled]
+
+        if not windows:
+            QMessageBox.information(self, "Info", "Готовых к запуску окон не найдено\nНастрой их в кнопке на 1 правее настроек!")
             return
 
         new_windows = [nick for nick in windows if load_settings(nick) is None]
