@@ -76,7 +76,7 @@ async def check_ethernet1_error(profile: BaseProfile): # (P:3102:500)
 
     async def check(cbt: str) -> bool:
         xy, rgb = parseCBT(cbt, profile=profile)
-        return await profile.check_pixel(xy, rgb, timeout=0.5, thr=1)
+        return await profile.check_pixel(xy, rgb, timeout=0.2, thr=1)
 
     total = 0
 
@@ -89,7 +89,7 @@ async def check_ethernet1_error(profile: BaseProfile): # (P:3102:500)
                     log(f"Детектнул {key} =(", window_id)
                     return True
 
-            await asyncio.sleep(1.2)
+            await asyncio.sleep(0.2)
 
     return False
 
@@ -520,21 +520,26 @@ async def wait_teleport(profile, need: int = 7) -> bool:
     #print(xy1, rgb1)
     window_id = next(iter(profile.window_info))
     success = 0
+    log(f"Сплю {DELAY_WAIT_WAIT_TELEPORT} сек. в вейт телепорте", window_id)
     await asyncio.sleep(DELAY_WAIT_WAIT_TELEPORT)
 
     if need != 1:
+        log("чекаю инет ошибку...", window_id)
         eth_err = await check_ethernet1_error(profile)
         if eth_err:
             await close_ethernet1_error(profile)
             await asyncio.sleep(1)
 
-    for _ in range(need):
-        await asyncio.sleep(0.25)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=30 if profile.settings.REGION == "RU" else 2)
+    for i in range(need):
+        log(f"{i+1}/{need} чекаю пиксель...", window_id)
+        await asyncio.sleep(0.15)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=36 if profile.settings.REGION == "RU" else 12)
         #print(teleported)
+        log(f"{i+1} teleported={teleported}", window_id)
         if teleported:
             success += 1
 
+    log(success, window_id)
     if success >= (need + 1) // 2:
         log(f"tped succ | {success}/{need}", window_id)
         return True
@@ -553,7 +558,7 @@ async def check_autohunt(profile) -> bool:
 
     for _ in range(5):
         await asyncio.sleep(0.1)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=10)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=14)
         if teleported:
             success += 1
 
@@ -587,7 +592,7 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
             return True
         return False
 
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.2)
     window_id = next(iter(profile.window_info))
     spot = random.randint(from_, to_)
 
@@ -619,12 +624,11 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
 
         await asyncio.sleep(random.uniform(0.2, 0.5))
 
-    if not await wait_teleport(profile):
+    if not await wait_teleport(profile, need=4):
         log("Недостаточно срабатываний залупки", window_id)
         return False
-
+    
     log("Залупка найдена, включаю автобой и энерго", window_id)
-
     if await ah():
         return True
 
@@ -635,7 +639,7 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         log("Сдох, мдо?", window_id)
         return True
 
-    await asyncio.sleep(2)
+    await asyncio.sleep(0.2)
 
     if await check_energo_mode(profile):
         rip, btn = await check_rip(profile)
