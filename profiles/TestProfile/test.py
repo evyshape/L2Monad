@@ -1,7 +1,7 @@
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_disconnect, connect_to_server, energo_mode, get_npc_positions
+from bot.methods.game import check_autohunt, get_npc_positions
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.clogger import log
@@ -38,7 +38,7 @@ class Test(BaseProfile):
             #    await asyncio.sleep(0.1)
             #    pass
 
-            npc = await get_npc_positions(self)
+            npc = await check_autohunt(self)
             log(npc, window_id)
 
         except asyncio.CancelledError:

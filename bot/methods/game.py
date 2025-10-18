@@ -532,7 +532,7 @@ async def wait_teleport(profile, need: int = 7) -> bool:
 
     for i in range(need):
         log(f"{i+1}/{need} чекаю пиксель...", window_id)
-        await asyncio.sleep(0.15)
+        await asyncio.sleep(0.25)
         teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_TELEPORT_TO_HOME, thr=36 if profile.settings.REGION == "RU" else 12)
         #print(teleported)
         log(f"{i+1} teleported={teleported}", window_id)
@@ -554,11 +554,11 @@ async def check_autohunt(profile) -> bool:
     xy1, rgb1 = parseCBT("auto_combat_ON", profile=profile)
     window_id = next(iter(profile.window_info))
     success = 0
-    await asyncio.sleep(0.6)
+    await asyncio.sleep(0.15)
 
     for _ in range(5):
         await asyncio.sleep(0.1)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=14)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=17, wsize="1x3")
         if teleported:
             success += 1
 
@@ -572,10 +572,6 @@ async def check_autohunt(profile) -> bool:
 async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=True) -> bool:
 
     async def ah() -> bool:
-        hunt = await autohunt(profile)
-        if not hunt:
-            return False
-
         await asyncio.sleep(0.15)
         await energo_mode(profile, "on")
         await asyncio.sleep(0.05)
@@ -610,6 +606,10 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         f"spot_accept_choice_{spot}"
     ]
 
+    hunt = await autohunt(profile)
+    if not hunt:
+        return False
+
     for key in steps:
         xy, rgb = parseCBT(key, profile=profile)
 
@@ -628,18 +628,12 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         log("Недостаточно срабатываний залупки", window_id)
         return False
     
-    log("Залупка найдена, включаю автобой и энерго", window_id)
+    log("Залупка найдена, включаю энерго", window_id)
+
+    await asyncio.sleep(0.35)
+
     if await ah():
         return True
-
-    log("Чет не так, автобой не включился?", window_id)
-
-    rip, btn = await check_rip(profile)
-    if rip:
-        log("Сдох, мдо?", window_id)
-        return True
-
-    await asyncio.sleep(0.2)
 
     if await check_energo_mode(profile):
         rip, btn = await check_rip(profile)
