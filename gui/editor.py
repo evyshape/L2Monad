@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QLabel, QCheckBox, QLineEdit, QSpinBox, QDialogButtonBox, QScrollArea, QWidget
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QObject, QEvent
 from bot.windows.settings_loader import save_settings
 from bot.clogger import log
 from gui.styles import STYLE, SCROLL
@@ -11,10 +12,23 @@ import os
 
 FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
 
+class Blocker(QObject):
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Wheel and isinstance(obj, (QComboBox, QSpinBox)):
+            event.ignore()
+            return True
+        return super().eventFilter(obj, event)
+
+class ComboBox(QComboBox):
+    pass
+
+class SpinBox(QSpinBox):
+    pass
 
 class Editor(QDialog):
     def __init__(self, nick, settings, p=None, apply_to=None):
         super().__init__(p)
+        self.blocker = Blocker(self)
         self.nick = nick
         self.settings = settings
         self.apply_to = apply_to or [nick] # оч жесткий костыль #todo починить и добавить mode=some
@@ -104,7 +118,7 @@ class Editor(QDialog):
 
         self.owb = self._spawn("⚖️ Перевес")
         owl = QHBoxLayout()
-        self.ow_combo = QComboBox()
+        self.ow_combo = ComboBox()
         self.ow_combo.addItems(["0", "50", "80"])
         self.ow_combo.setCurrentText(str(settings.OVERWEIGHT_AFK if settings.OVERWEIGHT_CHECKER else "80"))
         owl.addWidget(QLabel("АФК при:"))
@@ -138,7 +152,7 @@ class Editor(QDialog):
 
         alliance = self._spawn("💥 Кнопка альянса")
         al = QHBoxLayout()
-        self.alliance_btn = QSpinBox()
+        self.alliance_btn = SpinBox()
         self.alliance_btn.setValue(int(settings.ALLIANCE_BUTTON))
         self.alliance_btn.setRange(0, 2)
         al.addWidget(QLabel("Куда жмем? (2 центр)"))
@@ -150,10 +164,10 @@ class Editor(QDialog):
 
         sb = self._spawn("📍 Споты")
         sl = QHBoxLayout()
-        self.spot_ot = QSpinBox()
+        self.spot_ot = SpinBox()
         self.spot_ot.setRange(1, 4)
         self.spot_ot.setValue(settings.SPOT_OT)
-        self.spot_do = QSpinBox()
+        self.spot_do = SpinBox()
         self.spot_do.setRange(1, 4)
         self.spot_do.setValue(settings.SPOT_DO)
         sl.addWidget(QLabel("От:"))
@@ -186,6 +200,11 @@ class Editor(QDialog):
         self.setLayout(main_layout)
 
         self.setStyleSheet(STYLE)
+
+        self.ow_combo.installEventFilter(self.blocker)
+        self.spot_ot.installEventFilter(self.blocker)
+        self.spot_do.installEventFilter(self.blocker)
+        self.alliance_btn.installEventFilter(self.blocker)
 
     def _spawn(self, title: str):
         box = QGroupBox(title)

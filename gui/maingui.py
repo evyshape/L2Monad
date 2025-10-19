@@ -332,7 +332,7 @@ class NedoGui(QWidget):
         for i in range(self.layout_main.count()):
             item = self.layout_main.itemAt(i)
             w = item.widget()
-            if isinstance(w, QPushButton) and "ВСЕ" in w.text(): # эбат накостылил, потом переделать #todo
+            if isinstance(w, QPushButton) and "ВСЕ" in w.text() and not "STOP ВСЕ" in w.text(): # эбат накостылил, потом переделать #todo
                 base_text = w.text().split(" (")[0]
                 profile_name = base_text.replace(" ВСЕ", "")
                 count = running.get(profile_name, 0)

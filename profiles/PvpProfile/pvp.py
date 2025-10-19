@@ -691,7 +691,7 @@ class PvPDodge(BaseProfile):
                                                      monitors=self.get_monitors)
                 return
 
-            if diff >= 15: # проценты, в целом можно вынести в /bot/misc.py
+            if diff >= 20: # проценты, в целом можно вынести в /bot/misc.py
                 log(f"Хп упало на {diff:.1f}%, улетаю!", window_id)
                 xy, rgb = parseCBT("home_scroll_button_no_energomode", profile=self)
 

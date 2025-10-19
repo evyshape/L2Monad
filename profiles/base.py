@@ -2,7 +2,7 @@ import asyncio
 from asyncio import Queue
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Union, Any
+from typing import Dict, Tuple, Union, Any, List
 
 import mss
 import numpy as np
@@ -274,6 +274,31 @@ class BaseProfile(ABC):
         async with pixel_semaphore:
             loop = asyncio.get_running_loop()
             return await loop.run_in_executor(THREAD_POOL, blocking_check)
+
+    async def capture_multy(
+        self,
+        rects: List[Tuple[int, int, int, int]]
+
+    ) -> List[np.ndarray]:
+
+        window_id, window = next(iter(self.window_info.items()))
+        aj = [
+            (x + window['Position'][0], y + window['Position'][1], w, h)
+            for x, y, w, h in rects
+        ]
+
+        def blocking_capture():
+            results = []
+            with mss.mss() as sct:
+                for left, top, width, height in aj:
+                    monitor = {"left": left, "top": top, "width": width, "height": height}
+                    img = np.array(sct.grab(monitor))[:, :, :3][:, :, ::-1]
+                    results.append(img)
+            return results
+
+        async with pixel_semaphore:
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(THREAD_POOL, blocking_capture)
 
     def is_running(self) -> bool:
         """

@@ -103,13 +103,10 @@ class WorkAccs(QDialog):
 
         btns = QHBoxLayout()
 
-        #todo сделать одну кнопку с состояниями 0 1 ибо чета впадлу 2 держать
-
-        self.btn_clear = QPushButton("Очистить всё")
-        self.btn_clear.clicked.connect(self.clear_all)
-
-        self.btn_all = QPushButton("Выбрать всё")
-        self.btn_all.clicked.connect(self.select_all)
+        self.btn_toggle_all = QPushButton()
+        self.update_text()
+        self.btn_toggle_all.clicked.connect(self.toggle_all)
+        btns.addWidget(self.btn_toggle_all)
 
         self.btn_ok = QPushButton("Сохранить (не забудь нажать)")
         self.btn_ok.clicked.connect(self.accept)
@@ -117,12 +114,32 @@ class WorkAccs(QDialog):
 
         self.layout.addLayout(btns)
 
+    def toggle_all(self):
+        if any(btn.isChecked() for btn in self.window_buttons.values()):
+            for btn in self.window_buttons.values():
+                btn.setChecked(False)
+            self.enabled.clear()
+        else:
+            for nick, btn in self.window_buttons.items():
+                btn.setChecked(True)
+                self.enabled.add(nick)
+
+        self.update_text()
+
+    def update_text(self):
+        if any(btn.isChecked() for btn in self.window_buttons.values()):
+            self.btn_toggle_all.setText("Снять все")
+        else:
+            self.btn_toggle_all.setText("Выбрать все")
+
     def on_clicked(self):
         nick = self.sender().text()
         if self.sender().isChecked():
             self.enabled.add(nick)
         else:
             self.enabled.discard(nick)
+
+        self.update_text()
 
     def select_all(self):
         self.enabled = set(self.window_buttons.keys())

@@ -31,12 +31,13 @@ class Test(BaseProfile):
     async def main_loop(self):
         window_id, window = next(iter(self.window_info.items()))
         try:
-            #self.events_checker.start_monitoring(window_id, self,
-            #                                     monitors=[MonitorType.ERROR])
+            self.events_checker.start_monitoring(window_id, self,
+                                                 monitors=[MonitorType.HEALTH])
 
-            #while True:
-            #    await asyncio.sleep(0.1)
-            #    pass
+            while True:
+                await asyncio.sleep(0.02)
+                print(self.runtime_data.health)
+                pass
 
             npc = await check_autohunt(self)
             log(npc, window_id)

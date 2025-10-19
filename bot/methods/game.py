@@ -554,15 +554,15 @@ async def check_autohunt(profile) -> bool:
     xy1, rgb1 = parseCBT("auto_combat_ON", profile=profile)
     window_id = next(iter(profile.window_info))
     success = 0
-    await asyncio.sleep(0.15)
+    await asyncio.sleep(0.05)
 
-    for _ in range(5):
+    for _ in range(2):
         await asyncio.sleep(0.1)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=17, wsize="1x3")
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=THR_CHECK_AUTOHUNT, wsize="1x2")
         if teleported:
             success += 1
 
-    if success >= 3:
+    if success >= 1:
         log("hunt succ", window_id)
         return True
     else:
@@ -730,7 +730,7 @@ async def check_rip(profile) -> tuple[bool, str]:
 
     async def check(cbt: str) -> bool:
         xy, rgb = parseCBT(cbt, profile=profile)
-        return await profile.check_pixel(xy, rgb, timeout=1, thr=3)
+        return await profile.check_pixel(xy, rgb, timeout=0.65, thr=4)
 
     for key, cbts in rips.items():
         results = await asyncio.gather(*(check(cbt) for cbt in cbts))

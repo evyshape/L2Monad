@@ -1,6 +1,7 @@
 import asyncio
 import time
 from typing import Dict
+import numpy as np
 
 from bot.clogger import log
 from bot.delays import PVP_CHECK_DELAY
@@ -269,48 +270,46 @@ class EventsChecker:
             await asyncio.sleep(50)
 
     async def _monitor_health(self, window_id: str, profile: BaseProfile) -> None:
-        #start_xy, _ = parseCBT("hp_start", profile=profile)
-        #end_xy, _ = parseCBT("hp_end", profile=profile)
 
-        start_xy = "10, 9"
-        end_xy = "69, 9"
+        bars = [
+            ((10, 9), (69, 9)),
+            ((10, 4), (69, 4)),
+            ((10, 8), (69, 8)),
+        ]
 
-        x1, y1 = map(int, start_xy.split(","))
-        x2, y2 = map(int, end_xy.split(","))
-
-        bar = abs(x2 - x1)
         while profile.running:
             health_thr = profile.settings.HEALTH_BACK or [10, 20, 30]
             if not health_thr:
                 await asyncio.sleep(1.0)
                 continue
-            step = 3
-            tasks = []
-            for dx in range(0, bar + 1, step):
-                x = x1 + dx
-                tasks.append(
-                    profile.check_pixel((x, y1), (160, 40, 10), timeout=0.05, thr=88,
-                                        wsize="1x1")
-                )
-            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            red = sum(1 for res in results if res is True)
-            total = len(results)
-            if total > 0:
-                hp_percent = int((red / total) * 100)
-            else:
-                hp_percent = 0
+            rects = []
+            for (x1, y1), (x2, y2) in bars:
+                width = abs(x2 - x1) + 1
+                rects.append((x1, y1, width, 1))
 
-            profile.runtime_data.health = hp_percent
+            screenshots = await profile.capture_multy(rects)
+            hp_list = []
+            target = np.array([160, 40, 10], dtype=np.int16)
+
+            for img in screenshots:
+                diff = np.abs(img.astype(np.int16) - target)
+                mask = np.all(diff <= 56, axis=-1)
+                red = np.sum(mask)
+                total = img.shape[1]
+                hp_percent = int((red / total) * 100) if total > 0 else 0
+                hp_list.append(hp_percent)
+
+            profile.runtime_data.health = max(hp_list)
+
             now = time.monotonic()
             last_events = self._last_event_time.setdefault(window_id, {})
             last_time = last_events.get("health", 0)
-
-            if hp_percent and now - last_time >= 1:
+            if profile.runtime_data.health and now - last_time >= 1:
                 last_events["health"] = now
                 # EventsManager.send_event(window_id, {"type": "health"})
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.2)
 
     async def low_hp_dodge(self, window_id: str, profile: BaseProfile):
         window_id, window = next(iter(profile.window_info.items()))
