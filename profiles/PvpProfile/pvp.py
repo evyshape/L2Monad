@@ -272,6 +272,10 @@ class PvPDodge(BaseProfile):
         await asyncio.sleep(2)
         await self.mouse.click(self.window_info, xy2[0], xy2[1], fast=True)
         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
+        running = self.events_checker.get_running(window_id)
+        if MonitorType.HEALTH in running:
+            self.events_checker.stop_once(window_id, MonitorType.HEALTH)
+
         pixel = await self.check_pixel(xy2, rgb2, 7)
         if pixel:
             log(f"Контрольный тп вжат", window_id)
@@ -870,8 +874,10 @@ class PvPDodge(BaseProfile):
 
     async def lowhp_zatichka(self):
         window_id, window = next(iter(self.window_info.items()))
+        log(f"curr hp: {self.runtime_data.health}", window_id)
         xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
         self.events_checker.stop_once(window_id, MonitorType.LOW_HP_DODGE)
+        self.events_checker.stop_once(window_id, MonitorType.HEALTH)
         click_x = xy[0]
         click_y = xy[1]
         await self.mouse.click(self.window_info, click_x, click_y)

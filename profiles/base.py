@@ -28,9 +28,11 @@ THREAD_POOL = ThreadPoolExecutor(max_workers=thread)
 
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
+        from bot.events.checker import EventsChecker
         self.window_info = window_info
         self.running = True
         self._task: asyncio.Task | None = None
+        self.events_checker = EventsChecker()
         self.event_queue: Queue = Queue()
         self._event_task: asyncio.Task | None = None
         self.tname = "-BaseProfile-"

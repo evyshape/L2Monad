@@ -270,46 +270,59 @@ class EventsChecker:
             await asyncio.sleep(50)
 
     async def _monitor_health(self, window_id: str, profile: BaseProfile) -> None:
-
         bars = [
             ((10, 9), (69, 9)),
-            ((10, 4), (69, 4)),
-            ((10, 8), (69, 8)),
+            ((10, 8), (69, 8))
         ]
 
+        x_min = min(x1 for (x1, _), _ in bars)
+        x_max = max(x2 for _, (x2, _) in bars)
+        y_min = min(y1 for (_, y1), _ in bars)
+        y_max = max(y2 for _, (_, y2) in bars)
+
+        width = abs(x_max - x_min) + 1
+        height = abs(y_max - y_min) + 1
+        rect = (x_min, y_min, width, height)
+
         while profile.running:
-            health_thr = profile.settings.HEALTH_BACK or [10, 20, 30]
-            if not health_thr:
-                await asyncio.sleep(1.0)
+
+            [screenshot] = await profile.capture_multy([rect])
+            img = np.array(screenshot)
+            img_i16 = img.astype(np.int16)
+
+            t1 = np.array([160, 40, 10], dtype=np.int16)
+            t2 = np.array([30, 30, 20], dtype=np.int16)
+            t3 = np.array([57, 18, 8], dtype=np.int16)
+            t4 = np.array([10, 10, 5], dtype=np.int16)
+
+            mask1 = np.all(np.abs(img_i16 - t1) <= t2, axis=-1)
+            mask2 = np.all(np.abs(img_i16 - t3) <= t4, axis=-1)
+
+            mask = mask1 | mask2
+
+            #mask_vis = (mask * 255).astype(np.uint8)
+            #mask_vis = cv2.cvtColor(mask_vis, cv2.COLOR_GRAY2BGR)
+
+            re = np.mean(mask, axis=0)
+            red = np.where(re > 0.4)[0]
+
+            if len(red) > 0:
+                hpe = red[-1]
+                hp = int((hpe / (width - 1)) * 100)
+            else:
+                #kostyl
                 continue
 
-            rects = []
-            for (x1, y1), (x2, y2) in bars:
-                width = abs(x2 - x1) + 1
-                rects.append((x1, y1, width, 1))
-
-            screenshots = await profile.capture_multy(rects)
-            hp_list = []
-            target = np.array([160, 40, 10], dtype=np.int16)
-
-            for img in screenshots:
-                diff = np.abs(img.astype(np.int16) - target)
-                mask = np.all(diff <= 56, axis=-1)
-                red = np.sum(mask)
-                total = img.shape[1]
-                hp_percent = int((red / total) * 100) if total > 0 else 0
-                hp_list.append(hp_percent)
-
-            profile.runtime_data.health = max(hp_list)
+            profile.runtime_data.health = hp
 
             now = time.monotonic()
             last_events = self._last_event_time.setdefault(window_id, {})
             last_time = last_events.get("health", 0)
-            if profile.runtime_data.health and now - last_time >= 1:
+            if now - last_time >= 1:
                 last_events["health"] = now
                 # EventsManager.send_event(window_id, {"type": "health"})
 
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.23)
 
     async def low_hp_dodge(self, window_id: str, profile: BaseProfile):
         window_id, window = next(iter(profile.window_info.items()))
@@ -484,3 +497,11 @@ class EventsChecker:
 
         if not tasks:
             self.tasks.pop(window_id, None)
+
+    def get_running(self, window_id: str) -> list[MonitorType]:
+        running = []
+        monitors = self.tasks.get(window_id, {})
+        for mtype, task in monitors.items():
+            if not task.done():
+                running.append(mtype)
+        return running

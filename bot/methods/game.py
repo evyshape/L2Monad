@@ -10,6 +10,7 @@ import numpy as np
 import mss
 
 from bot.delays import *
+from bot.events.enums import MonitorType
 from bot.methods.base import parseCBT
 from bot.methods.other import screenshot_window
 from bot.clogger import log
@@ -276,8 +277,13 @@ async def energo_mode(profile, state: str) -> bool:
 
     width = window["Width"]
     height = window["Height"]
-
+    f = False
     if state == "off":
+        running = profile.events_checker.get_running(window_id)
+        if MonitorType.HEALTH in running:
+            f = True
+            profile.events_checker.stop_once(window_id, MonitorType.HEALTH)
+
         center_x = width // 2
         center_y = height // 2
         radius = 15
@@ -294,13 +300,15 @@ async def energo_mode(profile, state: str) -> bool:
 
         xy1, rgb1 = parseCBT("zalupka_gui", profile=profile)
         await asyncio.sleep(SLEEP_AFTER_UNBLOCK)
+        if f:
+            profile.events_checker.start_monitoring(window_id, profile, [MonitorType.HEALTH])
 
         eth_err = await check_ethernet1_error(profile)
         if eth_err:
             await close_ethernet1_error(profile)
             await asyncio.sleep(3)
 
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=10, thr=15 if profile.settings.REGION == "RU" else 2)
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=10, thr=17 if profile.settings.REGION == "RU" else 2)
         if teleported:
             return True
         else:
@@ -558,7 +566,7 @@ async def check_autohunt(profile) -> bool:
 
     for _ in range(2):
         await asyncio.sleep(0.1)
-        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=THR_CHECK_AUTOHUNT, wsize="1x2")
+        teleported = await profile.check_pixel(xy1, rgb1, timeout=DELAY_AUTOHUNT_CHECK, thr=THR_CHECK_AUTOHUNT, wsize="3x4")
         if teleported:
             success += 1
 
@@ -598,7 +606,7 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         log("Был в энерго, вырубаю перед тп", window_id)
         await energo_mode(profile, "off")
 
-    await asyncio.sleep(0.05)
+    await asyncio.sleep(WAIT_BEFORE_TELEPORT_TO_SPOT)
 
     steps = [
         "spot_teleport_call_button",
@@ -610,6 +618,8 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
     if not hunt:
         return False
 
+    await asyncio.sleep(0.5)
+    
     for key in steps:
         xy, rgb = parseCBT(key, profile=profile)
 
@@ -643,6 +653,8 @@ async def teleport_to_random_spot(profile, from_: int = 1, to_: int = 4, fast=Tr
         log("Не сдох но стою без автобоя, чинюсь", window_id)
         await energo_mode(profile, "off")
         await asyncio.sleep(3)
+        await autohunt(profile)
+        await asyncio.sleep(1)
         if await ah():
             return True
     else:

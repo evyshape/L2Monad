@@ -1,7 +1,7 @@
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents
-from bot.methods.game import check_autohunt, get_npc_positions
+from bot.methods.game import check_autohunt, get_npc_positions, energo_mode
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
 from bot.clogger import log
@@ -31,16 +31,16 @@ class Test(BaseProfile):
     async def main_loop(self):
         window_id, window = next(iter(self.window_info.items()))
         try:
-            self.events_checker.start_monitoring(window_id, self,
-                                                 monitors=[MonitorType.HEALTH])
+            #self.events_checker.start_monitoring(window_id, self,
+            #                                     monitors=[MonitorType.HEALTH])
 
+            #await asyncio.sleep(5.02)
+            #await energo_mode(self, "off")
             while True:
                 await asyncio.sleep(0.02)
-                print(self.runtime_data.health)
-                pass
-
-            npc = await check_autohunt(self)
-            log(npc, window_id)
+                npc = await check_autohunt(self)
+                log(npc, window_id)
+                #print(self.runtime_data.health)
 
         except asyncio.CancelledError:
             log("Профиль остановлен вручную", window_id)
