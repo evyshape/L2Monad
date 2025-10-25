@@ -200,9 +200,33 @@ def update():
         req_path = os.path.join(root_dir, "requirements.txt")
         if os.path.exists(req_path):
             install_req(req_path)
+
         log("Накатил обнову, рестарчусь")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+        try:
+            ppath = sys.executable
+
+            if not os.path.exists(ppath):
+                ppath = shutil.which("python") or shutil.which(
+                    "python3") or ppath
+
+            log(f"Рестарт через: {ppath}")
+            root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+            bot = os.path.join(root, "main.py")
+
+            clean = os.environ.copy()
+            # ebat costyl
+            for bad in ("PYTHONHOME", "PYTHONEXECUTABLE", "PYTHONPATH"):
+                clean.pop(bad, None)
+
+            subprocess.Popen([ppath, bot] + sys.argv[1:], env=clean)
+            print("NE TROGAI NI4EGO")
+            sys.exit(0)
+
+        except Exception as e:
+            log(f"Не смог рестартануть: {e}")
+            sys.exit(1)
 
     except Exception as e:
         log(f"Обнова бахнула: {e}")
-        exit()
+        sys.exit(1)
