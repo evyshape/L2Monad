@@ -30,6 +30,7 @@ class MonitorType(StrEnum):
     SCHEDULE = "schedule"
     AUCTION = "auction"
     LOW_HP_DODGE = "low_hp_dodge"
+    PARTY_DUNGEON = "party_dungeon"
 
 
 # приорететы, если одновременно прилетает 2 ивента условный пвп и условный клайм мейл сначала обработается пвп
@@ -48,4 +49,5 @@ PRIORITIES = {
     MonitorType.SCHEDULE: 12,
     MonitorType.AUCTION: 13,
     MonitorType.LOW_HP_DODGE: 14,
+    MonitorType.PARTY_DUNGEON: 15,
 }

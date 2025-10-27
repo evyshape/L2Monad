@@ -23,6 +23,8 @@ class BaseSettings:
     SCHEDULE_REWARDS: str # "10:00" или "10:00|12:00"
     SCHEDULE_SCHEDULE: str # "10:00-18:00"
     SCHEDULE_AUCTION: str # "10:00|18:00"
+    SCHEDULE_PARTY_DUNGEON: str # "10:00|18:00"
+    PARTY_DUNGEON_HARD: int # сложность от 1 до 4
     DONATE_SHOP_PAGES: str # "1|3|4" либо "1"
     ALLIANCE_BUTTON: int #0 = не донатим, 1 = 1.5кк, 2 = 6кк
     SPOT_OT: int # 1 не может быть выше 4
@@ -63,6 +65,7 @@ class BaseSettings:
             "mail": self.SCHEDULE_MAIL.split('|') if self.SCHEDULE_MAIL else [],
             "rewards": self.SCHEDULE_REWARDS.split('|') if self.SCHEDULE_REWARDS else [],
             "auction": self.SCHEDULE_AUCTION.split('|') if self.SCHEDULE_AUCTION else [],
+            "party_dungeon": self.SCHEDULE_PARTY_DUNGEON.split('|') if self.SCHEDULE_PARTY_DUNGEON else [],
         }
 
     def is_schedule(self, action: str, nickname: str) -> bool:
@@ -164,6 +167,8 @@ default_values = {
     "SCHEDULE_REWARDS": "21:00",
     "SCHEDULE_SCHEDULE": "",
     "SCHEDULE_AUCTION": "",
+    "SCHEDULE_PARTY_DUNGEON": "",
+    "PARTY_DUNGEON_HARD": 1,
     "DONATE_SHOP_PAGES": "1|2",
     "ALLIANCE_BUTTON": 2,
     "SPOT_OT": 1,

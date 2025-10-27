@@ -184,6 +184,23 @@ class EventsChecker:
 
             await asyncio.sleep(5)
 
+    async def _monitor_party(self, window_id: str,
+                                      profile: BaseProfile) -> None:
+        while profile.running:
+            now = time.monotonic()
+            last_events = self._last_event_time.setdefault(window_id, {})
+            last_time = last_events.get("party_dungeon", 0)
+
+            party_dungeon = profile.settings.is_schedule("party_dungeon", window_id)
+
+            if party_dungeon and now - last_time >= 120:
+                EventsManager.send_event(window_id, {"type": "party_dungeon"})
+                log(f"PARTY ивент отправлен в {window_id}", self.tname)
+
+                last_events["party_dungeon"] = now
+
+            await asyncio.sleep(5)
+
     async def _monitor_auction(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
@@ -442,7 +459,8 @@ class EventsChecker:
             MonitorType.HEALTH: self._monitor_health,
             MonitorType.AUCTION: self._monitor_auction,
             MonitorType.ERROR: self._monitor_errors,
-            MonitorType.LOW_HP_DODGE: self.low_hp_dodge
+            MonitorType.LOW_HP_DODGE: self.low_hp_dodge,
+            MonitorType.PARTY_DUNGEON: self._monitor_party
         }
 
         started = []

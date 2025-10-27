@@ -14,7 +14,7 @@ from bot.events.enums import MonitorType
 from bot.methods.base import parseCBT
 from bot.methods.other import screenshot_window
 from bot.clogger import log
-from bot.constans import DAILY, BATTLE_PASS
+from bot.constans import DAILY, BATTLE_PASS, PARTY_DUNGEON_CONS
 from profiles.base import BaseProfile
 
 from tgbot.keyboards.screenshot import delete_screenshot_kb
@@ -270,7 +270,7 @@ async def check_lvl_up(profile) -> bool:
         return False
 
 
-async def energo_mode(profile, state: str) -> bool:
+async def energo_mode(profile, state: str, ignore=False) -> bool:
     window_id, window = next(iter(profile.window_info.items()))
     button_xy, button_rgb = parseCBT("energo_mode_gui", profile=profile)
     button_x, button_y = button_xy
@@ -309,7 +309,7 @@ async def energo_mode(profile, state: str) -> bool:
             await asyncio.sleep(3)
 
         teleported = await profile.check_pixel(xy1, rgb1, timeout=10, thr=17 if profile.settings.REGION == "RU" else 2)
-        if teleported:
+        if teleported or ignore is True:
             return True
         else:
             if await check_energo_mode(profile):
@@ -1857,3 +1857,150 @@ async def claim_donate_shop(profile) -> bool:
 
     await asyncio.sleep(0.2)
     return True
+
+class PartyDungeon:
+    def __init__(self, profile: BaseProfile):
+        self.profile = profile
+        self.button_name = "autohunt_no_limit"
+        self.states = 4
+        self.clicks = None
+        self.window_info = profile.window_info
+
+    async def wait_and_click(self, tag, timeout=5, thr=2, wsize="2x2"):
+        xy, rgb = parseCBT(tag, profile=self.profile)
+        if await self.profile.check_pixel(xy, rgb, timeout=timeout, thr=thr, wsize=wsize):
+            await self.profile.mouse.click(self.window_info, *xy)
+            return True
+        return False
+
+    async def _detect(self) -> bool:
+        xy, rgb = parseCBT(self.button_name, profile=self.profile)
+        return await self.profile.check_pixel(xy, rgb, timeout=0.3, thr=2, wsize="1x1")
+
+    async def _click_button(self, button_name):
+        xy, _ = parseCBT(button_name, profile=self.profile)
+        x, y = xy
+        await self.profile.mouse.click(self.profile.window_info, x, y)
+
+    async def no_limit(self, max_clicks: int = 8) -> int:
+        count = 0
+
+        await self._click_button("energo_mode_gui")
+
+        while count < max_clicks:
+            if await self._detect():
+                self.clicks = count
+                await self.profile.mouse.click(self.window_info, 200, 100)
+                await asyncio.sleep(0.2)
+                return count
+
+            await self._click_button(self.button_name)
+            count += 1
+            await asyncio.sleep(0.2)
+
+
+        raise
+
+    async def to_start(self) -> int:
+
+        needed = (self.states - self.clicks) % self.states
+        await self._click_button("energo_mode_gui")
+        await asyncio.sleep(2)
+        for _ in range(needed):
+            await self._click_button(self.button_name)
+            await asyncio.sleep(0.2)
+
+        await self.wait_and_click("main_menu_gui")
+        await asyncio.sleep(0.2)
+        return needed
+
+    async def open_dungeon(self):
+        r1 = await self.wait_and_click("main_menu_gui")
+        r2 = await self.wait_and_click("dungeon_button_menu")
+        r3 = await self.wait_and_click("party_dungeon_button")
+        if all([r1, r2, r3]):
+            return True
+
+        return False
+
+    async def party_leave(self):
+        r1 = await self.wait_and_click("party_settings")
+        r2 = await self.wait_and_click("party_settings_me")
+        await asyncio.sleep(2)
+        r3 = await self.wait_and_click("party_settings_me")
+        if all([r1, r2, r3]):
+            return True
+        return False
+
+    async def find_dungeon(self, max_scrolls=3, scrolls=15, thr=2):
+        region = self.profile.settings.REGION
+        cfg = PARTY_DUNGEON_CONS.get(region, PARTY_DUNGEON_CONS["RU"])
+
+        x_need = cfg["x"]
+        y_start, y_end = cfg["scroll"]
+        need = [list(map(int, c.split(","))) for c in cfg["need"]]
+
+        for attempt in range(max_scrolls):
+            rect = (x_need, y_start, 1, y_end - y_start + 1)
+            imgs = await self.profile.capture_multy([rect])
+            img = imgs[0][:, :, :3]
+
+            for idx, row in enumerate(img):
+                for color in need:
+                    target = np.array(color, dtype=np.int16)
+                    diff = np.abs(row[0].astype(np.int16) - target)
+                    if np.all(diff <= thr):
+                        y_pix = y_start + idx
+                        return (x_need, y_pix)
+
+            pos = (x_need, (y_start + y_end) // 2)
+            await self.profile.mouse.wheel(self.window_info, [pos],
+                                           direction="down", times=scrolls)
+
+        return None
+
+    async def click_portal(self, thr=3, attempts=3, delay=1):
+        region = self.profile.settings.REGION
+        cfg = PARTY_DUNGEON_CONS.get(region, PARTY_DUNGEON_CONS["RU"])
+
+        xy_str, color_str = cfg["portal"]
+        x_range, y_str = xy_str.split(",")
+        x_start, x_end = map(int, x_range.split("-"))
+        y = int(y_str.strip())
+
+        target = np.array(list(map(int, color_str.split(","))), dtype=np.int16)
+        rect = (x_start, y, x_end - x_start, 1)
+
+        for attempt in range(attempts):
+            imgs = await self.profile.capture_multy([rect])
+            img = imgs[0][:, :, :3]
+
+            for idx, pixel in enumerate(img[0]):
+                diff = np.abs(pixel.astype(np.int16) - target)
+                if np.all(diff <= thr):
+                    x_pix = x_start + idx
+                    await self.profile.mouse.click(self.window_info, x_pix, y)
+                    await asyncio.sleep(0.2)
+                    return True
+
+            await asyncio.sleep(delay)
+
+        return False
+
+
+    async def start_dungeon(self, xy):
+        if xy:
+            await self.profile.mouse.click(self.window_info, xy[0], xy[1])
+            await asyncio.sleep(0.1)
+            await self.wait_and_click("party_dungeon_join")
+            await asyncio.sleep(1)
+            hard = int(self.profile.settings.PARTY_DUNGEON_HARD)
+            await self.wait_and_click(f"party_dungeon_hard_{hard}")
+            await self.wait_and_click("party_dungeon_join2")
+            await asyncio.sleep(1.5)
+            await self.click_portal()
+            await self.wait_and_click("party_dungeon_join3")
+            await asyncio.sleep(1)
+            await wait_teleport(self.profile, 5)
+            return True
+        return False

@@ -73,7 +73,7 @@ class Donate(QDialog):
         scroll_layout.setContentsMargins(15, 8, 15, 8)
 
         try:
-            resp = requests.get("https://gist.githubusercontent.com/evyshape/38de60e1fec5ead6d562451b776c1874/raw/cad1f1264ab4bac287841d09f9f21b1c1cfb3d6d/donatilka.json", timeout=5)
+            resp = requests.get("https://gist.githubusercontent.com/evyshape/38de60e1fec5ead6d562451b776c1874/raw/donatilka.json", timeout=5)
             payments = resp.json()
         except Exception:
             payments = {"Методы не загрузились =(": ["Проверь инет либо пиши разрабу в лс (tg: @evyshape)"]}

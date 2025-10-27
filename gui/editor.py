@@ -108,6 +108,16 @@ class Editor(QDialog):
 
         self._health() # если включено пвп в ответе то монитор хп над показывать
 
+        pd_box = self._spawn("🏰 Сложность пати данжа (1-4)")
+        pd_layout = QHBoxLayout()
+        self.party_dungeon_hard = SpinBox()
+        self.party_dungeon_hard.setRange(1, 4)
+        self.party_dungeon_hard.setValue(settings.PARTY_DUNGEON_HARD)
+        pd_layout.addWidget(QLabel("Сложность:"))
+        pd_layout.addWidget(self.party_dungeon_hard)
+        pd_box.setLayout(pd_layout)
+        ml.addWidget(pd_box)
+
         self._add_pack(ml, "🧪 Переключалки", {
             "HP_BANK_CHECKER": settings.HP_BANK_CHECKER,
             "SOSKA_CHECKER": settings.SOSKA_CHECKER,
@@ -134,7 +144,8 @@ class Editor(QDialog):
             "SCHEDULE_MAIL": settings.SCHEDULE_MAIL,
             "SCHEDULE_REWARDS": settings.SCHEDULE_REWARDS,
             "SCHEDULE_SCHEDULE": settings.SCHEDULE_SCHEDULE,
-            "SCHEDULE_AUCTION": settings.SCHEDULE_AUCTION
+            "SCHEDULE_AUCTION": settings.SCHEDULE_AUCTION,
+            "SCHEDULE_PARTY_DUNGEON": settings.SCHEDULE_PARTY_DUNGEON,
         })
 
         db = self._spawn("💰 Страницы донат шопа")
@@ -301,6 +312,9 @@ class Editor(QDialog):
             self.settings.OVERWEIGHT_AFK = int(self.ow_combo.currentText()) if self.settings.OVERWEIGHT_CHECKER else 80
             for key in ["SCHEDULE_BUYING", "SCHEDULE_MAIL", "SCHEDULE_REWARDS", "SCHEDULE_SCHEDULE", "SCHEDULE_AUCTION"]:
                 self.settings.__dict__[key] = self.widgets[key].text()
+
+            self.settings.PARTY_DUNGEON_HARD = self.party_dungeon_hard.value()
+            self.settings.SCHEDULE_PARTY_DUNGEON = self.widgets["SCHEDULE_PARTY_DUNGEON"].text()
 
             self.settings.DONATE_SHOP_PAGES = "|".join([cb.text() for cb in self.dc if cb.isChecked()])
             self.settings.SPOT_OT = self.spot_ot.value()
