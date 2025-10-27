@@ -29,6 +29,8 @@ CBT_RU = {
     "party_dungeon_button": ["176, 33", "125, 131, 140"], # вкладка после нажатия на dungeon_button_menu
     "dungeon_button_menu": ["322, 97", "no"], # подземелья в меню
 
+    "party_create": ["205, 190", "215, 103, 11"],
+    "party_close": ["264, 30", "151, 154, 157"],
     "party_settings": ["16, 117", "no"], # выше чем energo_mode_gui на 1
     "party_settings_me": ["262, 121", "15, 18, 22"],
     "party_settings_me2": ["262, 121", "no"],
@@ -250,6 +252,8 @@ CBT_JP = {
     "party_dungeon_button": ["135, 33", "90, 98, 109"], # вкладка после нажатия на dungeon_button_menu
     "dungeon_button_menu": ["322, 97", "no"], # подземелья в меню
 
+    "party_create": ["205, 190", "215, 103, 11"],
+    "party_close": ["264, 30", "151, 154, 157"],
     "party_settings": ["16, 117", "no"], # выше чем energo_mode_gui на 1
     "party_settings_me": ["262, 121", "15, 18, 22"],
     "party_settings_me2": ["262, 121", "no"],

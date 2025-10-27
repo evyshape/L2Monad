@@ -3,7 +3,7 @@ from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents, screenshot_window
 from bot.methods.game import autohunt, buy_in_shop, energo_mode, \
     PartyDungeon, check_energo_mode, safe_tp, check_autohunt, check_rip, wait_teleport, \
-    teleport_to_random_spot
+    teleport_to_random_spot, respawn, buy_loot
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
@@ -35,6 +35,14 @@ class Dungeon(BaseProfile):
     async def main_loop(self):
         window_id, window = next(iter(self.window_info.items()))
         try:
+            rip, btn = await check_rip(self)
+            if rip:
+                log("Окно сдохло, не обрабатываю.", window_id)
+                await respawn(self)
+                await asyncio.sleep(5)
+                await buy_loot(self)
+                return
+
             flaged = False
             energo = await check_energo_mode(self)
             if energo:
@@ -46,6 +54,8 @@ class Dungeon(BaseProfile):
             await asyncio.sleep(1.5)
             await wait_teleport(self)
             dungeon = PartyDungeon(self)
+            await dungeon.party_create()
+            await asyncio.sleep(0.5)
             await dungeon.open_dungeon()
             await asyncio.sleep(1.5)
             xy = await dungeon.find_dungeon()

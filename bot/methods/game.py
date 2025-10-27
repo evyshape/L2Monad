@@ -1924,6 +1924,17 @@ class PartyDungeon:
 
         return False
 
+    async def party_create(self):
+        r1 = await self.wait_and_click("party_settings")
+        await asyncio.sleep(2)
+        r2 = await self.wait_and_click("party_create")
+        await asyncio.sleep(1.5)
+        r3 = await self.wait_and_click("party_close")
+        if all([r1, r2, r3]):
+            return True
+
+        return False
+
     async def party_leave(self):
         r1 = await self.wait_and_click("party_settings")
         await asyncio.sleep(2)

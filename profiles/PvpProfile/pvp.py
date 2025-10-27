@@ -880,6 +880,13 @@ class PvPDodge(BaseProfile):
         window_id, window = next(iter(self.window_info.items()))
         self.events_checker.stop_monitoring(window_id)
         try:
+            rip, btn = await check_rip(self)
+            if rip:
+                log("Окно сдохло, пати данжа не буде =(", window_id)
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                return
+
             flaged = False
             energo = await check_energo_mode(self)
             if energo:
@@ -892,6 +899,8 @@ class PvPDodge(BaseProfile):
             await asyncio.sleep(1.5)
             await wait_teleport(self)
             dungeon = PartyDungeon(self)
+            await dungeon.party_create()
+            await asyncio.sleep(0.5)
             await dungeon.open_dungeon()
             await asyncio.sleep(1.5)
             xy = await dungeon.find_dungeon()
