@@ -1865,6 +1865,7 @@ class PartyDungeon:
         self.states = 4
         self.clicks = None
         self.window_info = profile.window_info
+        self.window_id = next(iter(profile.window_info))
 
     async def wait_and_click(self, tag, timeout=5, thr=2, wsize="2x2"):
         xy, rgb = parseCBT(tag, profile=self.profile)
@@ -1925,11 +1926,13 @@ class PartyDungeon:
 
     async def party_leave(self):
         r1 = await self.wait_and_click("party_settings")
-        r2 = await self.wait_and_click("party_settings_me")
         await asyncio.sleep(2)
+        r2 = await self.wait_and_click("party_settings_me")
+        await asyncio.sleep(1.5)
         r3 = await self.wait_and_click("party_settings_me")
         if all([r1, r2, r3]):
             return True
+
         return False
 
     async def find_dungeon(self, max_scrolls=3, scrolls=15, thr=2):
@@ -1959,7 +1962,7 @@ class PartyDungeon:
 
         return None
 
-    async def click_portal(self, thr=3, attempts=3, delay=1):
+    async def click_portal(self, thr=7, attempts=5, delay=1):
         region = self.profile.settings.REGION
         cfg = PARTY_DUNGEON_CONS.get(region, PARTY_DUNGEON_CONS["RU"])
 
@@ -1998,9 +2001,14 @@ class PartyDungeon:
             await self.wait_and_click(f"party_dungeon_hard_{hard}")
             await self.wait_and_click("party_dungeon_join2")
             await asyncio.sleep(1.5)
-            await self.click_portal()
-            await self.wait_and_click("party_dungeon_join3")
-            await asyncio.sleep(1)
-            await wait_teleport(self.profile, 5)
-            return True
+            portal = await self.click_portal()
+            if portal:
+                await self.wait_and_click("party_dungeon_join3")
+                await asyncio.sleep(1)
+                await wait_teleport(self.profile, 5)
+                return True
+            else:
+                log("Не нашел портал, втф?", self.window_id)
+                #todo допердеть
+
         return False
