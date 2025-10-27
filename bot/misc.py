@@ -8,6 +8,8 @@ NEED_CLAIM_ALI = True # при сборе наград нужен ли алья�
 NEED_CLAIM_BATTLE_PASS = True # при сборе наград нужен ли батл пасс?
 NEED_CLAIM_DONATE_SHOP = True # при сборе наград нужен ли донат шоп?
 
+NEED_BACK_TO_SPOT_PARTY_DUNGEON = True # для профиля пати данжей, после того как зафармил данж нужно ли возвращаться на спот?
+
 CHECK_ETHERNET1_ERROR = True # проверка ошибки инета раз в 8 минут
 CHECK_DISCONNECT_ERROR = True # проверка дисконекта от сервака раз в 8 минут
 

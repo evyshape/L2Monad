@@ -1929,7 +1929,7 @@ class PartyDungeon:
         await asyncio.sleep(2)
         r2 = await self.wait_and_click("party_settings_me")
         await asyncio.sleep(1.5)
-        r3 = await self.wait_and_click("party_settings_me")
+        r3 = await self.wait_and_click("party_settings_me2")
         if all([r1, r2, r3]):
             return True
 
@@ -1962,7 +1962,7 @@ class PartyDungeon:
 
         return None
 
-    async def click_portal(self, thr=7, attempts=5, delay=1):
+    async def click_portal(self, thr=12, attempts=5, delay=1):
         region = self.profile.settings.REGION
         cfg = PARTY_DUNGEON_CONS.get(region, PARTY_DUNGEON_CONS["RU"])
 

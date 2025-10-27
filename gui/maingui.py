@@ -211,7 +211,7 @@ class NedoGui(QWidget):
             QMessageBox.information(self, "Info", "Пресет не выбран")
             return
 
-        windows_map = findAllWindows()
+        windows_map = dlg.windows
         nicks = [nick for nick in selected if nick in windows_map]
         if not nicks:
             QMessageBox.information(self, "Info", "Выбранные окна не найдены")
@@ -223,7 +223,51 @@ class NedoGui(QWidget):
             for nick, region in regions.items():
                 load_settings(nick, region=region)
 
-        self.start_windows(profile_class, nicks, preset=preset)
+        total_slots = sum(mon["grid_all"] for mon in dlg.monitors["monitors"])
+        last_value = self.cache.get("AlchemyConcurrent", 1)
+        max_active, ok = QInputDialog.getInt(
+            self, "Очередь алхимики",
+            f"Сколько окон крутить одновременно? (1-{total_slots})",
+            last_value, 1, total_slots
+        )
+        if not ok:
+            return
+
+        self.cache["AlchemyConcurrent"] = max_active
+        save_cache(self.cache)
+
+        self._alchemy_pending = nicks.copy()
+        self._alchemy_running = set()
+        self._alchemy_profile_class = profile_class
+        self._alchemy_preset = preset
+        self._alchemy_max_active = max_active
+
+        if not hasattr(self, "_alchemy_timer"):
+            from PyQt5.QtCore import QTimer
+            self._alchemy_timer = QTimer(self)
+            self._alchemy_timer.timeout.connect(self._alchemy_check)
+            self._alchemy_timer.start(1000)
+
+        self._alchemy_start()
+
+    def _alchemy_start(self):
+        while len(
+                self._alchemy_running) < self._alchemy_max_active and self._alchemy_pending:
+            nick = self._alchemy_pending.pop(0)
+            self.start_windows(self._alchemy_profile_class, [nick],
+                               preset=self._alchemy_preset)
+            self._alchemy_running.add(nick)
+
+    def _alchemy_check(self):
+        finished = {nick for nick in self._alchemy_running if
+                    not self.controller.is_running(nick)}
+
+        if finished:
+            self._alchemy_running.difference_update(finished)
+            self._alchemy_start()
+
+        if not self._alchemy_pending and not self._alchemy_running:
+            self._alchemy_timer.stop()
 
     def open_settings(self):
         self.settings_win = SettingsChanger()

@@ -118,35 +118,28 @@ class AlchemyDialog(QDialog):
         self.layout.addLayout(btns)
 
     def on_clicked(self):
-        total = sum(mon["grid_all"] for mon in self.monitors["monitors"])
-        selected = [btn for btn in self.window_buttons.values() if btn.isChecked()]
+        # total = sum(mon["grid_all"] for mon in self.monitors["monitors"])
+        # selected = [btn for btn in self.window_buttons.values() if btn.isChecked()]
 
-        if total > 0 and len(selected) > total:
-            btn = self.sender()
-            btn.setChecked(False)
+        # if total > 0 and len(selected) > total:
+        #     btn = self.sender()
+        #     btn.setChecked(False)
+        pass
 
     def select_max(self):
-        total = sum(mon["grid_all"] for mon in self.monitors["monitors"])
-        if total <= 0:
+        if not self.window_buttons:
             return
 
         if self.max_selected:
             for btn in self.window_buttons.values():
                 btn.setChecked(False)
             self.max_selected = False
-            self.btn_max.setText("Выбрать максимум")
+            self.btn_max.setText("Выбрать все")
         else:
-            chosen = []
-            for nick, info in self.windows.items():
-                if len(chosen) >= total:
-                    break
-                chosen.append(nick)
-
             for btn in self.window_buttons.values():
-                btn.setChecked(btn.window_info['nick'] in chosen)
-
+                btn.setChecked(True)
             self.max_selected = True
-            self.btn_max.setText("Снять со всех") # надо сделать чтоб окон 0 то просто не работала кнопка
+            self.btn_max.setText("Снять со всех")
 
     def get_selected(self):
         return [btn.window_info['nick'] for btn in self.window_buttons.values() if btn.isChecked()]

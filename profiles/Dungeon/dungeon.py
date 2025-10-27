@@ -2,10 +2,12 @@ from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.methods.other import MouseEvents, screenshot_window
 from bot.methods.game import autohunt, buy_in_shop, energo_mode, \
-    PartyDungeon, check_energo_mode, safe_tp, check_autohunt, check_rip, wait_teleport
+    PartyDungeon, check_energo_mode, safe_tp, check_autohunt, check_rip, wait_teleport, \
+    teleport_to_random_spot
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.events.checker import EventsChecker
 from bot.events.enums import MonitorType, PRIORITIES
+from bot.misc import *
 from bot.clogger import log
 import asyncio
 from typing import Optional
@@ -51,9 +53,16 @@ class Dungeon(BaseProfile):
                 log("Не нашел данжик, выхожу", window_id)
                 await dungeon.wait_and_click("main_menu_gui")
                 await asyncio.sleep(1)
+
+                if NEED_BACK_TO_SPOT_PARTY_DUNGEON:
+                    to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
+                    if to_spot:
+                        return True
+                    return False
+
                 if flaged:
                     await energo_mode(self, "on")
-                    raise
+                    return False
 
             started = await dungeon.start_dungeon(xy)
             if started:
@@ -97,6 +106,13 @@ class Dungeon(BaseProfile):
 
                 ok, in_town, npcs = await buy_in_shop(self)
                 log(f"ok={ok}, town={in_town}", window_id)
+
+                if NEED_BACK_TO_SPOT_PARTY_DUNGEON:
+                    to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
+                    if to_spot:
+                        return True
+                    return False
+
                 if not await check_energo_mode(self):
                     await energo_mode(self, "on", ignore=True)
                     await asyncio.sleep(1)
