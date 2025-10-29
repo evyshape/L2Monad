@@ -1490,7 +1490,7 @@ async def claim_achiv(profile) -> bool:
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
 
-    await asyncio.sleep(3)
+    await asyncio.sleep(2)
     while True:
         found_claim = await wait_and_click("achiv_claim_1", timeout=8, thr=3)
         await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
@@ -1501,11 +1501,13 @@ async def claim_achiv(profile) -> bool:
             await wait_and_click("achiv_claim_accept", timeout=2) #kostyl
             await wait_and_click("npc_global_quit_button", timeout=5)
             break
+        
+        await asyncio.sleep(1.5)
 
-    await asyncio.sleep(5)
-    q = await wait_and_click("achiv_claim_accept", timeout=4)
+    await asyncio.sleep(2)
+    q = await wait_and_click("achiv_claim_accept", timeout=2)
     if q:
-        await wait_and_click("npc_global_quit_button", timeout=3)
+        await wait_and_click("npc_global_quit_button", timeout=1)
 
     return claimed
 
@@ -1614,15 +1616,16 @@ async def claim_alliance(profile) -> bool:
     if not await wait_and_click(f"alliance_donate_{num}_button", timeout=3):
         log(f"Не нашел alliance_donate_{num}_button", window_id)
         await wait_and_click("alliance_close_donate", timeout=3)
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(1.2)
         await wait_and_click("npc_global_quit_button", timeout=5)
         return False
     else:
         await skip_vitlity(profile, "claim")
 
     if not await wait_and_click("npc_global_quit_button", timeout=3):
-        await wait_and_click("npc_global_quit_button", timeout=5)
         return False
+    else:
+        await wait_and_click("npc_global_quit_button", timeout=5)
 
     await asyncio.sleep(0.2)
     return True
@@ -1973,7 +1976,7 @@ class PartyDungeon:
 
         return None
 
-    async def click_portal(self, thr=12, attempts=5, delay=1):
+    async def click_portal(self, thr=15, attempts=5, delay=1.3):
         region = self.profile.settings.REGION
         cfg = PARTY_DUNGEON_CONS.get(region, PARTY_DUNGEON_CONS["RU"])
 
@@ -1989,7 +1992,8 @@ class PartyDungeon:
             imgs = await self.profile.capture_multy([rect])
             img = imgs[0][:, :, :3]
 
-            for idx, pixel in enumerate(img[0]):
+            for idx in reversed(range(img.shape[1])):
+                pixel = img[0, idx]
                 diff = np.abs(pixel.astype(np.int16) - target)
                 if np.all(diff <= thr):
                     x_pix = x_start + idx

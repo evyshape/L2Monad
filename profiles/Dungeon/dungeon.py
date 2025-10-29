@@ -62,7 +62,8 @@ class Dungeon(BaseProfile):
             if not xy:
                 log("Не нашел данжик, выхожу", window_id)
                 await dungeon.wait_and_click("main_menu_gui")
-                await asyncio.sleep(1)
+                await asyncio.sleep(1.8)
+                await dungeon.party_leave()
 
                 if NEED_BACK_TO_SPOT_PARTY_DUNGEON:
                     to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)

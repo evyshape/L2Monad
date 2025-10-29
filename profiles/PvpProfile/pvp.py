@@ -907,7 +907,8 @@ class PvPDodge(BaseProfile):
             if not xy:
                 log("Не нашел данжик, выхожу", window_id)
                 await dungeon.wait_and_click("main_menu_gui")
-                await asyncio.sleep(1)
+                await asyncio.sleep(1.8)
+                await dungeon.party_leave()
                 if flaged:
                     await energo_mode(self, "on")
 
