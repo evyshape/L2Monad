@@ -9,6 +9,7 @@ import math
 
 import mss
 from aiogram.types import FSInputFile
+from screeninfo import get_monitors
 
 from bot.clogger import log
 from interception import inputs
@@ -16,6 +17,32 @@ from bot.limits import click_semaphore, swipe_semaphore, move_semaphore, max_swi
 from bot.delays import CLICK_DELAY, MOUSE_SCROLL
 from bot.constans import SCREENSHOT_DIR
 
+def screenshot_monitor(tg: bool = False):
+    screenshots = []
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+
+    with mss.mss() as sct:
+        for i, monitor in enumerate(get_monitors(), start=1):
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"{'send_tg_' if tg else ''}monitor_{i}_{now_str}.png"
+            filepath = os.path.join(SCREENSHOT_DIR, filename)
+
+            monitor_region = {
+                "top": monitor.y,
+                "left": monitor.x,
+                "width": monitor.width,
+                "height": monitor.height,
+            }
+
+            sct_img = sct.grab(monitor_region)
+            mss.tools.to_png(sct_img.rgb, sct_img.size, output=filepath)
+
+            if tg:
+                screenshots.append(FSInputFile(filepath))
+            else:
+                screenshots.append(filepath)
+
+    return screenshots
 
 def screenshot_window(window_info, tg: bool = False):
     window_id, window = next(iter(window_info.items()))

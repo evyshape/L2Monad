@@ -6,6 +6,7 @@ def main_menu_kb() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="🌏 Глобальное", callback_data="menu_global")],
             [InlineKeyboardButton(text="🤖 Окна", callback_data="menu_windows")],
             [InlineKeyboardButton(text="⚙️ Управление", callback_data="menu_manage")],
-            [InlineKeyboardButton(text="🔔 Уведомления", callback_data="menu_notifications")]
+            [InlineKeyboardButton(text="🔔 Уведомления", callback_data="menu_notifications")],
+            [InlineKeyboardButton(text="📸 Фулл скриншот", callback_data="screenshot_full")],
         ]
     )

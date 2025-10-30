@@ -2,11 +2,34 @@ from aiogram import Router
 from aiogram.types import CallbackQuery
 from tgbot.services.decorators import admin_only
 from bot.utils import findAllWindows
-from bot.methods.other import screenshot_window
+from bot.methods.other import screenshot_window, screenshot_monitor
 from tgbot.keyboards.windows import window_back_kb
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 
 router = Router()
+
+@router.callback_query(lambda c: c.data == "screenshot_full")
+@admin_only
+async def full_screenshot(callback: CallbackQuery):
+    from tgbot.bot import TgBot
+    bot_instance = TgBot()
+
+    photos = screenshot_monitor(tg=True)
+
+    if not photos:
+        await callback.message.edit_text("❌ Не удалось сделать скрины, втф?", parse_mode="HTML")
+        return
+
+    for i, photo in enumerate(photos, start=1):
+        caption = f"<b>Монитор </b>#{i}"
+        bot_instance.send_pic(
+            photo=photo,
+            caption=caption,
+            parse_mode="HTML",
+            reply_markup=delete_screenshot_kb()
+        )
+
+    await callback.answer("✅", show_alert=False)
 
 @router.callback_query(lambda c: c.data.startswith("screenshot_"))
 @admin_only
