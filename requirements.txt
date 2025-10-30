@@ -1,6 +1,6 @@
 colorlog
 mss
-numpy
+numpy==1.26.4
 PyAutoGUI
 pyclick
 PyGetWindow
@@ -12,6 +12,6 @@ qasync
 requests
 screeninfo
 opencv-python
-torch
+torch==2.0.1
 pillow
-torchvision
+torchvision==0.15.2
