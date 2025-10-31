@@ -48,7 +48,7 @@ class MainAlchemy(BaseProfile):
                     return
 
                 if init == "first":
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(1)
                     bless = await check_bless(self)
                     await roll(self, step=1, kb=kb)
                     result = await check_slots(self)
@@ -73,9 +73,10 @@ class MainAlchemy(BaseProfile):
                     else:
                         await roll(self, step=2, kb=kb)
 
-                if init == "more":
-                    #todo мб чет добаивть хз
-                    pass
+                elif init == "more":
+                    #print("more1")
+                    await roll(self, step=2, kb=kb)
+                    #print("rolled more")
 
                 await self.roll_loop(iterations=self.alch_cfg["MAX_ROLLS"], kb=kb)
 
@@ -102,9 +103,10 @@ class MainAlchemy(BaseProfile):
             for i in range(1, iterations + 1):
                 try:
                     log(f"{i}/{iterations}", window_id)
-                    await asyncio.sleep(random.uniform(0.25, 1.55))
+                    await asyncio.sleep(random.uniform(0.25, 1))
                     bless = await check_bless(self)
                     await roll(self, step=1, kb=kb)
+                    await asyncio.sleep(0.5)
                     result = await check_slots(self)
                     #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
                     if match_slots(result, bless, self.alch_cfg):
