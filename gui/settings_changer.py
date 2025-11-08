@@ -1,4 +1,5 @@
 from typing import Dict, List
+import re
 
 from PyQt5.QtWidgets import (
     QSizePolicy, QGraphicsDropShadowEffect, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QScrollArea, QFrame, QMessageBox,
@@ -290,22 +291,46 @@ class Rassoser(QDialog):
                 if settings is None:
                     continue
 
-                shifted = []
-                for t in times:
-                    try:
-                        hh, mm = map(int, t.split(":"))
-                        group_idx = idx // bsize
-                        mm += group_idx * step
-                        hh += mm // 60
-                        mm = mm % 60
-                        hh = hh % 24
-                        shifted.append(f"{hh:02d}:{mm:02d}")
-                    except:
-                        shifted.append(t)
+                gr = idx // bsize
+                b = base_val
 
-                setattr(settings, field, "|".join(shifted))
+                if field == "SCHEDULE_SCHEDULE":
+
+                    cur = getattr(settings, field, "").strip()
+                    if not cur:
+                        continue
+
+                    m = re.match(r"(\d{1,2}:\d{2})-(\d{1,2}:\d{2})", base_val) # костыль для рассоса шедули шедули
+                    if m:
+                        start, end = m.groups()
+
+                        def tt(t):
+                            hh, mm = map(int, t.split(":"))
+                            mm += gr * step
+                            hh += mm // 60
+                            mm = mm % 60
+                            hh = hh % 24
+                            return f"{hh:02d}:{mm:02d}"
+
+                        b = f"{tt(start)}-{tt(end)}"
+
+                else:
+                    shifted = []
+                    for t in times:
+                        try:
+                            hh, mm = map(int, t.split(":"))
+                            mm += gr * step
+                            hh += mm // 60
+                            mm = mm % 60
+                            hh = hh % 24
+                            shifted.append(f"{hh:02d}:{mm:02d}")
+                        except Exception:
+                            shifted.append(t)
+                    b = "|".join(shifted)
+
+                setattr(settings, field, b)
                 save_settings(nick, settings)
-                log(f"Рассосал {nick}: {field} = {getattr(settings, field)}")
+                log(f"Рассосал {nick}: {field} = {b}")
 
         QMessageBox.information(self, "OK", "Рассосыч успешен!")
         self.accept()
