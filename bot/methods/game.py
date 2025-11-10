@@ -357,10 +357,6 @@ async def auction_rereg(profile) -> bool:
             return True
         return False
 
-    if profile.settings.REGION == "RU":
-        need = ["auction_server_market_global"]
-    else:
-        need = ["auction_server_market_server", "auction_server_market_global"]
     succ = []
     failed = []
 
@@ -379,54 +375,43 @@ async def auction_rereg(profile) -> bool:
         await wait_and_click("main_menu_gui", timeout=1)
         return False
 
-    for k in need:
-        try_success = True
+    try_success = True
 
-        if not await wait_and_click(k, timeout=10):
-            log(f"Не удалось ткнуть по {k}", window_id)
-            try_success = False
-        else:
-            await asyncio.sleep(3)
+    if not await wait_and_click("auction_sell_page", timeout=10):
+        log(f"Не удалось ткнуть по auction_sell_page", window_id)
+        try_success = False
+    else:
+        await asyncio.sleep(3)
 
-        await asyncio.sleep(DELAY_WAIT_AUCTION)
-        if try_success and not await wait_and_click("auction_sell_page", timeout=5):
-            log(f"Не удалось ткнуть по auction_sell_page для {k}", window_id)
-            try_success = False
+    await asyncio.sleep(DELAY_WAIT_AUCTION)
+    if try_success and not await wait_and_click("auction_sell_select_all_active", timeout=5):
+        log(f"Не удалось ткнуть по auction_sell_select_all_active", window_id)
+        try_success = False
 
-        if try_success and not await wait_and_click("auction_sell_select_all_active", timeout=5):
-            log(f"Не удалось ткнуть по auction_sell_select_all_active для {k}", window_id)
-            try_success = False
+    if try_success and not await wait_and_click("auction_sell_reregister_active", timeout=5):
+        log(f"Не удалось ткнуть по auction_sell_reregister_active", window_id)
+        try_success = False
 
-        if try_success and not await wait_and_click("auction_sell_reregister_active", timeout=5):
-            log(f"Не удалось ткнуть по auction_sell_reregister_active для {k}", window_id)
-            try_success = False
+    if try_success and not await wait_and_click("auction_sell_reregister_confirm", timeout=5):
+        log(f"Не удалось ткнуть по auction_sell_reregister_confirm", window_id)
+        try_success = False
 
-        if try_success and not await wait_and_click("auction_sell_reregister_confirm", timeout=5):
-            log(f"Не удалось ткнуть по auction_sell_reregister_confirm для {k}", window_id)
-            try_success = False
+    await asyncio.sleep(0.3)
 
-        await asyncio.sleep(0.3)
-
-        if try_success:
-            xy, rgb = parseCBT("auction_sell_select_all_inactive", profile=profile)
-            waited = await profile.check_pixel(xy, rgb, timeout=70, thr=0)
-            if waited:
-                succ.append(k)
-            else:
-                failed.append(k)
-        else:
-            failed.append(k)
-
+    if try_success:
+        xy, rgb = parseCBT("auction_sell_select_all_inactive", profile=profile)
+        waited = await profile.check_pixel(xy, rgb, timeout=70, thr=0)
+        succ = waited
 
     if succ:
-        log(f"Успешно перевыставил аук! | {succ}", window_id)
-    if failed:
-        log(f"Не удалось перевыставить аук! | {failed}", window_id)
+        log("Успешно перевыставил аук!", window_id)
+    else:
+        log("Не удалось перевыставить аук!", window_id)
 
     await wait_and_click("main_menu_gui", timeout=1)
 
-    return bool(succ)
-
+    return succ
+    
 async def autohunt(profile) -> bool:
     button_xy, button_rgb = parseCBT("auto_combat_mode_gui", profile=profile)
     button_x, button_y = button_xy

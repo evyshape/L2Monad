@@ -129,7 +129,7 @@ class EventsChecker:
 
                 await asyncio.sleep(6)
             else:
-                await asyncio.sleep(6)
+                await asyncio.sleep(3)
 
     async def _monitor_spot_back(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:

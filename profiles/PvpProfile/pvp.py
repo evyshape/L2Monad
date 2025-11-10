@@ -67,7 +67,7 @@ class PvPDodge(BaseProfile):
 
     @property
     def profile_version(self) -> str:
-        return "1.6.1"
+        return "1.6.2"
 
     # todo переделать, хочу class MonitorRule в который суну условия
     @property
@@ -145,7 +145,7 @@ class PvPDodge(BaseProfile):
         if respawned:
             self.events_checker.stop_monitoring(window_id)
             log("Стопнул мониторинг новых ивентов на время сна", window_id)
-            await asyncio.sleep(15) #todo
+            await asyncio.sleep(10) #todo
             await energo_mode(self, "on")
             await asyncio.sleep(1)
 
@@ -275,6 +275,7 @@ class PvPDodge(BaseProfile):
         await self.mouse.click(self.window_info, click_x, click_y, fast=True)
         await asyncio.sleep(2)
         await self.mouse.click(self.window_info, xy2[0], xy2[1], fast=True)
+
         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
         running = self.events_checker.get_running(window_id)
         if MonitorType.HEALTH in running:
@@ -292,6 +293,7 @@ class PvPDodge(BaseProfile):
                 log("rly rip", window_id)
                 self.runtime_data.current_state = "death"
                 x = True
+                return
 
         result = await wait_teleport(self)
         if result and not x:
@@ -717,10 +719,12 @@ class PvPDodge(BaseProfile):
                         await asyncio.sleep(1)
                     else:
                         log(f"rip? or no?", window_id)
-                        rip, btn = await check_rip(self)
-                        if rip:
-                            log("rly rip", window_id)
+                        current = time.time()
+                        last_death = self.events_checker.get_last_timestamp(window_id,
+                                                                            "death")
+                        if last_death is not None and current - last_death <= 20:
                             self.runtime_data.current_state = "death"
+                            log(f"rip!", window_id)
                             return
 
                     tped = await wait_teleport(self)
