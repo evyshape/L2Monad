@@ -2,8 +2,9 @@ import random
 import json
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
+from bot.misc import ALCH_DEBUG
 from bot.methods.other import MouseEvents, screenshot_window
-from bot.alchemy.main_alch import check_slots, roll, check_bless, match_slots, pre_init
+from bot.alchemy.main_alch import check_slots, roll, check_bless, match_slots, pre_init, get_alch_var
 from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.clogger import log
 import asyncio
@@ -48,10 +49,13 @@ class MainAlchemy(BaseProfile):
                     return
 
                 if init == "first":
+
                     await asyncio.sleep(1)
                     bless = await check_bless(self)
                     await roll(self, step=1, kb=kb)
-                    result = await check_slots(self)
+                    var = await get_alch_var(self)
+                    log(var, window_id)
+                    result = await check_slots(self, var)
                     #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
                     if match_slots(result, bless, self.alch_cfg):
                         if self.settings.TELEGRAM_NOTIFIES:
@@ -74,9 +78,7 @@ class MainAlchemy(BaseProfile):
                         await roll(self, step=2, kb=kb)
 
                 elif init == "more":
-                    #print("more1")
                     await roll(self, step=2, kb=kb)
-                    #print("rolled more")
 
                 await self.roll_loop(iterations=self.alch_cfg["MAX_ROLLS"], kb=kb)
 
@@ -94,11 +96,13 @@ class MainAlchemy(BaseProfile):
         await asyncio.gather(*self._child_tasks, return_exceptions=True)
         await super().on_stop()
 
-    async def roll_loop(self, iterations=10, kb=None):
+    async def roll_loop(self, iterations=10, kb=None, var=None):
         window_id, window = next(iter(self.window_info.items()))
         kb = None
         try:
             await roll(self, step=1, kb=kb)
+            var = await get_alch_var(self)
+            log(var, window_id)
             await roll(self, step=2, kb=kb)
             for i in range(1, iterations + 1):
                 try:
@@ -106,9 +110,12 @@ class MainAlchemy(BaseProfile):
                     await asyncio.sleep(random.uniform(0.25, 1))
                     bless = await check_bless(self)
                     await roll(self, step=1, kb=kb)
-                    await asyncio.sleep(0.5)
-                    result = await check_slots(self)
-                    #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
+                    await asyncio.sleep(random.uniform(0.35, 0.5))
+                    result = await check_slots(self, var)
+
+                    if ALCH_DEBUG:
+                        log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
+
                     if match_slots(result, bless, self.alch_cfg):
                         if self.settings.TELEGRAM_NOTIFIES:
                             screenn = screenshot_window(self.window_info, tg=True)

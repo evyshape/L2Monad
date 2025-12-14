@@ -523,7 +523,21 @@ class PvPDodge(BaseProfile):
             await asyncio.sleep(1)
 
         sch = await schedule(self, "on")
-        if sch:
+        if sch is None:
+            log("Не смог стартануть расписание, полный инвентарь либо оно не настроено, улетаю на спот.", window_id)
+            to_spot = await teleport_to_random_spot(self, self.settings.SPOT_OT,
+                                                    self.settings.SPOT_DO)
+            if to_spot:
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                self.runtime_data.current_state = "combat"
+                return True
+            else:
+                self.events_checker.start_monitoring(window_id, self,
+                                                     monitors=self.get_monitors)
+                log("wtf?___", window_id)
+
+        if sch is True:
             farm = 0
             log("Расписание началось", window_id)
             while self.settings.is_schedule_schedule():

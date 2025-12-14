@@ -9,9 +9,8 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 from bot.clogger import log
-from bot.alchemy.alch_cons import ALCH_SLOTS_FULL, ENCHANT_COORDS
+from bot.alchemy.alch_cons import ALCH_SLOTS_FULL, ENCHANT_COORDS, ALCH_REZ_POSITIONS
 from bot.methods.base import parseAlch
-
 
 IMG_SIZE = 32
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -68,12 +67,21 @@ transform = transforms.Compose([
     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
 
-def _slot(slot_img, slot_name, threshold=0.65):
+def _slot(slot_img, var, slot_name, threshold=0.65):
 
     def _crop(slot_img, slot_name, size=64):
-        slot_x1, slot_y1 = map(int, ALCH_SLOTS_FULL[slot_name][0].split(','))
-        digit_x1, digit_y1 = map(int, ENCHANT_COORDS[slot_name][0].split(','))
-        digit_x2, digit_y2 = map(int, ENCHANT_COORDS[slot_name][1].split(','))
+        slot_x1, slot_y1 = map(
+            int,
+            ALCH_SLOTS_FULL[var][slot_name][0].split(',')
+        )
+        digit_x1, digit_y1 = map(
+            int,
+            ENCHANT_COORDS[var][slot_name][0].split(',')
+        )
+        digit_x2, digit_y2 = map(
+            int,
+            ENCHANT_COORDS[var][slot_name][1].split(',')
+        )
 
         rel_x1 = digit_x1 - slot_x1
         rel_y1 = digit_y1 - slot_y1
@@ -171,14 +179,15 @@ def _slot(slot_img, slot_name, threshold=0.65):
 
     return {"enchant": pred_class, "avg": float(conf), "red": bool(is_red)}
 
-async def check_slots(profile, threshold=0.99):
+async def check_slots(profile, var, threshold=0.99):
     window_id, window = next(iter(profile.window_info.items()))
     results = {}
     try:
         win = gw.getWindowsWithTitle(window['Title'])[0]
 
+        slots = ALCH_SLOTS_FULL.get(var)
         with mss.mss() as sct:
-            for slot_name, coords in ALCH_SLOTS_FULL.items():
+            for slot_name, coords in slots.items():
                 x1, y1 = map(int, coords[0].split(','))
                 x2, y2 = map(int, coords[1].split(','))
                 bbox = {"top": win.top + y1, "left": win.left + x1,
@@ -186,7 +195,7 @@ async def check_slots(profile, threshold=0.99):
                 sct_img = np.array(sct.grab(bbox))
                 if sct_img.shape[2] == 4:
                     sct_img = cv2.cvtColor(sct_img, cv2.COLOR_BGRA2BGR)
-                results[slot_name] = _slot(sct_img, slot_name, threshold)
+                results[slot_name] = _slot(sct_img, var, slot_name, threshold)
 
         return results
 
@@ -284,7 +293,13 @@ async def roll(profile, step=2, kb=None):
 
     async def wait_and_click(tag, timeout=5, thr=2):
         xy, rgb = parseAlch(tag)
-        if await profile.check_pixel(xy, rgb, timeout=timeout, thr=thr, wsize="2x2"):
+        if tag == "reroll_confirm":
+            ww = "5x5"
+            thr = 15
+        else:
+            ww = "2x2"
+
+        if await profile.check_pixel(xy, rgb, timeout=timeout, thr=thr, wsize=ww):
             x, y = xy
             await profile.mouse.click(profile.window_info, x, y)
             return True
@@ -298,6 +313,19 @@ async def roll(profile, step=2, kb=None):
 
     for tag in steps.get(step, []):
         if not await wait_and_click(tag):
+            log(f"bahed | {tag}")
             return False
 
     return True
+
+async def get_alch_var(profile):
+    window_id = next(iter(profile.window_info))
+    for var, value in ALCH_REZ_POSITIONS.items():
+        xy = tuple(map(int, value[0].split(", ")))
+        rgb = tuple(map(int, value[1].split(", ")))
+        is_true = await profile.check_pixel(xy, rgb)
+        log(f"{var}, {is_true}", window_id)
+        if is_true:
+            return var
+
+    return None

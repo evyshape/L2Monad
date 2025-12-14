@@ -421,7 +421,7 @@ async def autohunt(profile) -> bool:
     else:
         return False
 
-async def schedule(profile, state) -> bool:
+async def schedule(profile, state) -> bool | None:
 
     async def wait_and_click(tag, timeout=5, thr=3):
         xy, rgb = parseCBT(tag, profile=profile)
@@ -466,6 +466,15 @@ async def schedule(profile, state) -> bool:
         return False
 
     await asyncio.sleep(1)
+
+    if tag == "schedule_start":
+        xy, rgb = parseCBT("schedule_cant_start", profile=profile)
+        is_true = await profile.check_pixel(xy, rgb, timeout=3, thr=2)
+        if is_true:
+            await wait_and_click("main_menu_gui", timeout=2)
+            await asyncio.sleep(1)
+            return None
+
     if not await wait_and_click(tag, timeout=5):
         log("Окно сломалось?", window_id)
         if profile.settings.TELEGRAM_NOTIFIES:
@@ -885,7 +894,7 @@ async def check_town(profile) -> tuple[bool, dict | None]:
                 log("Умер прямо в момент тпшки в город, ресаюсь", window_id)
                 res = await respawn(profile)
                 if res:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(1.2)
                     allNPC = await get_npc_positions(profile)
                     if allNPC:
                         log("Список нпс уже открыт, мы в городе", window_id)
@@ -927,11 +936,10 @@ async def buy_in_shop(profile, in_town=None, npcs=None, check_loot=False) -> tup
     if xy is None:
         return False, in_town, npcs
 
-    #todo просто проверять есть ли крест и нужен ли выкуп, потом добавлю
-    #if check_loot:
-    #    try_to_buy = await buy_loot(profile)
-    #    if try_to_buy:
-    #        log("Успешно выкупил шмотки пока пробегал в городе!", window_id)
+    if check_loot:
+        try_to_buy = await buy_loot(profile, skip=True)
+        if try_to_buy:
+            log("Успешно выкупил шмотки пока пробегал в городе!", window_id)
 
     await profile.mouse.click(profile.window_info, *xy)
 
@@ -1114,11 +1122,14 @@ async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict
     return False, in_town, npcs
 
 
-async def buy_loot(profile) -> bool:
+async def buy_loot(profile, skip=False) -> bool:
     window_info = profile.window_info
 
-    if await check_energo_mode(profile):
-        await energo_mode(profile, "off")
+    if not skip:
+        if await check_energo_mode(profile):
+            await energo_mode(profile, "off")
+    else:
+        await asyncio.sleep(0.1)
 
     xy, rgb = parseCBT("krest_after_respawn", profile=profile)
     if not await profile.check_pixel(xy, rgb, timeout=1.5):
