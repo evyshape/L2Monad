@@ -38,7 +38,7 @@ class Buyer(BaseProfile):
                 wait = await wait_teleport(self)
                 if wait:
                     stash_ok, in_town, npcs = await go_stash(self)
-                    shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs)
+                    shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs, check_loot=True)
                     buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
                     if stash_ok:
                         log(f"{stash_ok}", window_id)

@@ -936,7 +936,7 @@ async def buy_in_shop(profile, in_town=None, npcs=None, check_loot=False) -> tup
     if xy is None:
         return False, in_town, npcs
 
-    if check_loot:
+    if check_loot and profile.settings.BUY_LOOT_TOWN:
         try_to_buy = await buy_loot(profile, skip=True)
         if try_to_buy:
             log("Успешно выкупил шмотки пока пробегал в городе!", window_id)

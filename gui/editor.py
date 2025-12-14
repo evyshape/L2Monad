@@ -120,6 +120,7 @@ class Editor(QDialog):
 
         self._add_pack(ml, "🧪 Переключалки", {
             "HP_BANK_CHECKER": settings.HP_BANK_CHECKER,
+            "BUY_LOOT_TOWN": settings.BUY_LOOT_TOWN,
             "SOSKA_CHECKER": settings.SOSKA_CHECKER,
             "DEATH_CHECKER": settings.DEATH_CHECKER,
             "OVERWEIGHT_CHECKER": settings.OVERWEIGHT_CHECKER,
@@ -306,7 +307,7 @@ class Editor(QDialog):
             self.settings.PVP_ANSWER = self.pvp_answer.isChecked()
             self.settings.HEALTH_BACK = [int(cb.text()) for cb in self.hc if cb.isChecked()]
 
-            for key in ["HP_BANK_CHECKER", "SOSKA_CHECKER", "DEATH_CHECKER", "OVERWEIGHT_CHECKER", "TELEGRAM_NOTIFIES"]:
+            for key in ["HP_BANK_CHECKER", "SOSKA_CHECKER", "DEATH_CHECKER", "OVERWEIGHT_CHECKER", "TELEGRAM_NOTIFIES", "BUY_LOOT_TOWN"]:
                 self.settings.__dict__[key] = self.widgets[key].isChecked()
 
             self.settings.OVERWEIGHT_AFK = int(self.ow_combo.currentText()) if self.settings.OVERWEIGHT_CHECKER else 80
