@@ -155,7 +155,7 @@ class PvPDodge(BaseProfile):
                 await energo_mode(self, "off")
                 await asyncio.sleep(1)
 
-            buyed = await buy_loot(self)
+            buyed = await buy_loot(self, clr=False)
             if buyed:
                 log("Что-то выкупил..", window_id)
             if NEED_SHOP_AFTER_RIP:

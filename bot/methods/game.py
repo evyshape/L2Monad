@@ -1122,7 +1122,7 @@ async def sell_buyer(profile, in_town=None, npcs=None) -> tuple[bool, bool, dict
     return False, in_town, npcs
 
 
-async def buy_loot(profile, skip=False) -> bool:
+async def buy_loot(profile, skip=False, clr=True) -> bool:
     window_info = profile.window_info
 
     if not skip:
@@ -1132,6 +1132,8 @@ async def buy_loot(profile, skip=False) -> bool:
         await asyncio.sleep(0.1)
 
     xy, rgb = parseCBT("krest_after_respawn", profile=profile)
+    if clr is False:
+        rgb = "no"
     if not await profile.check_pixel(xy, rgb, timeout=1.5):
         return False
 
