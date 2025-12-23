@@ -219,7 +219,7 @@ class SettingsChanger(QWidget):
     def rassos_times(self):
         nicks = self.get_selected() or []
         if len(nicks) < 2:
-            QMessageBox.warning(self, "Выбор окон", "Выбирай окнА (минимум 2)")
+            QMessageBox.warning(self, "Выбор окон", "Выбирай окна (минимум 2)")
             return
 
         base_nick = nicks[0]
@@ -243,7 +243,7 @@ class Rassoser(QDialog):
         box = QGroupBox("Выбирай поля")
         box_layout = QVBoxLayout()
         for field in ["SCHEDULE_BUYING", "SCHEDULE_MAIL", "SCHEDULE_REWARDS",
-                      "SCHEDULE_SCHEDULE", "SCHEDULE_AUCTION"]:
+                      "SCHEDULE_SCHEDULE", "SCHEDULE_AUCTION", "SCHEDULE_PARTY_DUNGEON"]:
             cb = QCheckBox(field)
             box_layout.addWidget(cb)
             self.checks[field] = cb
