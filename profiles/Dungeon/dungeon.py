@@ -40,7 +40,8 @@ class Dungeon(BaseProfile):
                 log("Окно сдохло, не обрабатываю.", window_id)
                 await respawn(self)
                 await asyncio.sleep(5)
-                await buy_loot(self)
+                if self.settings.BUY_LOOT_RIP:
+                    await buy_loot(self)
                 return
 
             flaged = False

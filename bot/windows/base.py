@@ -14,6 +14,7 @@ class BaseSettings:
     LOW_HP_DODGE: bool # тру фолс, хочет не пустой HEALTH_BACK
     HEALTH_BACK: List[int] # [30, 40, 50], это если включен ответ пвп при каком пороге улетать в город
     BUY_LOOT_TOWN: bool # выкупать ли шмотки пока бегаем в городе?
+    BUY_LOOT_RIP: bool # выкупать ли шмотка после смерти?
     HP_BANK_CHECKER: bool # тру фолс
     SOSKA_CHECKER: bool # тру фолс
     DEATH_CHECKER: bool # тру фолс
@@ -159,6 +160,7 @@ default_values = {
     "LOW_HP_DODGE": False,
     "HEALTH_BACK": [10, 20, 30, 40],
     "BUY_LOOT_TOWN": True,
+    "BUY_LOOT_RIP": True,
     "HP_BANK_CHECKER": True,
     "SOSKA_CHECKER": False,
     "DEATH_CHECKER": True,

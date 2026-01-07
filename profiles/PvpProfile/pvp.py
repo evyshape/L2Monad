@@ -155,9 +155,11 @@ class PvPDodge(BaseProfile):
                 await energo_mode(self, "off")
                 await asyncio.sleep(1)
 
-            buyed = await buy_loot(self, clr=False)
-            if buyed:
-                log("Что-то выкупил..", window_id)
+            if self.settings.BUY_LOOT_RIP:
+                buyed = await buy_loot(self, clr=False)
+                if buyed:
+                    log("Что-то выкупил..", window_id)
+
             if NEED_SHOP_AFTER_RIP:
                 log("Пробую идти к бакалейщику", window_id)
                 stash_ok, in_town, npcs = await go_stash(self)
@@ -165,6 +167,7 @@ class PvPDodge(BaseProfile):
                 buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
                 if stash_ok:
                     log("Успешно скупился!", window_id)
+
             await asyncio.sleep(1)
             log("Тпаюсь на спот и ставлю автобой", window_id)
             #todo сунуть проверку телепорт свитков
