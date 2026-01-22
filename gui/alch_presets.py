@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPlainTextEdit,
     QPushButton, QScrollArea, QWidget, QFrame
 )
+from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtGui import (
     QFont, QColor, QSyntaxHighlighter, QTextCharFormat,
     QPixmap, QPainter, QIcon
@@ -163,13 +164,20 @@ class EditPreset(QDialog):
             self.editor.appendPlainText(f"\nОшибка сохранения: {e}")
 
 
-def icon(svg, color):
-    pix = QPixmap(svg)
+def icon(svg, color, size=QSize(18, 18)):
+    pix = QPixmap(size)
+    pix.fill(Qt.transparent)
+    renderer = QSvgRenderer(svg)
+
     painter = QPainter(pix)
+    renderer.render(painter)
+
     painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
     painter.fillRect(pix.rect(), QColor(color))
     painter.end()
+
     return QIcon(pix)
+
 
 # можно было не костылить этот треш а просто скачать сразу покрашенные иконки 0_0
 class SvgBtn(QPushButton):
