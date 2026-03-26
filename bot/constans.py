@@ -254,10 +254,14 @@ CBT_JP = {
     "dungeon_button_menu": ["322, 97", "no"], # подземелья в меню
 
     "party_create": ["205, 190", "215, 103, 11"],
+    "party_group": ["16, 80", "no"], # хуйня для японии шоб пати было для группы, снизу - клан, сверху пати, по центру плюсик
     "party_close": ["264, 30", "151, 154, 157"],
-    "party_settings": ["16, 117", "no"], # выше чем energo_mode_gui на 1
+    "party_settings": ["16, 93", "no"], # выше чем energo_mode_gui на 1
     "party_settings_me": ["262, 121", "15, 18, 22"],
     "party_settings_me2": ["262, 121", "no"],
+    "party_dungeon_create_button": ["212, 193", "217, 107, 12"],
+    "party_leave_1": ["66, 72", "255, 255, 255"],
+    "party_leave_2": ["208, 147", "216, 105, 12"],
 
     "autohunt_no_limit": ["378, 204", "148, 152, 158"], # первая стадия энерго кнопка с лимитом поиска цели "нет ограничений"
 
@@ -483,21 +487,41 @@ BATTLE_PASS = {
 }
 
 DAILY = {
-    "red_dot_clr": ["182, 4, 5"], # красная точка на вкладке
-    "y_vkladki": 395,  # ширина окна
+    "RU": {
+        "red_dot_clr": ["182, 4, 5"],  # красная точка на вкладке
+        "y_vkladki": 395,  # ширина окна
 
-    "almaz_donate": ["156, 174, 198"], # внутри вкладки дейлика алмазик в кнопке
-    "monetka_donate": ["247, 200, 112"], # внутри вкладки дейлика монетка в кнопке
-    "donate_monetka_supermonetka": ["117, 79, 36"], # говно донатное не адена
-    "monetka_proverka": ["246, 114", "176, 119, 33"],
-    "confirm_buy_daily": ["234, 151", "206, 89, 8"],
+        "almaz_donate": ["156, 174, 198"],  # внутри вкладки дейлика алмазик в кнопке
+        "monetka_donate": ["247, 200, 112"],  # внутри вкладки дейлика монетка в кнопке
+        "donate_monetka_supermonetka": ["117, 79, 36"],  # говно донатное не адена
+        "monetka_proverka": ["246, 114", "176, 119, 33"],
+        "confirm_buy_daily": ["234, 151", "206, 89, 8"],
 
-    "claim_daily": ["207, 90, 8"],
+        "claim_daily": ["207, 90, 8"],
 
-    "start_button_1": 109,
-    "end_button_1": 125,
-    "start_button_2": 197,
-    "end_button_2": 212
+        "start_button_1": 109,
+        "end_button_1": 125,
+        "start_button_2": 197,
+        "end_button_2": 212
+    },
+
+    "JP": {
+        "red_dot_clr": ["182, 4, 5"], # красная точка на вкладке
+        "y_vkladki": 395,  # ширина окна
+
+        "almaz_donate": ["156, 174, 198"], # внутри вкладки дейлика алмазик в кнопке
+        "monetka_donate": ["247, 200, 112"], # внутри вкладки дейлика монетка в кнопке
+        "donate_monetka_supermonetka": ["117, 79, 36"], # говно донатное не адена
+        "monetka_proverka": ["246, 114", "176, 119, 33"],
+        "confirm_buy_daily": ["234, 151", "206, 89, 8"],
+
+        "claim_daily": ["207, 90, 8"],
+
+        "start_button_1": 94,
+        "end_button_1": 105,
+        "start_button_2": 182,
+        "end_button_2": 193
+    }
 }
 
 GLOBAL_STATES = [

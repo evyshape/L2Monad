@@ -96,6 +96,12 @@ class Dungeon(BaseProfile):
 
                     await asyncio.sleep(10)
 
+                await asyncio.sleep(6)
+                rip, btn = await check_rip(self)
+                if rip:
+                    log("Анлука, помер во время пати данжа. оффаюсь", window_id)
+                    return
+
                 log("Успешно пробежал пати данжик закуплюсь и оффаюсь", window_id)
                 if await check_energo_mode(self):
                     await energo_mode(self, "off", ignore=True)

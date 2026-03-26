@@ -204,8 +204,8 @@ async def check_slots(profile, var, threshold=0.99):
         return {}
 
 def match_slots(result: dict, bless: str, config: dict) -> bool:
-    alw = {b.strip() for b in config["BLESS"].split(",")}
-    if bless not in alw:
+    alw = {b.strip().lower() for b in config.get("BLESS", "").split(",")}
+    if bless.lower() not in alw:
         return False
 
     for i in range(1, 6):
@@ -214,17 +214,23 @@ def match_slots(result: dict, bless: str, config: dict) -> bool:
         if not slot_res:
             return False
 
-        allowed = {v.strip() for v in config[f"SLOT_{i}"].split(",")}
+        allowed_raw = config.get(f"SLOT_{i}", "").split(",")
+        allowed = {v.strip().lower() for v in allowed_raw if v.strip()}
+
+        if not allowed or "any" in allowed:
+            continue
+
         enchant = slot_res.get("enchant")
         is_red = slot_res.get("red", False)
 
         ok = False
-
         for val in allowed:
             if val == "red" and is_red:
                 ok = True
+
             elif val.startswith("red") and is_red and enchant == val.replace("red", ""):
                 ok = True
+
             elif enchant == val:
                 ok = True
 

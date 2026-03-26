@@ -1281,6 +1281,7 @@ async def claim_mail(profile) -> bool:
         return False
 
 async def find_daily(profile, window_info, left, top, width, height):
+    region = profile.settings.REGION
 
     async def wait_and_click(tag, timeout=5, thr=3):
         xy, rgb = parseCBT(tag, profile=profile)
@@ -1331,14 +1332,14 @@ async def find_daily(profile, window_info, left, top, width, height):
         hits.sort(key=lambda c: (c[1], c[0]))
         return hits
 
-    almaz_rgb = tuple(map(int, DAILY["almaz_donate"][0].split(',')))
-    monetka_rgb = tuple(map(int, DAILY["monetka_donate"][0].split(',')))
-    donate_rgb = tuple(map(int, DAILY["donate_monetka_supermonetka"][0].split(',')))
-    claim_rgb = tuple(map(int, DAILY["claim_daily"][0].split(',')))
+    almaz_rgb = tuple(map(int, DAILY[region]["almaz_donate"][0].split(',')))
+    monetka_rgb = tuple(map(int, DAILY[region]["monetka_donate"][0].split(',')))
+    donate_rgb = tuple(map(int, DAILY[region]["donate_monetka_supermonetka"][0].split(',')))
+    claim_rgb = tuple(map(int, DAILY[region]["claim_daily"][0].split(',')))
 
     s_ranges = [
-        (DAILY["start_button_1"], DAILY["end_button_1"]),
-        (DAILY["start_button_2"], DAILY["end_button_2"]),
+        (DAILY[region]["start_button_1"], DAILY[region]["end_button_1"]),
+        (DAILY[region]["start_button_2"], DAILY[region]["end_button_2"]),
     ]
 
     while True:
@@ -1384,6 +1385,7 @@ async def find_daily(profile, window_info, left, top, width, height):
 
 
 async def claim_daily(profile) -> bool:
+    region = profile.settings.REGION
     window_info = profile.window_info
     window_id, window = next(iter(window_info.items()))
     left, top = window["Position"]
@@ -1401,7 +1403,7 @@ async def claim_daily(profile) -> bool:
 
     async def find_daily_tabs(left, top, height):
         x_search = DAILY["y_vkladki"]
-        red_rgb = tuple(map(int, DAILY["red_dot_clr"][0].split(', ')))
+        red_rgb = tuple(map(int, DAILY[region]["red_dot_clr"][0].split(', ')))
         hits = []
         log("Ищем вкладки", next(iter(window_info.keys())))
         with mss.mss() as sct:
@@ -1867,6 +1869,7 @@ class PartyDungeon:
         self.clicks = None
         self.window_info = profile.window_info
         self.window_id = next(iter(profile.window_info))
+        self.region = self.profile.settings.REGION
 
     async def wait_and_click(self, tag, timeout=5, thr=2, wsize="2x2"):
         xy, rgb = parseCBT(tag, profile=self.profile)
@@ -1926,30 +1929,61 @@ class PartyDungeon:
         return False
 
     async def party_create(self):
-        r1 = await self.wait_and_click("party_settings")
-        await asyncio.sleep(2)
-        r2 = await self.wait_and_click("party_create")
-        await asyncio.sleep(1.5)
-        r3 = await self.wait_and_click("party_close")
-        if all([r1, r2, r3]):
-            return True
+        if self.region == "RU":
+            r1 = await self.wait_and_click("party_settings")
+            await asyncio.sleep(2)
+            r2 = await self.wait_and_click("party_create")
+            await asyncio.sleep(1.5)
+            r3 = await self.wait_and_click("party_close")
+            if all([r1, r2, r3]):
+                return True
+        if self.region == "JP":
+            xy, rgb = parseCBT("white_cube_in_minimap", profile=self.profile)
+            result = await self.profile.check_pixel(xy, rgb, timeout=1)
+            if not result:
+                await self.wait_and_click("npc_list_in_town")
+                await asyncio.sleep(2)
+
+            r1 = await self.wait_and_click("party_group")
+            await asyncio.sleep(1)
+            r2 = await self.wait_and_click("party_settings")
+            r3 = await self.wait_and_click("party_dungeon_create_button")
+            r4 = await self.wait_and_click("party_close")
+            if all([r1, r2, r3, r4]):
+                return True
 
         return False
 
     async def party_leave(self):
-        r1 = await self.wait_and_click("party_settings")
-        await asyncio.sleep(2)
-        r2 = await self.wait_and_click("party_settings_me")
-        await asyncio.sleep(1.5)
-        r3 = await self.wait_and_click("party_settings_me2")
-        if all([r1, r2, r3]):
-            return True
+        if self.region == "RU":
+            r1 = await self.wait_and_click("party_settings")
+            await asyncio.sleep(2)
+            r2 = await self.wait_and_click("party_settings_me")
+            await asyncio.sleep(1.5)
+            r3 = await self.wait_and_click("party_settings_me2")
+            if all([r1, r2, r3]):
+                return True
+
+        if self.region == "JP":
+            await asyncio.sleep(2)
+            xy, rgb = parseCBT("white_cube_in_minimap", profile=self.profile)
+            result = await self.profile.check_pixel(xy, rgb, timeout=1)
+            if not result:
+                await self.wait_and_click("npc_list_in_town")
+                await asyncio.sleep(2.5)
+
+            await asyncio.sleep(2)
+            r1 = await self.wait_and_click("party_leave_1")
+            await asyncio.sleep(2)
+            r2 = await self.wait_and_click("party_leave_2")
+            await asyncio.sleep(1)
+            if all([r1, r2]):
+                return True
 
         return False
 
     async def find_dungeon(self, max_scrolls=3, scrolls=15, thr=2):
-        region = self.profile.settings.REGION
-        cfg = PARTY_DUNGEON_CONS.get(region, PARTY_DUNGEON_CONS["RU"])
+        cfg = PARTY_DUNGEON_CONS.get(self.region, PARTY_DUNGEON_CONS["RU"])
 
         x_need = cfg["x"]
         y_start, y_end = cfg["scroll"]
@@ -2011,6 +2045,7 @@ class PartyDungeon:
             await self.wait_and_click("party_dungeon_join")
             await asyncio.sleep(1)
             hard = int(self.profile.settings.PARTY_DUNGEON_HARD)
+            log(hard, self.window_id)
             await self.wait_and_click(f"party_dungeon_hard_{hard}")
             await self.wait_and_click("party_dungeon_join2")
             await asyncio.sleep(1.5)
