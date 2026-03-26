@@ -1402,7 +1402,7 @@ async def claim_daily(profile) -> bool:
         return False
 
     async def find_daily_tabs(left, top, height):
-        x_search = DAILY["y_vkladki"]
+        x_search = DAILY[region]["y_vkladki"]
         red_rgb = tuple(map(int, DAILY[region]["red_dot_clr"][0].split(', ')))
         hits = []
         log("Ищем вкладки", next(iter(window_info.keys())))
