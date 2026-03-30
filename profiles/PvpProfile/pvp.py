@@ -605,8 +605,8 @@ class PvPDodge(BaseProfile):
 
     async def pvp_answer(self):
         window_id, window = next(iter(self.window_info.items()))
-        wait = DELAY_PVP_ANSWER
-        log(f"Пробую ответить на пвп, таймаут: {wait} сек.", window_id)
+        wait_d = DELAY_PVP_ANSWER
+        log(f"Пробую ответить на пвп, таймаут: {wait_d} сек.", window_id)
 
         self.events_checker.stop_monitoring(window_id)
         self.runtime_data.set_state("pvp")
@@ -626,7 +626,7 @@ class PvPDodge(BaseProfile):
                                                  monitors=self.get_monitors)
             return
 
-        for x in range(wait * 10):
+        for x in range(wait_d * 10):
             current = time.time()
             last_death = self.events_checker.get_last_timestamp(window_id, "death")
             if last_death is not None and current - last_death <= 20:
@@ -693,6 +693,8 @@ class PvPDodge(BaseProfile):
                 log(f"Пвп успешно завершено", window_id)
                 await asyncio.sleep(1)
                 break
+
+            await asyncio.sleep(0.1)
 
         rip, btn = await check_rip(self)
         if rip:

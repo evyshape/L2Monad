@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 
 from bot.clogger import log
-from bot.delays import PVP_CHECK_DELAY
+from bot.delays import PVP_CHECK_DELAY, CHECKS_HP_BANK, CHECKS_HP_BANK_TRIGGER, CHECKS_HP_BANK_TIMEOUT
 from bot.misc import *
 from bot.events.events import EventsManager
 from bot.events.enums import MonitorType, OverWeight, ErrorTypes
@@ -56,14 +56,14 @@ class EventsChecker:
         while profile.running:
             checks = 0
             #print(1)
-            for _ in range(7):
-                found = await profile.check_pixel(xy, rgb, timeout=0.6, thr=9)
+            for _ in range(CHECKS_HP_BANK):
+                found = await profile.check_pixel(xy, rgb, timeout=CHECKS_HP_BANK_TIMEOUT, thr=9)
                 if found:
                     checks += 1
                     
                 await asyncio.sleep(2)
 
-            if checks >= 5:
+            if checks >= CHECKS_HP_BANK_TRIGGER:
                 now = time.monotonic()
                 last_events = self._last_event_time.setdefault(window_id, {})
                 last_time = last_events.get("hp_bank", 0)
