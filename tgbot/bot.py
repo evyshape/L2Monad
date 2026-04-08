@@ -1,6 +1,8 @@
 import asyncio
+import requests
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from tgbot.config import config
 from tgbot.services.notifier import Notifier
 from tgbot.handlers import all_routers
@@ -22,14 +24,28 @@ class TgBot:
                 )
                 return cls._instance
 
-            request_kwargs = {}
+            s = None
             if config.proxy_url:
-                request_kwargs["proxy"] = config.proxy_url
+                try:
+                    proxies = {"http": config.proxy_url, "https": config.proxy_url}
+                    resp = requests.get(
+                        "https://api.telegram.org",
+                        proxies=proxies,
+                        timeout=5
+                    )
+                    if resp.status_code == 200:
+                        log(f"Proxy: {resp.status_code}")
+                        s = AiohttpSession(proxy=config.proxy_url)
+                    else:
+                        log(f"Proxy FAIL: {resp.status_code}")
+                except Exception as e:
+                    log(f"Proxy ERROR: {e}")
+                    config.proxy_url = None
 
             cls._instance.bot = Bot(
                 token=config.BOT_TOKEN,
                 default=DefaultBotProperties(parse_mode="HTML"),
-                **request_kwargs
+                session=s,
             )
             asyncio.run_coroutine_threadsafe(
                 setup_bot(cls._instance.bot),

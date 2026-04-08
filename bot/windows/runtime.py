@@ -102,7 +102,7 @@ class RuntimeData:
 
         now = datetime.now()
         try:
-            scheduled = datetime.strptime(self.spot_time, "%H:%M").replace(
+            scheduled = datetime.strptime(self.spot_time, "%H:%M:%S").replace(
                 year=now.year, month=now.month, day=now.day
             )
         except ValueError:

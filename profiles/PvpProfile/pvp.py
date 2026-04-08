@@ -2,7 +2,7 @@ import asyncio
 import random
 import time
 from datetime import datetime, timedelta
-from random import randint
+from random import randint, uniform
 from typing import Optional
 
 from bot.clogger import log
@@ -305,7 +305,7 @@ class PvPDodge(BaseProfile):
             log(f"Сплю {sleept} мин.", window_id)
             self.runtime_data.update_last_succ_dodge()
             self.runtime_data.current_state = "afk"
-            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M")
+            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M:%S")
             if self.settings.TELEGRAM_NOTIFIES:
                 self.tgbot.send_notification(
                     level="warning",
@@ -668,7 +668,7 @@ class PvPDodge(BaseProfile):
                             sleept = randint(3, 5)
                             self.runtime_data.current_state = "afk"
                             self.runtime_data.spot_time = (datetime.now() + timedelta(
-                                minutes=sleept)).strftime("%H:%M")
+                                minutes=sleept)).strftime("%H:%M:%S")
                             log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
                             self.events_checker.stop_monitoring(window_id)
                             self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
@@ -751,7 +751,7 @@ class PvPDodge(BaseProfile):
                         sleept = randint(3, 5)
                         self.runtime_data.current_state = "afk"
                         self.runtime_data.spot_time = (datetime.now() + timedelta(
-                            minutes=sleept)).strftime("%H:%M")
+                            minutes=sleept)).strftime("%H:%M:%S")
                         log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
                         self.events_checker.stop_monitoring(window_id)
                         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
@@ -861,7 +861,7 @@ class PvPDodge(BaseProfile):
                     res2 = await connect_to_server(self)
                     if res2:
                         self.runtime_data.spot_time = (datetime.now() + timedelta(
-                            minutes=3)).strftime("%H:%M")
+                            minutes=3)).strftime("%H:%M:%S")
 
                         await energo_mode(self, "on")
                     else:
@@ -1013,12 +1013,12 @@ class PvPDodge(BaseProfile):
         await self.mouse.click(self.window_info, click_x, click_y)
         result = await wait_teleport(self)
         if result:
-            sleept = randint(MIN_LOW_HP_DODGE_SLEEP, MAX_LOW_HP_DODGE_SLEEP)
+            sleept = uniform(MIN_LOW_HP_DODGE_SLEEP, MAX_LOW_HP_DODGE_SLEEP)
             await energo_mode(self, "on")
             log(f"Сплю {sleept} мин.", window_id)
             #self.runtime_data.update_last_succ_dodge()
             self.runtime_data.current_state = "afk"
-            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M")
+            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M:%S")
             if self.settings.TELEGRAM_NOTIFIES:
                 self.tgbot.send_notification(
                     level="warning",
