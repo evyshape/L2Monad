@@ -15,3 +15,4 @@ opencv-python
 torch==2.0.1
 pillow
 torchvision==0.15.2
+aiohttp-socks
