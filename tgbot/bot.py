@@ -38,9 +38,11 @@ class TgBot:
                         s = AiohttpSession(proxy=config.proxy_url)
                     else:
                         log(f"Proxy FAIL: {resp.status_code}")
+                        config.PROXY_HOST = None
+
                 except Exception as e:
                     log(f"Proxy ERROR: {e}")
-                    config.proxy_url = None
+                    config.PROXY_HOST = None
 
             cls._instance.bot = Bot(
                 token=config.BOT_TOKEN,
