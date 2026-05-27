@@ -4,18 +4,16 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Union, Any, List
 
-import mss
 import numpy as np
 import pygetwindow as gw
 from screeninfo import get_monitors
 from bot.clogger import log
-from bot.limits import pixel_semaphore, thread
+from bot.frame_store import FrameStore
 from bot.windows.base import BaseSettings, default_values
 from bot.alchemy.alch_cons import ALCH_REZ
 from bot.alchemy.alch_utils import alch_rects
 from bot.windows.runtime import RuntimeData
 
-from concurrent.futures import ThreadPoolExecutor
 import ctypes
 
 HWND_BOTTOM = 1
@@ -23,8 +21,6 @@ SWP_NOMOVE = 0x0002
 SWP_NOSIZE = 0x0001
 SWP_NOACTIVATE = 0x0010
 SetWindowPos = ctypes.windll.user32.SetWindowPos
-
-THREAD_POOL = ThreadPoolExecutor(max_workers=thread)
 
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
@@ -240,42 +236,42 @@ class BaseProfile(ABC):
         if rgb == "no":
             return True
 
-        self.runtime_data.record_capture(xy, rgb, profile=self)
+        # self.runtime_data.record_capture(xy, rgb, profile=self)
 
-        def blocking_check():
+        try:
+            width, height = map(int, wsize.lower().split('x'))
+        except Exception:
+            width, height = 2, 2
+
+        window_id, window = next(iter(self.window_info.items()))
+        abs_x = xy[0] + window['Position'][0]
+        abs_y = xy[1] + window['Position'][1]
+
+        target = np.array(rgb, dtype=np.int16)
+        store = FrameStore()
+
+        def _matches() -> bool:
+            region = store.get_region(abs_x, abs_y, width, height)
+            if region is None:
+                return False
+            diff = np.abs(region.astype(np.int16) - target)
+            return bool(np.any(np.all(diff <= thr, axis=-1)))
+
+        deadline = time.monotonic() + max(0.0, timeout)
+        while True:
+            ev = store.get_frame_event()
+
+            if _matches():
+                return True
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+
             try:
-                width, height = map(int, wsize.lower().split('x'))
-            except:
-                width, height = 2, 2
-
-            window_id, window = next(iter(self.window_info.items()))
-
-            adjusted_x = xy[0] + window['Position'][0]
-            adjusted_y = xy[1] + window['Position'][1]
-            start_time = time.time()
-
-            with mss.mss() as sct:
-                monitor = {
-                    "left": adjusted_x,
-                    "top": adjusted_y,
-                    "width": width,
-                    "height": height,
-                }
-                while time.time() - start_time < timeout:
-                    screenshot = np.array(sct.grab(monitor))[:, :, :3][:, :, ::-1].astype(np.int16)
-
-                    target = np.array(rgb, dtype=np.int16)
-                    diff = np.abs(screenshot - target)
-                    mask = np.all(diff <= thr, axis=-1)
-
-                    if np.any(mask):
-                        return True
-
-            return False
-
-        async with pixel_semaphore:
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(THREAD_POOL, blocking_check)
+                await asyncio.wait_for(ev.wait(), timeout=remaining)
+            except asyncio.TimeoutError:
+                return False
 
     async def capture_multy(
         self,
@@ -284,23 +280,18 @@ class BaseProfile(ABC):
     ) -> List[np.ndarray]:
 
         window_id, window = next(iter(self.window_info.items()))
-        aj = [
-            (x + window['Position'][0], y + window['Position'][1], w, h)
-            for x, y, w, h in rects
-        ]
+        px, py = window['Position']
+        store = FrameStore()
 
-        def blocking_capture():
-            results = []
-            with mss.mss() as sct:
-                for left, top, width, height in aj:
-                    monitor = {"left": left, "top": top, "width": width, "height": height}
-                    img = np.array(sct.grab(monitor))[:, :, :3][:, :, ::-1]
-                    results.append(img)
-            return results
+        results: List[np.ndarray] = []
+        for x, y, w, h in rects:
+            region = store.get_region(x + px, y + py, w, h)
+            if region is None:
+                results.append(np.zeros((h, w, 3), dtype=np.uint8))
+            else:
+                results.append(region.copy())
 
-        async with pixel_semaphore:
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(THREAD_POOL, blocking_capture)
+        return results
 
     def is_running(self) -> bool:
         """

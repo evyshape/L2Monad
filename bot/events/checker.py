@@ -5,6 +5,7 @@ import numpy as np
 
 from bot.clogger import log
 from bot.delays import PVP_CHECK_DELAY, CHECKS_HP_BANK, CHECKS_HP_BANK_TRIGGER, CHECKS_HP_BANK_TIMEOUT
+from bot.frame_store import FrameStore
 from bot.misc import *
 from bot.events.events import EventsManager
 from bot.events.enums import MonitorType, OverWeight, ErrorTypes
@@ -25,9 +26,11 @@ class EventsChecker:
 
     async def _monitor_pvp(self, window_id: str, profile: BaseProfile) -> None:
         xy, rgb = parseCBT("pvp_energo_trigger", profile=profile)
+        store = FrameStore()
 
         while profile.running:
-            found = await profile.check_pixel(xy, rgb, timeout=0.15, thr=2)
+            ev = store.get_frame_event()
+            found = await profile.check_pixel(xy, rgb, timeout=0, thr=2)
 
             if found:
                 now = time.monotonic()
@@ -41,7 +44,7 @@ class EventsChecker:
 
                 await asyncio.sleep(3)
             else:
-                await asyncio.sleep(PVP_CHECK_DELAY)
+                await ev.wait()
 
     async def _monitor_hp_bank(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
@@ -301,24 +304,22 @@ class EventsChecker:
         height = abs(y_max - y_min) + 1
         rect = (x_min, y_min, width, height)
 
+        t1 = np.array([160, 40, 10], dtype=np.int16)
+        t2 = np.array([30, 30, 20], dtype=np.int16)
+        t3 = np.array([57, 18, 8], dtype=np.int16)
+        t4 = np.array([10, 10, 5], dtype=np.int16)
+
+        store = FrameStore()
+
         while profile.running:
+            ev = store.get_frame_event()
 
             [screenshot] = await profile.capture_multy([rect])
-            img = np.array(screenshot)
-            img_i16 = img.astype(np.int16)
-
-            t1 = np.array([160, 40, 10], dtype=np.int16)
-            t2 = np.array([30, 30, 20], dtype=np.int16)
-            t3 = np.array([57, 18, 8], dtype=np.int16)
-            t4 = np.array([10, 10, 5], dtype=np.int16)
+            img_i16 = screenshot.astype(np.int16)
 
             mask1 = np.all(np.abs(img_i16 - t1) <= t2, axis=-1)
             mask2 = np.all(np.abs(img_i16 - t3) <= t4, axis=-1)
-
             mask = mask1 | mask2
-
-            #mask_vis = (mask * 255).astype(np.uint8)
-            #mask_vis = cv2.cvtColor(mask_vis, cv2.COLOR_GRAY2BGR)
 
             re = np.mean(mask, axis=0)
             red = np.where(re > 0.4)[0]
@@ -326,20 +327,16 @@ class EventsChecker:
             if len(red) > 0:
                 hpe = red[-1]
                 hp = int((hpe / (width - 1)) * 100)
-            else:
-                #kostyl
-                continue
+                profile.runtime_data.health = hp
 
-            profile.runtime_data.health = hp
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get("health", 0)
+                if now - last_time >= 1:
+                    last_events["health"] = now
+                    # EventsManager.send_event(window_id, {"type": "health"})
 
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("health", 0)
-            if now - last_time >= 1:
-                last_events["health"] = now
-                # EventsManager.send_event(window_id, {"type": "health"})
-
-            await asyncio.sleep(0.23)
+            await ev.wait()
 
     async def low_hp_dodge(self, window_id: str, profile: BaseProfile):
         window_id, window = next(iter(profile.window_info.items()))

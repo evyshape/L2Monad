@@ -1935,7 +1935,9 @@ class PartyDungeon:
             r2 = await self.wait_and_click("party_create")
             await asyncio.sleep(1.5)
             r3 = await self.wait_and_click("party_close")
-            if all([r1, r2, r3]):
+            await asyncio.sleep(1.5)
+            r4 = await self.wait_and_click("party_close")
+            if all([r1, r2, r3, r4]):
                 return True
         if self.region == "JP":
             xy, rgb = parseCBT("white_cube_in_minimap", profile=self.profile)
@@ -1949,7 +1951,9 @@ class PartyDungeon:
             r2 = await self.wait_and_click("party_settings")
             r3 = await self.wait_and_click("party_dungeon_create_button")
             r4 = await self.wait_and_click("party_close")
-            if all([r1, r2, r3, r4]):
+            await asyncio.sleep(1.5)
+            r5 = await self.wait_and_click("party_close")
+            if all([r1, r2, r3, r4, r5]):
                 return True
 
         return False
