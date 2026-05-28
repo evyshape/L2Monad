@@ -40,8 +40,19 @@ def getProfiles(profiles_path="profiles"):
             prof_name = f"{fold}.{f[:-3]}"
 
             spec = importlib.util.spec_from_file_location(prof_name, prof_path)
+            if spec is None or spec.loader is None:
+                continue
+
             module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+
+            try:
+                spec.loader.exec_module(module)
+            except ImportError as e:
+                log(f"Пропущен профиль {prof_name}")
+                continue
+            except Exception as e:
+                log(f"Пропущен профиль {prof_name}")
+                continue
 
             for at in dir(module):
                 attr = getattr(module, at)
