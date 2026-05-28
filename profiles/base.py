@@ -1,20 +1,32 @@
 import asyncio
+import contextlib
+import threading
 from asyncio import Queue
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Union, Any, List
+from typing import Dict, Tuple, Union, Any, List, Optional
 
+import mss
 import numpy as np
 import pygetwindow as gw
 from screeninfo import get_monitors
 from bot.clogger import log
-from bot.frame_store import FrameStore
 from bot.windows.base import BaseSettings, default_values
 from bot.alchemy.alch_cons import ALCH_REZ
 from bot.alchemy.alch_utils import alch_rects
 from bot.windows.runtime import RuntimeData
 
 import ctypes
+
+_mss_local = threading.local()
+
+
+def _get_thread_mss():
+    sct = getattr(_mss_local, 'sct', None)
+    if sct is None:
+        sct = mss.mss()
+        _mss_local.sct = sct
+    return sct
 
 HWND_BOTTOM = 1
 SWP_NOMOVE = 0x0002
@@ -25,6 +37,9 @@ SetWindowPos = ctypes.windll.user32.SetWindowPos
 class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
         from bot.events.checker import EventsChecker
+        from bot.methods.other import MouseEvents
+        from tgbot.bot import TgBot
+
         self.window_info = window_info
         self.running = True
         self._task: asyncio.Task | None = None
@@ -35,6 +50,78 @@ class BaseProfile(ABC):
         self.settings = settings or BaseSettings(**default_values)
         self.runtime_data = RuntimeData(current_state="null")
         self._saved_pos = None
+        self._window_id = next(iter(window_info))
+        self._child_tasks: List[asyncio.Task] = []
+        self.mouse = MouseEvents()
+        self.tgbot = TgBot()
+
+        from bot.methods.game.errors import ErrorHandler
+        from bot.methods.game.energo import Energo
+        from bot.methods.game.teleport import Teleport
+        from bot.methods.game.combat import Combat
+        from bot.methods.game.town import Town
+        from bot.methods.game.claims import Claims
+        from bot.methods.game.auction import Auction
+        from bot.methods.game.scheduler import Scheduler
+
+        self.errors = ErrorHandler(self)
+        self.energo = Energo(self)
+        self.tp = Teleport(self)
+        self.combat = Combat(self)
+        self.town = Town(self)
+        self.claims = Claims(self)
+        self.auction = Auction(self)
+        self.scheduler = Scheduler(self)
+
+    @property
+    def window_id(self) -> str:
+        return self._window_id
+
+    def notify(self, level: str, text: str) -> None:
+        if not getattr(self.settings, "TELEGRAM_NOTIFIES", False):
+            return
+        tg = getattr(self, "tgbot", None)
+        if tg is None:
+            return
+        tg.send_notification(level=level, text=text, nickname=self.window_id)
+
+    def notify_screenshot(self, caption: str, level: str = "warning") -> None:
+        if not getattr(self.settings, "TELEGRAM_NOTIFIES", False):
+            return
+        tg = getattr(self, "tgbot", None)
+        if tg is None:
+            return
+
+        from bot.methods.other import screenshot_window
+        from tgbot.keyboards.screenshot import delete_screenshot_kb
+        screen = screenshot_window(self.window_info, tg=True)
+        tg.send_pic(
+            photo=screen,
+            caption=caption,
+            parse_mode="HTML",
+            nickname=self.window_id,
+            reply_markup=delete_screenshot_kb(),
+        )
+
+    @contextlib.asynccontextmanager
+    async def paused_monitors(self, restart_with: Optional[list] = None):
+        """
+        на время блока стопаются все мониторы для этого окна,
+        после блока перезапускаются (self.get_monitors если есть).
+        """
+
+        self.events_checker.stop_monitoring(self.window_id)
+        try:
+            yield
+        finally:
+            if restart_with is None:
+                monitors = getattr(self, "get_monitors", None)
+            else:
+                monitors = restart_with
+            if monitors:
+                self.events_checker.start_monitoring(
+                    self.window_id, self, monitors=monitors
+                )
 
     @property
     @abstractmethod
@@ -236,8 +323,6 @@ class BaseProfile(ABC):
         if rgb == "no":
             return True
 
-        # self.runtime_data.record_capture(xy, rgb, profile=self)
-
         try:
             width, height = map(int, wsize.lower().split('x'))
         except Exception:
@@ -246,32 +331,27 @@ class BaseProfile(ABC):
         window_id, window = next(iter(self.window_info.items()))
         abs_x = xy[0] + window['Position'][0]
         abs_y = xy[1] + window['Position'][1]
-
         target = np.array(rgb, dtype=np.int16)
-        store = FrameStore()
 
-        def _matches() -> bool:
-            region = store.get_region(abs_x, abs_y, width, height)
-            if region is None:
-                return False
-            diff = np.abs(region.astype(np.int16) - target)
-            return bool(np.any(np.all(diff <= thr, axis=-1)))
+        def blocking_check():
+            sct = _get_thread_mss()
+            monitor = {"left": abs_x, "top": abs_y, "width": width, "height": height}
+            start = time.time()
+            while True:
+                try:
+                    shot = sct.grab(monitor)
+                except Exception:
+                    return False
+                arr = np.array(shot)[:, :, :3][:, :, ::-1].astype(np.int16)
+                diff = np.abs(arr - target)
+                if np.any(np.all(diff <= thr, axis=-1)):
+                    return True
+                if time.time() - start >= timeout:
+                    return False
+                time.sleep(0.02)
 
-        deadline = time.monotonic() + max(0.0, timeout)
-        while True:
-            ev = store.get_frame_event()
-
-            if _matches():
-                return True
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return False
-
-            try:
-                await asyncio.wait_for(ev.wait(), timeout=remaining)
-            except asyncio.TimeoutError:
-                return False
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, blocking_check)
 
     async def capture_multy(
         self,
@@ -281,17 +361,22 @@ class BaseProfile(ABC):
 
         window_id, window = next(iter(self.window_info.items()))
         px, py = window['Position']
-        store = FrameStore()
 
-        results: List[np.ndarray] = []
-        for x, y, w, h in rects:
-            region = store.get_region(x + px, y + py, w, h)
-            if region is None:
-                results.append(np.zeros((h, w, 3), dtype=np.uint8))
-            else:
-                results.append(region.copy())
+        def blocking_grab():
+            sct = _get_thread_mss()
+            results = []
+            for x, y, w, h in rects:
+                monitor = {"left": x + px, "top": y + py, "width": w, "height": h}
+                try:
+                    shot = sct.grab(monitor)
+                    arr = np.array(shot)[:, :, :3][:, :, ::-1]
+                    results.append(arr)
+                except Exception:
+                    results.append(np.zeros((h, w, 3), dtype=np.uint8))
+            return results
 
-        return results
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, blocking_grab)
 
     def is_running(self) -> bool:
         """

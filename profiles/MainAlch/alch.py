@@ -3,22 +3,15 @@ import json
 from bot.windows.runtime import RuntimeData
 from profiles.base import BaseProfile
 from bot.misc import ALCH_DEBUG
-from bot.methods.other import MouseEvents, screenshot_window
 from bot.alchemy.main_alch import check_slots, roll, check_bless, match_slots, pre_init, get_alch_var
-from tgbot.keyboards.screenshot import delete_screenshot_kb
 from bot.clogger import log
 import asyncio
 
 class MainAlchemy(BaseProfile):
     def __init__(self, window_info, settings=None, preset=None):
-        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
-        self.mouse = MouseEvents()
-        self._child_tasks = []
-        self.tgbot = TgBot()
         self.runtime_data = RuntimeData(current_state="alchemy")
         self.alch_cfg = preset
-        #print(preset)
 
     def profile_version(self):
         return "1.0.0"
@@ -27,7 +20,7 @@ class MainAlchemy(BaseProfile):
         return "Main Alchemy"
 
     async def main_loop(self):
-        window_id, window = next(iter(self.window_info.items()))
+        window_id, window = self.window_id, self.window_info[self.window_id]
         kb = None
         try:
             resized = await self.smart_resize()
@@ -58,15 +51,7 @@ class MainAlchemy(BaseProfile):
                     result = await check_slots(self, var)
                     #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
                     if match_slots(result, bless, self.alch_cfg):
-                        if self.settings.TELEGRAM_NOTIFIES:
-                            screenn = screenshot_window(self.window_info, tg=True)
-                            self.tgbot.send_pic(
-                                photo=screenn,
-                                caption=f"Выкрутил алхимку успешно",
-                                parse_mode="HTML",
-                                nickname=window_id,
-                                reply_markup=delete_screenshot_kb()
-                            )
+                        self.notify_screenshot("Выкрутил алхимку успешно")
 
                         log("Выкрутил то что надо, проверяй окно", window_id)
                         await roll(self, step=3, kb=kb)
@@ -97,7 +82,7 @@ class MainAlchemy(BaseProfile):
         await super().on_stop()
 
     async def roll_loop(self, iterations=10, kb=None, var=None):
-        window_id, window = next(iter(self.window_info.items()))
+        window_id, window = self.window_id, self.window_info[self.window_id]
         kb = None
         try:
             await roll(self, step=1, kb=kb)
@@ -117,15 +102,7 @@ class MainAlchemy(BaseProfile):
                         log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
 
                     if match_slots(result, bless, self.alch_cfg):
-                        if self.settings.TELEGRAM_NOTIFIES:
-                            screenn = screenshot_window(self.window_info, tg=True)
-                            self.tgbot.send_pic(
-                                photo=screenn,
-                                caption=f"Выкрутил алхимку успешно",
-                                parse_mode="HTML",
-                                nickname=window_id,
-                                reply_markup=delete_screenshot_kb()
-                            )
+                        self.notify_screenshot("Выкрутил алхимку успешно")
 
                         log("Выкрутил то что надо, проверяй окно", window_id)
                         await roll(self, step=3, kb=kb)

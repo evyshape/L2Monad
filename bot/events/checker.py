@@ -4,13 +4,16 @@ from typing import Dict
 import numpy as np
 
 from bot.clogger import log
-from bot.delays import PVP_CHECK_DELAY, CHECKS_HP_BANK, CHECKS_HP_BANK_TRIGGER, CHECKS_HP_BANK_TIMEOUT
-from bot.frame_store import FrameStore
-from bot.misc import *
+from bot.delays import (
+    CHECKS_HP_BANK,
+    CHECKS_HP_BANK_TRIGGER,
+    CHECKS_HP_BANK_TIMEOUT,
+    PVP_CHECK_DELAY,
+)
+from bot.misc import CHECK_DISCONNECT_ERROR, CHECK_ETHERNET1_ERROR
 from bot.events.events import EventsManager
 from bot.events.enums import MonitorType, OverWeight, ErrorTypes
 from bot.methods.base import parseCBT
-from bot.methods.game import check_rip, find_quiver, check_ethernet1_error, check_disconnect, check_ethernet2_error
 from profiles.base import BaseProfile
 
 
@@ -26,11 +29,9 @@ class EventsChecker:
 
     async def _monitor_pvp(self, window_id: str, profile: BaseProfile) -> None:
         xy, rgb = parseCBT("pvp_energo_trigger", profile=profile)
-        store = FrameStore()
 
         while profile.running:
-            ev = store.get_frame_event()
-            found = await profile.check_pixel(xy, rgb, timeout=0, thr=2)
+            found = await profile.check_pixel(xy, rgb, timeout=PVP_CHECK_DELAY, thr=2)
 
             if found:
                 now = time.monotonic()
@@ -43,12 +44,10 @@ class EventsChecker:
                     last_events["pvp"] = now
 
                 await asyncio.sleep(3)
-            else:
-                await ev.wait()
 
     async def _monitor_hp_bank(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
-            quiver_status = await find_quiver(profile)
+            quiver_status = await profile.energo.has_quiver()
             profile.runtime_data.has_quiver = quiver_status
 
         if profile.runtime_data.has_quiver is True:
@@ -81,7 +80,7 @@ class EventsChecker:
 
     async def _monitor_soska(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
-            quiver_status = await find_quiver(profile)
+            quiver_status = await profile.energo.has_quiver()
             profile.runtime_data.has_quiver = quiver_status
 
         if profile.runtime_data.has_quiver is True:
@@ -114,7 +113,7 @@ class EventsChecker:
 
     async def _monitor_death(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:
-            death_found, btn = await check_rip(profile)
+            death_found, btn = await profile.combat.is_dead()
             if death_found and btn != "":
                 now_monotonic = time.monotonic()
                 now_ts = int(time.time())
@@ -253,7 +252,7 @@ class EventsChecker:
 
     async def _monitor_overweight(self, window_id: str, profile: BaseProfile):
         if profile.runtime_data.has_quiver is None:
-            profile.runtime_data.has_quiver = await find_quiver(profile)
+            profile.runtime_data.has_quiver = await profile.energo.has_quiver()
 
         coords = {
             OverWeight.ZERO: "q_pereves0" if profile.runtime_data.has_quiver else "pereves0",
@@ -309,11 +308,7 @@ class EventsChecker:
         t3 = np.array([57, 18, 8], dtype=np.int16)
         t4 = np.array([10, 10, 5], dtype=np.int16)
 
-        store = FrameStore()
-
         while profile.running:
-            ev = store.get_frame_event()
-
             [screenshot] = await profile.capture_multy([rect])
             img_i16 = screenshot.astype(np.int16)
 
@@ -334,9 +329,8 @@ class EventsChecker:
                 last_time = last_events.get("health", 0)
                 if now - last_time >= 1:
                     last_events["health"] = now
-                    # EventsManager.send_event(window_id, {"type": "health"})
 
-            await ev.wait()
+            await asyncio.sleep(0.23)
 
     async def low_hp_dodge(self, window_id: str, profile: BaseProfile):
         window_id, window = next(iter(profile.window_info.items()))
@@ -374,7 +368,7 @@ class EventsChecker:
     async def _check_ethernet_disc_error(self, window_id: str, profile: BaseProfile):
         while profile.running:
             try:
-                found = await check_ethernet2_error(profile)
+                found = await profile.errors.has_ethernet2()
                 if found:
                     EventsManager.send_event(window_id, {
                         "type": "error",
@@ -389,7 +383,7 @@ class EventsChecker:
     async def _check_ethernet_error(self, window_id: str, profile: BaseProfile):
         while profile.running:
             try:
-                found = await check_ethernet1_error(profile)
+                found = await profile.errors.has_ethernet1()
                 if found:
                     EventsManager.send_event(window_id, {
                         "type": "error",
@@ -404,7 +398,7 @@ class EventsChecker:
     async def _check_disconnect(self, window_id: str, profile: BaseProfile):
         while profile.running:
             try:
-                found = await check_disconnect(profile)
+                found = await profile.errors.is_disconnected()
                 if found:
                     EventsManager.send_event(window_id, {
                         "type": "error",

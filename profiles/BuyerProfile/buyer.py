@@ -3,26 +3,11 @@ import asyncio
 from bot.clogger import log
 
 from profiles.base import BaseProfile
-from bot.methods.other import MouseEvents
-from bot.methods.game import (
-    buy_in_shop,
-    safe_tp,
-    wait_teleport,
-    sell_buyer,
-    go_stash,
-    teleport_to_random_spot,
-)
-from bot.windows.runtime import RuntimeData
 
 
 class Buyer(BaseProfile):
     def __init__(self, window_info, settings=None):
-        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
-        self.mouse = MouseEvents()  # мышильда
-        self._child_tasks = []
-        self.runtime_data = RuntimeData(current_state="null")
-        self.tgbot = TgBot()
 
     def profile_version(self):
         return "1.0"
@@ -31,18 +16,18 @@ class Buyer(BaseProfile):
         return "Buyer"
 
     async def main_loop(self):
-        window_id = next(iter(self.window_info))
+        window_id = self.window_id
         try:
-            tp = await safe_tp(self)
+            tp = await self.tp.safe_home()
             if tp:
-                wait = await wait_teleport(self)
+                wait = await self.tp.wait_arrived()
                 if wait:
-                    stash_ok, in_town, npcs = await go_stash(self)
-                    shop_ok, _, _ = await buy_in_shop(self, in_town=in_town, npcs=npcs, check_loot=True)
-                    buyer_ok, _, _ = await sell_buyer(self, in_town=in_town, npcs=npcs)
+                    stash_ok, in_town, npcs = await self.town.go_stash()
+                    shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
+                    buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
                     if stash_ok:
                         log(f"{stash_ok}", window_id)
-                        await teleport_to_random_spot(self, self.settings.SPOT_OT, self.settings.SPOT_DO)
+                        await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
                     else:
                         log(f"Не смог закупиться", window_id)
             else:
@@ -54,7 +39,7 @@ class Buyer(BaseProfile):
 
     async def on_stop(self):
         self.running = False
-        window_id = next(iter(self.window_info))
+        window_id = self.window_id
         log("Stopped =(", window_id)
         await super().on_stop()
         for task in self._child_tasks:

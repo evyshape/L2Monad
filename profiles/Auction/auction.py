@@ -1,19 +1,13 @@
 import random
 
 from profiles.base import BaseProfile
-from bot.methods.other import MouseEvents
-from bot.methods.game import auction_rereg, energo_mode, check_energo_mode
 from bot.clogger import log
 import asyncio
 
 
 class Auction(BaseProfile):
     def __init__(self, window_info, settings=None):
-        from tgbot.bot import TgBot
         super().__init__(window_info, settings=settings)
-        self.mouse = MouseEvents()
-        self._child_tasks = []
-        self.tgbot = TgBot()
 
     def profile_version(self):
         return "1.0.0"
@@ -22,21 +16,21 @@ class Auction(BaseProfile):
         return "Auction Rereger"
 
     async def main_loop(self):
-        window_id = next(iter(self.window_info))
+        window_id = self.window_id
         try:
-            x = await check_energo_mode(self)
+            x = await self.energo.is_on()
             if x:
-                await energo_mode(self, "off")
+                await self.energo.turn_off()
                 await asyncio.sleep(1)
 
-            rereged = await auction_rereg(self)
+            rereged = await self.auction.reregister()
 
             if not rereged:
                 log("Шось сломалось либо не смог перевыставить аук", window_id)
 
             if x:
                 await asyncio.sleep(random.randint(1, 5))
-                await energo_mode(self, "on")
+                await self.energo.turn_on()
                 await asyncio.sleep(1)
 
         except asyncio.CancelledError:

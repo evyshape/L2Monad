@@ -45,7 +45,10 @@ def getProfiles(profiles_path="profiles"):
 
             for at in dir(module):
                 attr = getattr(module, at)
-                if isinstance(attr, type) and issubclass(attr, BaseProfile) and attr is not BaseProfile:
+                if (isinstance(attr, type)
+                        and issubclass(attr, BaseProfile)
+                        and attr is not BaseProfile
+                        and attr.__module__ == module.__name__):
                     pr[at] = attr
 
     return pr

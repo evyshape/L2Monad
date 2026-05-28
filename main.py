@@ -13,10 +13,8 @@ from gui.maingui import NedoGui
 from tgbot.bot import TgBot
 from gui.driver_error import show_message
 from bot.utils import checkDriver
-from bot.frame_store import FrameStore
 
 async def main():
-    FrameStore()
     tg = TgBot()
     tg.start_polling()
     gui = NedoGui(kb, m)
