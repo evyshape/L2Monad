@@ -61,18 +61,16 @@ class Claims(GameAction):
                 return False
 
             start_time = time.time()
-            while time.time() - start_time < 120:
+            while time.time() - start_time < 50:
                 await asyncio.sleep(2)
 
                 red_dot_ex = await self.has("red_dot_mail", timeout=2)
-                cancel_ex = await self.has("yes_button_vitality", timeout=2)
+                vitality_ex = await self.has("yes_button_vitality", timeout=2)
 
-                if cancel_ex:
-                    await self.wait_and_click("cancel_button_vitality", timeout=2)
-                    await self.wait_and_click("npc_global_quit_button", timeout=1)
-                    log("Лимит опыта, ливнул", self.window_id)
-                    claimed = False
-                    break
+                if vitality_ex:
+                    await self.wait_and_click("yes_button_vitality", timeout=2)
+                    await self.wait_and_click("claim_all_mail", timeout=2)
+                    continue
 
                 if not red_dot_ex:
                     claimed = True
