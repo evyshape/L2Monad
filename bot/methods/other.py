@@ -8,7 +8,6 @@ from collections import deque
 import math
 
 import mss
-from aiogram.types import FSInputFile
 from screeninfo import get_monitors
 
 from bot.clogger import log
@@ -19,14 +18,9 @@ from bot.constans import SCREENSHOT_DIR
 
 def screenshot_monitor(tg: bool = False):
     screenshots = []
-    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
     with mss.mss() as sct:
         for i, monitor in enumerate(get_monitors(), start=1):
-            now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = f"{'send_tg_' if tg else ''}monitor_{i}_{now_str}.png"
-            filepath = os.path.join(SCREENSHOT_DIR, filename)
-
             monitor_region = {
                 "top": monitor.y,
                 "left": monitor.x,
@@ -35,11 +29,19 @@ def screenshot_monitor(tg: bool = False):
             }
 
             sct_img = sct.grab(monitor_region)
-            mss.tools.to_png(sct_img.rgb, sct_img.size, output=filepath)
+            png_bytes = mss.tools.to_png(sct_img.rgb, sct_img.size)
+            now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
             if tg:
-                screenshots.append(FSInputFile(filepath))
+                from aiogram.types import BufferedInputFile
+                screenshots.append(BufferedInputFile(
+                    png_bytes, filename=f"monitor_{i}_{now_str}.png"
+                ))
             else:
+                os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+                filepath = os.path.join(SCREENSHOT_DIR, f"monitor_{i}_{now_str}.png")
+                with open(filepath, 'wb') as f:
+                    f.write(png_bytes)
                 screenshots.append(filepath)
 
     return screenshots
@@ -49,18 +51,21 @@ def screenshot_window(window_info, tg: bool = False):
     x_pos, y_pos = window["Position"]
     width, height = map(int, window["Size"].split("x"))
 
-    now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filename = f"{'send_tg_' if tg else ''}{window_id}_{now_str}.png"
-    filepath = os.path.join(SCREENSHOT_DIR, filename)
-    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
-
     with mss.mss() as sct:
         monitor = {"top": y_pos, "left": x_pos, "width": width, "height": height}
         sct_img = sct.grab(monitor)
-        mss.tools.to_png(sct_img.rgb, sct_img.size, output=filepath)
+        png_bytes = mss.tools.to_png(sct_img.rgb, sct_img.size)
+
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     if tg:
-        return FSInputFile(filepath)
+        from aiogram.types import BufferedInputFile
+        return BufferedInputFile(png_bytes, filename=f"{window_id}_{now_str}.png")
+
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    filepath = os.path.join(SCREENSHOT_DIR, f"{window_id}_{now_str}.png")
+    with open(filepath, 'wb') as f:
+        f.write(png_bytes)
     return filepath
 
 def curv(p0, p1, p2, steps=70):
@@ -286,171 +291,186 @@ class MouseEvents:
                     await self._process_task(task)
                     i += 1
 
+    ACTION_HANDLERS = {
+        "click": "_handle_click",
+        "move": "_handle_move",
+        "wheel": "_handle_wheel",
+        "mouse_down": "_handle_mouse_down",
+        "mouse_up": "_handle_mouse_up",
+        "swipe": "_handle_swipe",
+        "key_press": "_handle_key_press",
+        "key_down": "_handle_key_down",
+        "key_up": "_handle_key_up",
+    }
+
     async def _process_task(self, task):
         action = task[0]
+        handler_name = self.ACTION_HANDLERS.get(action)
+        if handler_name is None:
+            log(f"[MouseEvents] неизвестный action: {action}", self.tname)
+            return
+        await getattr(self, handler_name)(task)
 
-        if action == "click":
-            _, window_info, x_offset, y_offset, button, done_event = task
-            self.clear = True
-            try:
-                await self._do_click(window_info, x_offset, y_offset, button)
-            except Exception as e:
-                log(f"[MouseEvents] Ошибка клика: {e}")
-            finally:
-                self.clear = False
-                done_event.set()
-                await asyncio.sleep(CLICK_DELAY)
+    async def _handle_click(self, task):
+        _, window_info, x_offset, y_offset, button, done_event = task
+        self.clear = True
+        try:
+            await self._do_click(window_info, x_offset, y_offset, button)
+        except Exception as e:
+            log(f"[MouseEvents] Ошибка клика: {e}")
+        finally:
+            self.clear = False
+            done_event.set()
+            await asyncio.sleep(CLICK_DELAY)
 
-        elif action == "move":
-            _, window_info, x_offset, y_offset, done_event = task
-            self.clear = True
-            try:
-                loop = asyncio.get_running_loop()
-                async with move_semaphore:
-                    await loop.run_in_executor(
-                        None,
-                        functools.partial(move_human if curve else move_mouse,
-                                          window_info, x_offset, y_offset)
-                    )
-            except Exception as e:
-                log(f"Ошибка движения мыши: {e}", self.tname)
-            finally:
-                self.clear = False
-                done_event.set()
-                await asyncio.sleep(0.2)
-
-        elif action == "wheel":
-            _, window_info, points, direction, times, delay, done_event = task
-            self.clear = True
-            try:
-                loop = asyncio.get_running_loop()
-                if points and len(points) > 0:
-                    first_x, first_y = points[0]
-                    await loop.run_in_executor(
-                        None,
-                        functools.partial(move_mouse, window_info, first_x, first_y)
-                    )
-                    await asyncio.sleep(MOUSE_SCROLL)
-
-                for _ in range(times):
-                    await loop.run_in_executor(None, functools.partial(inputs.scroll, direction))
-                    await asyncio.sleep(delay)
-
-            except Exception as e:
-                log(f"Ошибка wheel: {e}", self.tname)
-            finally:
-                self.clear = False
-                done_event.set()
-                await asyncio.sleep(0.15)
-
-        elif action == "mouse_down":
-            _, button, done_event = task
-            self.clear = True
-            try:
-                loop = asyncio.get_running_loop()
+    async def _handle_move(self, task):
+        _, window_info, x_offset, y_offset, done_event = task
+        self.clear = True
+        try:
+            loop = asyncio.get_running_loop()
+            async with move_semaphore:
                 await loop.run_in_executor(
                     None,
-                    functools.partial(inputs.mouse_down, button)
+                    functools.partial(move_human if curve else move_mouse,
+                                      window_info, x_offset, y_offset)
                 )
-            except Exception as e:
-                log(f"Ошибка mouse_down: {e}", self.tname)
-            finally:
-                self.clear = False
-                done_event.set()
-                await asyncio.sleep(0.03)
+        except Exception as e:
+            log(f"Ошибка движения мыши: {e}", self.tname)
+        finally:
+            self.clear = False
+            done_event.set()
+            await asyncio.sleep(0.2)
 
-        elif action == "mouse_up":
-            _, button, done_event = task
-            self.clear = True
-            try:
-                loop = asyncio.get_running_loop()
+    async def _handle_wheel(self, task):
+        _, window_info, points, direction, times, delay, done_event = task
+        self.clear = True
+        try:
+            loop = asyncio.get_running_loop()
+            if points and len(points) > 0:
+                first_x, first_y = points[0]
                 await loop.run_in_executor(
                     None,
-                    functools.partial(inputs.mouse_up, button)
+                    functools.partial(move_mouse, window_info, first_x, first_y)
                 )
-            except Exception as e:
-                log(f"Ошибка mouse_up: {e}", self.tname)
-            finally:
-                self.clear = False
-                done_event.set()
-                await asyncio.sleep(0.03)
+                await asyncio.sleep(MOUSE_SCROLL)
 
-        elif action == "swipe":
-            _, window_info, points, delay_points, no_curve, done_event = task
-            self.clear = True
-            try:
-                loop = asyncio.get_running_loop()
-                async with swipe_semaphore:
-                    if not points:
-                        done_event.set()
-                        return
+            for _ in range(times):
+                await loop.run_in_executor(None, functools.partial(inputs.scroll, direction))
+                await asyncio.sleep(delay)
+        except Exception as e:
+            log(f"Ошибка wheel: {e}", self.tname)
+        finally:
+            self.clear = False
+            done_event.set()
+            await asyncio.sleep(0.15)
 
-                    first_x, first_y = points[0]
+    async def _handle_mouse_down(self, task):
+        _, button, done_event = task
+        self.clear = True
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None,
+                functools.partial(inputs.mouse_down, button)
+            )
+        except Exception as e:
+            log(f"Ошибка mouse_down: {e}", self.tname)
+        finally:
+            self.clear = False
+            done_event.set()
+            await asyncio.sleep(0.03)
+
+    async def _handle_mouse_up(self, task):
+        _, button, done_event = task
+        self.clear = True
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None,
+                functools.partial(inputs.mouse_up, button)
+            )
+        except Exception as e:
+            log(f"Ошибка mouse_up: {e}", self.tname)
+        finally:
+            self.clear = False
+            done_event.set()
+            await asyncio.sleep(0.03)
+
+    async def _handle_swipe(self, task):
+        _, window_info, points, delay_points, no_curve, done_event = task
+        self.clear = True
+        try:
+            loop = asyncio.get_running_loop()
+            async with swipe_semaphore:
+                if not points:
+                    done_event.set()
+                    return
+
+                first_x, first_y = points[0]
+                await loop.run_in_executor(
+                    None,
+                    functools.partial(
+                        move_line if no_curve else move_human,
+                        window_info, first_x, first_y
+                    )
+                )
+                await asyncio.sleep(0.05)
+
+                await loop.run_in_executor(None, functools.partial(inputs.mouse_down, "left"))
+
+                for x, y in points[1:]:
                     await loop.run_in_executor(
                         None,
                         functools.partial(
                             move_line if no_curve else move_human,
-                            window_info, first_x, first_y
+                            window_info, x, y
                         )
                     )
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(delay_points)
 
-                    await loop.run_in_executor(None, functools.partial(inputs.mouse_down, "left"))
+                await loop.run_in_executor(None, functools.partial(inputs.mouse_up, "left"))
+        except Exception as e:
+            log(f"Ошибка swipe: {e}", self.tname)
+        finally:
+            self.clear = False
+            done_event.set()
+            await asyncio.sleep(0.06)
 
-                    for x, y in points[1:]:
-                        await loop.run_in_executor(
-                            None,
-                            functools.partial(
-                                move_line if no_curve else move_human,
-                                window_info, x, y
-                            )
-                        )
-                        await asyncio.sleep(delay_points)
+    async def _handle_key_press(self, task):
+        _, key, done_event = task
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None,
+                                       functools.partial(inputs.press, key))
+        except Exception as e:
+            log(f"Ошибка key_press: {e}", self.tname)
+        finally:
+            done_event.set()
+            await asyncio.sleep(0.01)
 
-                    await loop.run_in_executor(None, functools.partial(inputs.mouse_up, "left"))
+    async def _handle_key_down(self, task):
+        _, key, done_event = task
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None,
+                                       functools.partial(inputs.key_down, key))
+        except Exception as e:
+            log(f"Ошибка key_down: {e}", self.tname)
+        finally:
+            done_event.set()
+            await asyncio.sleep(0.02)
 
-            except Exception as e:
-                log(f"Ошибка swipe: {e}", self.tname)
-            finally:
-                self.clear = False
-                done_event.set()
-                await asyncio.sleep(0.06)
-
-        elif action == "key_press":
-            _, key, done_event = task
-            try:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None,
-                                           functools.partial(inputs.press, key))
-            except Exception as e:
-                log(f"Ошибка key_press: {e}", self.tname)
-            finally:
-                done_event.set()
-                await asyncio.sleep(0.01)
-
-        elif action == "key_down":
-            _, key, done_event = task
-            try:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None,
-                                           functools.partial(inputs.key_down, key))
-            except Exception as e:
-                log(f"Ошибка key_down: {e}", self.tname)
-            finally:
-                done_event.set()
-                await asyncio.sleep(0.02)
-
-        elif action == "key_up":
-            _, key, done_event = task
-            try:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None,
-                                           functools.partial(inputs.key_up, key))
-            except Exception as e:
-                log(f"Ошибка key_up: {e}", self.tname)
-            finally:
-                done_event.set()
-                await asyncio.sleep(0.01)
+    async def _handle_key_up(self, task):
+        _, key, done_event = task
+        try:
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None,
+                                       functools.partial(inputs.key_up, key))
+        except Exception as e:
+            log(f"Ошибка key_up: {e}", self.tname)
+        finally:
+            done_event.set()
+            await asyncio.sleep(0.01)
 
 
     async def _do_click(self, window_info, x_offset, y_offset, button):

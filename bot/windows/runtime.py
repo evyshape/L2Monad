@@ -2,7 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, Union
 
-from bot.constans import GLOBAL_STATES, CBT_JP, CBT_RU
+from bot.constans import GLOBAL_STATES
+from bot.cbt import CBT_JP, CBT_RU
 from bot.events.enums import OverWeight
 
 

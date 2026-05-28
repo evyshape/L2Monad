@@ -8,7 +8,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
 
 from bot.utils import findAllWindows
-from gui.styles import STYLE, SCROLL, CARD, WINDOWS_FRAME, MONITOR
+from gui.styles import STYLE, SCROLL, WINDOWS_FRAME, MONITOR
 
 FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
 WORKACCS_PATH = os.path.join(os.getcwd(), "settings", "gui", "workaccs.json")

@@ -1,9 +1,13 @@
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 import colorlog
 from bot.constans import LOG_DIR
 
 os.makedirs(LOG_DIR, exist_ok=True)
+
+LOG_MAX_BYTES = 10 * 1024 * 1024
+LOG_BACKUP_COUNT = 5
 
 def setup_logger(log_filename):
     logger = logging.getLogger(log_filename)
@@ -11,7 +15,12 @@ def setup_logger(log_filename):
     if not logger.hasHandlers():
         logger.setLevel(logging.DEBUG)
 
-        file_handler = logging.FileHandler(os.path.join(LOG_DIR, log_filename), encoding='utf-8')
+        file_handler = RotatingFileHandler(
+            os.path.join(LOG_DIR, log_filename),
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
+            encoding='utf-8',
+        )
         file_handler.setLevel(logging.DEBUG)
 
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')

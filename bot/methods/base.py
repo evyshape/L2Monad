@@ -1,4 +1,4 @@
-from bot.constans import CBT_JP, CBT_RU
+from bot.cbt import CBT_JP, CBT_RU
 from bot.alchemy.alch_cons import ALCH_BUTTONS
 from bot.clogger import log
 

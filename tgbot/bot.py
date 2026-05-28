@@ -15,7 +15,7 @@ class TgBot:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.loop = asyncio.get_event_loop()
+            cls._instance.loop = asyncio.get_running_loop()
 
             if config.STATE is False:
                 log(

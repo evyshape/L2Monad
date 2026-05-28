@@ -45,7 +45,7 @@ PRIORITIES = {
     MonitorType.CLAIM_REWARDS: 8,
     MonitorType.CLAIM_MAIL: 9,
     MonitorType.SPOT_BACK: 10,
-    MonitorType.SELL_STASH_BUY: 1,
+    MonitorType.SELL_STASH_BUY: 11,
     MonitorType.SCHEDULE: 12,
     MonitorType.AUCTION: 13,
     MonitorType.LOW_HP_DODGE: 14,
