@@ -30,6 +30,7 @@ async def show_global_menu(call: types.CallbackQuery):
 @router.callback_query(lambda c: c.data == "global_stop_all")
 @admin_only
 async def global_stop(call: types.CallbackQuery):
+    controller.cancel_batch()
     all_nicks = sorted(set(findAllWindows().keys()) | set(controller.bot_manager.bots.keys()))
     active_nicks = [n for n in all_nicks if controller.is_running(n)]
     if not active_nicks:
@@ -86,13 +87,20 @@ async def start_batch(call: types.CallbackQuery):
         return
 
     batches = [inactive_nicks[i:i + batch_size] for i in range(0, len(inactive_nicks), batch_size)]
+    controller.reset_batch_cancel()
 
     for batch in batches:
+        if controller.batch_cancelled:
+            break
         controller.start_windows(profile_class, batch)
         while any(controller.bot_manager.get_bot(nick) is None for nick in batch):
+            if controller.batch_cancelled:
+                break
             await asyncio.sleep(0.5)
 
         while any(controller.is_running(nick) for nick in batch):
+            if controller.batch_cancelled:
+                break
             await asyncio.sleep(1)
 
     await call.answer(f"✅ {profile_name} запущен!", show_alert=False)

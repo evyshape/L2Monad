@@ -248,9 +248,12 @@ class NedoGui(QWidget):
             self._alchemy_timer.timeout.connect(self._alchemy_check)
             self._alchemy_timer.start(1000)
 
+        self.controller.reset_batch_cancel()
         self._alchemy_start()
 
     def _alchemy_start(self):
+        if self.controller.batch_cancelled:
+            return
         while len(
                 self._alchemy_running) < self._alchemy_max_active and self._alchemy_pending:
             nick = self._alchemy_pending.pop(0)
@@ -259,6 +262,12 @@ class NedoGui(QWidget):
             self._alchemy_running.add(nick)
 
     def _alchemy_check(self):
+        if self.controller.batch_cancelled:
+            self._alchemy_pending.clear()
+            self._alchemy_running.clear()
+            self._alchemy_timer.stop()
+            return
+
         finished = {nick for nick in self._alchemy_running if
                     not self.controller.is_running(nick)}
 
@@ -331,21 +340,28 @@ class NedoGui(QWidget):
         save_cache(self.cache)
 
         batches = [windows[i:i + num] for i in range(0, len(windows), num)]
+        self.controller.reset_batch_cancel()
 
         def process_batch(batch_idx=0):
             if batch_idx >= len(batches):
+                return
+            if self.controller.batch_cancelled:
                 return
 
             batch = batches[batch_idx]
             self.start_windows(profile_class, batch)
 
             def wait_c():
+                if self.controller.batch_cancelled:
+                    return
                 if any(self.controller.bot_manager.get_bot(nick) is None for nick in batch):
                     QTimer.singleShot(500, wait_c)
                 else:
                     wait_f()
 
             def wait_f():
+                if self.controller.batch_cancelled:
+                    return
                 if any(self.controller.is_running(nick) for nick in batch):
                     QTimer.singleShot(1000, wait_f)
                 else:
@@ -355,6 +371,7 @@ class NedoGui(QWidget):
         process_batch()
 
     def stop_profile(self):
+        self.controller.cancel_batch()
         nicks = list(self.controller.bot_manager.bots.keys())
         self.stop_windows(nicks)
 

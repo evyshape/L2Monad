@@ -17,8 +17,19 @@ class ProfileController:
             cls._instance.bot_manager = BotManager()
             cls._instance.loop = asyncio.new_event_loop()
             cls._instance.profiles = getProfiles()
+            cls._instance._batch_cancel = threading.Event()
             threading.Thread(target=cls._instance.loop.run_forever, daemon=True).start()
         return cls._instance
+
+    def cancel_batch(self):
+        self._batch_cancel.set()
+
+    def reset_batch_cancel(self):
+        self._batch_cancel.clear()
+
+    @property
+    def batch_cancelled(self) -> bool:
+        return self._batch_cancel.is_set()
 
     def start_windows(self, profile_class, nicks, **kwargs):
         log(f"Запуск через {WAIT_BEFORE_START} сек. | {nicks}")
