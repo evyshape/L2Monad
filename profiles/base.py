@@ -11,11 +11,13 @@ import numpy as np
 import pygetwindow as gw
 from screeninfo import get_monitors
 from bot.clogger import log
+from bot.limits import pixel_semaphore, thread
 from bot.windows.base import BaseSettings, default_values
 from bot.alchemy.alch_cons import ALCH_REZ
 from bot.alchemy.alch_utils import alch_rects
 from bot.windows.runtime import RuntimeData
 
+from concurrent.futures import ThreadPoolExecutor
 import ctypes
 
 _mss_local = threading.local()
@@ -27,6 +29,8 @@ def _get_thread_mss():
         sct = mss.mss()
         _mss_local.sct = sct
     return sct
+
+THREAD_POOL = ThreadPoolExecutor(max_workers=thread, thread_name_prefix="pixel")
 
 HWND_BOTTOM = 1
 SWP_NOMOVE = 0x0002
@@ -351,7 +355,8 @@ class BaseProfile(ABC):
                 time.sleep(0.02)
 
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, blocking_check)
+        async with pixel_semaphore:
+            return await loop.run_in_executor(THREAD_POOL, blocking_check)
 
     async def capture_multy(
         self,
@@ -376,7 +381,8 @@ class BaseProfile(ABC):
             return results
 
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, blocking_grab)
+        async with pixel_semaphore:
+            return await loop.run_in_executor(THREAD_POOL, blocking_grab)
 
     def is_running(self) -> bool:
         """
