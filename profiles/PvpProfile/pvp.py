@@ -757,9 +757,7 @@ class PvPDodge(EventDrivenProfile):
                         self.notify_screenshot("Чет супер злое после попытки подрубиться на сервер")
 
                 elif desc == ErrorTypes.ETHERNET_ERROR:
-                    print(1)
                     if self.runtime_data.current_state == "combat":
-                        print(2)
                         await asyncio.sleep(2)
                         await self.energo.turn_on()
 

@@ -135,6 +135,7 @@ class RuntimeData:
         xy_str = f"{xy[0]}, {xy[1]}"
         matched_key = None
 
+        region = "RU"
         if profile is not None:
             region = getattr(getattr(profile, "settings", {}), "REGION", "").upper()
 

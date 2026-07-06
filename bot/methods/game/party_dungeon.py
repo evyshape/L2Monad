@@ -46,7 +46,7 @@ class PartyDungeon(GameAction):
             count += 1
             await asyncio.sleep(0.2)
 
-        raise
+        return count
 
     async def to_start(self) -> int:
         needed = (self.states - self.clicks) % self.states

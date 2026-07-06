@@ -4,6 +4,7 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LOG_DIR = os.path.join(ROOT_DIR, "logs")
 PROFILES_DIR = os.path.join(ROOT_DIR, "profiles")
 SETTINGS_DIR = os.path.join(ROOT_DIR, "settings")
+SCHEDULE_LOG_DIR = os.path.join(SETTINGS_DIR, "schedules")
 SCREENSHOT_DIR = os.path.join(ROOT_DIR, "screenshots")
 
 # методом getNPCposition - получим список доступных нпс и их позиции

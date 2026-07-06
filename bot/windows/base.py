@@ -3,7 +3,7 @@ from typing import Dict, List
 from datetime import datetime, timedelta
 import os
 
-SCHEDULE_LOG_DIR = os.path.join("settings", "schedules")
+from bot.constans import SCHEDULE_LOG_DIR
 
 @dataclass
 class BaseSettings:

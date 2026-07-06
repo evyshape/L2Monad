@@ -56,47 +56,7 @@ def install_req(req_path):
     except Exception as e:
         log(f"Ошибка при установке зависимостей: {e}")
 
-def update_delays(local_path, new_path):
-    try:
-        with open(local_path, "r", encoding="utf-8") as f:
-            local_lines = f.readlines()
-        with open(new_path, "r", encoding="utf-8") as f:
-            new_lines = f.readlines()
-
-        local_map = {}
-        for line in local_lines:
-            if "=" in line and line.split("=")[0].strip().isupper():
-                key = line.split("=")[0].strip()
-                local_map[key] = line
-
-        merged = []
-        seen = set()
-
-        for line in new_lines:
-            if "=" in line and line.split("=")[0].strip().isupper():
-                key = line.split("=")[0].strip()
-                if key in local_map:
-                    merged.append(local_map[key].rstrip() + "\n")
-                else:
-                    merged.append(line)
-                seen.add(key)
-            else:
-                merged.append(line)
-
-        for key, line in local_map.items():
-            if key not in seen:
-                merged.append("\n" + line)
-
-        with open(local_path, "w", encoding="utf-8") as f:
-            f.writelines(merged)
-
-        log(f"Обновил и смержил: {local_path}")
-
-    except Exception as e:
-        log(f"Шось злое: {e}")
-
-
-def update_misc(local_path, new_path):
+def merge(local_path, new_path):
     try:
         with open(local_path, "r", encoding="utf-8") as f:
             local_lines = f.readlines()
@@ -185,11 +145,11 @@ def update():
                     continue
 
                 if dst_path.endswith("bot{}delays.py".format(os.sep)) and os.path.exists(dst_path):
-                    update_delays(dst_path, os.path.join(root, file))
+                    merge(dst_path, os.path.join(root, file))
                     continue
 
                 if dst_path.endswith("bot{}misc.py".format(os.sep)) and os.path.exists(dst_path):
-                    update_misc(dst_path, os.path.join(root, file))
+                    merge(dst_path, os.path.join(root, file))
                     continue
 
                 os.makedirs(os.path.dirname(dst_path), exist_ok=True)
