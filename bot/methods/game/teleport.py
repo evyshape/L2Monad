@@ -8,6 +8,7 @@ from bot.delays import (
     WAIT_BEFORE_TELEPORT_TO_SPOT,
 )
 from bot.methods.base import parseCBT
+from bot.events.enums import Region
 from bot.methods.game._base import GameAction
 
 
@@ -41,7 +42,7 @@ class Teleport(GameAction):
 
     async def wait_arrived(self, need: int = 7, _lvlup_retries: int = 3) -> bool:
         xy1, rgb1 = parseCBT("zalupka_gui", profile=self.profile)
-        thr = 36 if self.settings.REGION == "RU" else 12
+        thr = 36 if self.settings.REGION == Region.RU else 12
 
         for retry in range(_lvlup_retries + 1):
             success = 0
@@ -108,11 +109,12 @@ class Teleport(GameAction):
             f"spot_accept_choice_{spot}",
         ]
 
-        hunt = await self.profile.combat.toggle_autohunt()
-        if not hunt:
-            return False
+        if self.settings.AUTOHUNT_BEFORE_TP:
+            hunt = await self.profile.combat.toggle_autohunt()
+            if not hunt:
+                return False
 
-        await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
 
         for key in steps:
             xy, rgb = parseCBT(key, profile=self.profile)
@@ -131,6 +133,10 @@ class Teleport(GameAction):
 
         log("Залупка найдена, включаю энерго", self.window_id)
         await asyncio.sleep(0.35)
+
+        if not self.settings.AUTOHUNT_BEFORE_TP:
+            await self.profile.combat.toggle_autohunt()
+            await asyncio.sleep(0.5)
 
         if await ah():
             return True

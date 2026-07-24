@@ -15,6 +15,7 @@ class Auction(GameAction):
 
         if not await self.wait_and_click("auction_menu", timeout=4):
             log("Не удалось ткнуть по auction_menu", self.window_id)
+            await self.wait_and_click("main_menu_gui", timeout=3)
             return False
 
         await asyncio.sleep(0.3)

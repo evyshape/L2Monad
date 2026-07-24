@@ -9,6 +9,7 @@ from bot.delays import (
     THR_CHECK_NPC_POSITIONS,
 )
 from bot.methods.base import parseCBT
+from bot.events.enums import Region
 from bot.methods.game._base import GameAction
 
 
@@ -19,7 +20,7 @@ class Town(GameAction):
         npc_batches = [[2, 3]]
         if await self.profile.errors.has_ethernet1():
             await self.profile.errors.close_ethernet1()
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.7)
 
         await self.profile.energo.check_lvl_up()
 
@@ -29,47 +30,49 @@ class Town(GameAction):
             direction="up",
             times=10,
         )
-        for attempt in range(1, retries + 1):
-            log(f"Попытка {attempt}/{retries} получить позиции нпс", self.window_id)
 
-            found_j = None
+        # todo if not floran:
+        # for attempt in range(1, retries + 1):
+        #     log(f"Попытка {attempt}/{retries} получить позиции нпс", self.window_id)
+        #
+        #     found_j = None
+        #
+        #     for batch in npc_batches:
+        #         async def check_npc(j):
+        #             xy, rgb = parseCBT(f"npc_list_{j}", profile=self.profile)
+        #             result = await self.profile.check_pixel(
+        #                 xy, rgb,
+        #                 timeout=DELAY_CHECK_NPC_POSITIONS,
+        #                 thr=thr, wsize="1x1",
+        #             )
+        #             return j if result else None
+        #
+        #         results = await asyncio.gather(*(check_npc(j) for j in batch))
+        #         found_j = min([r for r in results if r is not None], default=None)
+        #
+        #         if found_j:
+        #             break
+        #
+        #     if found_j:
+        #         log(f"Детектнул позиции, {found_j}", self.window_id)
+        #         if found_j == 2:
+        #             npc_mapping = {"stash": "npc_list_2", "shop": "npc_list_1", "buyer": "npc_list_4"}
+        #         elif found_j == 3:
+        #             npc_mapping = {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
+        #
+        #         self.runtime.update_last_mapping(npc_mapping)
+        #         log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", self.window_id)
+        #         await self.mouse.wheel(
+        #             self.window_info,
+        #             [[random.randint(141, 246), random.randint(50, 139)]],
+        #             direction="down",
+        #             times=15,
+        #         )
+        #         return npc_mapping
+        #
+        #     await asyncio.sleep(0.3)
 
-            for batch in npc_batches:
-                async def check_npc(j):
-                    xy, rgb = parseCBT(f"npc_list_{j}", profile=self.profile)
-                    result = await self.profile.check_pixel(
-                        xy, rgb,
-                        timeout=DELAY_CHECK_NPC_POSITIONS,
-                        thr=thr, wsize="1x1",
-                    )
-                    return j if result else None
-
-                results = await asyncio.gather(*(check_npc(j) for j in batch))
-                found_j = min([r for r in results if r is not None], default=None)
-
-                if found_j:
-                    break
-
-            if found_j:
-                log(f"Детектнул позиции, {found_j}", self.window_id)
-                if found_j == 2:
-                    npc_mapping = {"stash": "npc_list_2", "shop": "npc_list_1", "buyer": "npc_list_4"}
-                elif found_j == 3:
-                    npc_mapping = {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
-
-                self.runtime.update_last_mapping(npc_mapping)
-                log(f"NPC mapping: {json.dumps(npc_mapping, indent=4)}", self.window_id)
-                await self.mouse.wheel(
-                    self.window_info,
-                    [[random.randint(141, 246), random.randint(50, 139)]],
-                    direction="down",
-                    times=15,
-                )
-                return npc_mapping
-
-            await asyncio.sleep(0.3)
-
-        log(f"get_npc_positions false, не обнаружил npc за {retries} попыток, пробую прокруткой", self.window_id)
+        #log(f"get_npc_positions false, не обнаружил npc за {retries} попыток, пробую прокруткой", self.window_id)
         for _ in range(2):
             await self.mouse.wheel(
                 self.window_info,
@@ -77,19 +80,19 @@ class Town(GameAction):
                 direction="down",
                 times=15,
             )
-            await asyncio.sleep(random.uniform(0.2, 0.5))
+            await asyncio.sleep(random.uniform(0.1, 0.3))
 
-        await asyncio.sleep(random.uniform(0.2, 0.5))
-        if self.settings.REGION == "RU":
+        await asyncio.sleep(random.uniform(0.1, 0.3))
+        if self.settings.REGION == Region.RU:
             for _ in range(1):
                 await self.mouse.wheel(self.window_info, [(38, 104)], direction="up", times=9)
-                await asyncio.sleep(0.35)
+                await asyncio.sleep(0.25)
             return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
 
-        elif self.settings.REGION == "JP":
+        elif self.settings.REGION == Region.JP:
             for _ in range(1):
                 await self.mouse.wheel(self.window_info, [(38, 104)], direction="up", times=7)
-                await asyncio.sleep(0.35)
+                await asyncio.sleep(0.25)
             return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
 
         return None
@@ -350,7 +353,12 @@ class Town(GameAction):
     async def buy_loot(self, skip: bool = False, clr: bool = True) -> bool:
         if not skip:
             if await self.profile.energo.is_on():
-                await self.profile.energo.turn_off()
+                ok = await self.profile.energo.turn_off()
+                if not ok:
+                    await asyncio.sleep(1)
+                    ok = await self.profile.energo.turn_off()
+                if not ok:
+                    return False
         else:
             await asyncio.sleep(0.1)
 
@@ -425,10 +433,14 @@ class Town(GameAction):
 
         await do_buy()
         xy_items, _ = parseCBT("respawn_items", profile=self.profile)
+        if xy_items is None:
+            return False
         await self.mouse.click(self.window_info, xy_items[0], xy_items[1])
         await asyncio.sleep(0.5)
         await do_buy()
         xy_exit, _ = parseCBT("respawn_exit_gui_button", profile=self.profile)
+        if xy_exit is None:
+            return False
         await self.mouse.click(self.window_info, xy_exit[0], xy_exit[1])
         await asyncio.sleep(0.3)
         await self.profile.energo.check_lvl_up()

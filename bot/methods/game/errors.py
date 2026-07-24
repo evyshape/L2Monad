@@ -104,6 +104,8 @@ class ErrorHandler(GameAction):
     async def connect(self) -> bool:
         await asyncio.sleep(4)
         xy, rgb = parseCBT("error_disconnect_to_menu", self.profile)
+        if xy is None:
+            return False
         await self.mouse.click(self.window_info, xy[0], xy[1])
         await asyncio.sleep(8)
         await self.mouse.click(self.window_info, xy[0], xy[1])
@@ -111,6 +113,8 @@ class ErrorHandler(GameAction):
         await self.mouse.click(self.window_info, xy[0], xy[1])
 
         xy, rgb = parseCBT("enter_to_server", self.profile)
+        if xy is None:
+            return False
         found = None
         for _ in range(7):
             found = await self.profile.check_pixel(xy, rgb, timeout=3, wsize="2x2")

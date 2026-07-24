@@ -1,15 +1,16 @@
 from bot.cbt import CBT_JP, CBT_RU, CBT_JP_PARSED, CBT_RU_PARSED
 from bot.alchemy.alch_cons import ALCH_BUTTONS
 from bot.clogger import log
+from bot.events.enums import Region
 
 CBT_VERSIONS = {
-    "JP": CBT_JP,
-    "RU": CBT_RU,
+    Region.JP: CBT_JP,
+    Region.RU: CBT_RU,
 }
 
 CBT_VERSIONS_PARSED = {
-    "JP": CBT_JP_PARSED,
-    "RU": CBT_RU_PARSED,
+    Region.JP: CBT_JP_PARSED,
+    Region.RU: CBT_RU_PARSED,
 }
 
 def parseCBT(trigger_name, profile=None):

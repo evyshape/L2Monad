@@ -37,6 +37,7 @@ class Scheduler(GameAction):
             return False
 
         if not await self.wait_and_click("schedule_menu", timeout=5):
+            await self.wait_and_click("main_menu_gui", timeout=3)
             return False
 
         await asyncio.sleep(1)
