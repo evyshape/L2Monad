@@ -11,12 +11,30 @@ from bot.delays import (
     DELAY_WAIT_ADENA_SHOP_ADD,
     DELAY_WAIT_ADENA_SHOP_GOOGLE,
     SLEEP_AFTER_CLAIM_ACHIVMENTS,
+    MAX_CLAIM_ACHIEVEMENTS,
 )
 from bot.methods.base import parseCBT
+from bot.events.enums import Region
 from bot.methods.game._base import GameAction
 
 
 class Claims(GameAction):
+
+    async def _menu_open(self) -> bool:
+        xy, rgb = parseCBT("main_menu_opened", profile=self.profile)
+        if xy is None:
+            return False
+        return await self.profile.check_pixel(xy, rgb, timeout=0.3, thr=5)
+
+    async def _open_menu(self, timeout: float = 5) -> bool:
+        if await self._menu_open():
+            return True
+        await self.wait_and_click("main_menu_gui", timeout=timeout)
+        return await self._menu_open()
+
+    async def _close_menu(self):
+        if await self._menu_open():
+            await self.wait_and_click("main_menu_gui", timeout=1)
 
     async def skip_vitality(self, mode: Literal["skip", "claim"] = "skip") -> bool:
         if mode == "skip":
@@ -38,15 +56,19 @@ class Claims(GameAction):
         claimed = False
 
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
             await asyncio.sleep(3)
 
-        if not await self.wait_and_click("main_menu_gui", timeout=7):
+        if not await self._open_menu(timeout=7):
             log("Не удалось открыть главное меню", self.window_id)
             return False
 
         if not await self.wait_and_click("red_dot_mail_menu", timeout=1, thr=10):
-            await self.wait_and_click("main_menu_gui", timeout=1)
             log("Не найден значок почты", self.window_id)
             return False
         log("Нашел почту", self.window_id)
@@ -81,6 +103,8 @@ class Claims(GameAction):
                     break
 
             await asyncio.sleep(0.5)
+            if not claimed:
+                await self.wait_and_click("npc_global_quit_button", timeout=5)
             return claimed
 
         await self.wait_and_click("npc_global_quit_button", timeout=1)
@@ -223,12 +247,18 @@ class Claims(GameAction):
             return [[f"{x_s}, {y}", "no"] for y in buttons]
 
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
 
-        await self.wait_and_click("main_menu_gui", timeout=1)
+        if not await self._open_menu(timeout=5):
+            log("Не удалось открыть главное меню", self.window_id)
+            return False
         if not await self.wait_and_click("red_dot_daily_rewards", timeout=2):
             log("Не нашел красной точки, скипаю", self.window_id)
-            await self.wait_and_click("main_menu_gui", timeout=1)
             return False
 
         await asyncio.sleep(3.5)
@@ -254,10 +284,13 @@ class Claims(GameAction):
         return False
 
     async def achievements(self) -> bool:
-        claimed = False
-
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
 
         if not await self.wait_and_click("red_dot_achiv", timeout=5, thr=1):
             log("Нет красной точки на иконке достижений", self.window_id)
@@ -270,38 +303,32 @@ class Claims(GameAction):
             return False
 
         await asyncio.sleep(2)
-        while True:
-            found_claim = await self.wait_and_click("achiv_claim_1", timeout=8, thr=3)
-            await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
-            await self.wait_and_click("achiv_claim_accept", timeout=7, thr=1)
 
-            if not found_claim:
-                claimed = True
-                await self.wait_and_click("achiv_claim_accept", timeout=2, thr=1)
-                await self.wait_and_click("npc_global_quit_button", timeout=5, thr=1)
+        for _ in range(MAX_CLAIM_ACHIEVEMENTS):
+            if not await self.wait_and_click("achiv_claim_1", timeout=2, thr=5):
+                log("Ачивок больше нет", self.window_id)
                 break
+            await asyncio.sleep(SLEEP_AFTER_CLAIM_ACHIVMENTS)
 
-            await asyncio.sleep(1.5)
-
-        await asyncio.sleep(2)
-        q = await self.wait_and_click("achiv_claim_accept", timeout=2, thr=1)
-        if q:
-            await self.wait_and_click("npc_global_quit_button", timeout=1, thr=1)
-
-        return claimed
+        await self.wait_and_click("npc_global_quit_button", timeout=5, thr=1)
+        return True
 
     async def clan(self) -> bool:
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
             await asyncio.sleep(1)
 
-        if not await self.wait_and_click("main_menu_gui", timeout=5):
+        if not await self._open_menu(timeout=5):
             log("Не удалось открыть главное меню", self.window_id)
             return False
 
         if not await self.wait_and_click("red_dot_clan", timeout=2):
             log("Нет красной точки клана", self.window_id)
-            await self.wait_and_click("npc_global_quit_button", timeout=5)
             return False
         log("Нашел сбор клана", self.window_id)
 
@@ -341,24 +368,28 @@ class Claims(GameAction):
         return True
 
     async def alliance(self) -> bool:
-        if self.settings.REGION != "RU":
+        if self.settings.REGION != Region.RU:
             return False
         num = self.settings.ALLIANCE_BUTTON
         if num == 0:
             return False
 
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
             await asyncio.sleep(1)
 
-        if not await self.wait_and_click("main_menu_gui", timeout=5):
+        if not await self._open_menu(timeout=5):
             log("Не удалось открыть главное меню", self.window_id)
             return False
 
         await asyncio.sleep(1.5)
         if not await self.wait_and_click("alliance_menu_gui", timeout=3):
             log("Не нашел кнопку альянса в меню", self.window_id)
-            await self.wait_and_click("npc_global_quit_button", timeout=5)
             return False
         log("Нашел сбор альянса, жму", self.window_id)
 
@@ -468,17 +499,22 @@ class Claims(GameAction):
         xy_empty, _ = parseCBT("battle_pass_empty", profile=self.profile)
 
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
             await asyncio.sleep(0.2)
 
         await asyncio.sleep(1)
 
-        if not await self.wait_and_click("main_menu_gui", timeout=5):
+        if not await self._open_menu(timeout=5):
+            log("Не удалось открыть главное меню", self.window_id)
             return False
 
         if not await click_with_offset("battle_pass_red_dot_gui", timeout=3):
             log("Батлпасса нет, собирать не будем", self.window_id)
-            await self.wait_and_click("npc_global_quit_button", timeout=5)
             return False
         log("Нашел бп", self.window_id)
 
@@ -499,10 +535,13 @@ class Claims(GameAction):
                 x, y = map(int, podtab[0].split(", "))
                 await self.mouse.click(self.window_info, x, y)
 
-                while True:
+                max_bp_claims = 30
+                bp_claimed = 0
+                while bp_claimed < max_bp_claims:
                     if await self.profile.check_pixel(xy_sbor1, rgb_sbor1, timeout=2):
                         log(f"Собираю награду [{i}.{q}]", self.window_id)
                         await self.mouse.click(self.window_info, *xy_sbor1)
+                        bp_claimed += 1
                         await asyncio.sleep(1)
                     else:
                         log(f"Нет наград во вкладке {i}, под {q}", self.window_id)
@@ -540,7 +579,12 @@ class Claims(GameAction):
             return result
 
         if await self.profile.energo.is_on():
-            await self.profile.energo.turn_off()
+            ok = await self.profile.energo.turn_off()
+            if not ok:
+                await asyncio.sleep(1)
+                ok = await self.profile.energo.turn_off()
+            if not ok:
+                return False
             await asyncio.sleep(2)
 
         if not await self.wait_and_click("magaz_gui_open", timeout=5, thr=2):
@@ -558,7 +602,7 @@ class Claims(GameAction):
             await self.mouse.click(self.window_info, *xy_close1)
             log("Вылезла обычная реклама, закрыл гадость", self.window_id)
 
-        if self.settings.REGION != "RU":
+        if self.settings.REGION != Region.RU:
             xy_google, rgb_google = parseCBT("magaz_google_trigger", profile=self.profile)
             if await self.profile.check_pixel(
                 xy_google, rgb_google,
