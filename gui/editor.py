@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import (
     QButtonGroup, QComboBox, QDialog, QVBoxLayout, QHBoxLayout, QGridLayout, QGroupBox,
-    QLabel, QCheckBox, QLineEdit, QSpinBox, QDialogButtonBox, QScrollArea, QWidget
+    QLabel, QCheckBox, QLineEdit, QSpinBox, QDialogButtonBox, QScrollArea, QWidget,
+    QTabWidget
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtCore import QObject, QEvent
@@ -36,9 +37,11 @@ class Editor(QDialog):
             self.setWindowTitle(f"⚙️ Настройки {self.apply_to[0]}")
         else:
             self.setWindowTitle(f"⚙️ Настройки множества ({len(self.apply_to)})")
-        self.resize(480, 580)
+        self.resize(520, 620)
+        self.setMinimumWidth(50)
         self.setWindowIcon(QIcon(FAVICON))
         self.widgets = {}
+
         ml = QVBoxLayout()
         ml.setAlignment(Qt.AlignTop)
         ml.setContentsMargins(10, 10, 10, 10)
@@ -72,27 +75,35 @@ class Editor(QDialog):
         self.mirka.setLayout(mirkaa)
         ml.addWidget(self.mirka)
 
-        self.low_hp_box = self._spawn("💔 Уход при малом HP")
-        low_hp_layout = QHBoxLayout()
-        self.low_hp_cb = QCheckBox("Включить")
-        self.low_hp_cb.setChecked(settings.LOW_HP_DODGE)
-        self.low_hp_cb.stateChanged.connect(self._health)  # HEALTH_BACK обновлялка
-        low_hp_layout.addWidget(self.low_hp_cb)
-        self.low_hp_box.setLayout(low_hp_layout)
-        ml.addWidget(self.low_hp_box)
-
         pb = self._spawn("⚔️ PVP")
-        pl = QHBoxLayout()
+        pl = QVBoxLayout()
+        pl_row = QHBoxLayout()
         self.pvp_evade = QCheckBox("Додж")
         self.pvp_answer = QCheckBox("Ответ")
         self.pvp_evade.setChecked(settings.PVP_EVADE)
         self.pvp_answer.setChecked(settings.PVP_ANSWER)
         self.pvp_evade.stateChanged.connect(self._pvp_changed)
         self.pvp_answer.stateChanged.connect(self._pvp_changed)
-        pl.addWidget(self.pvp_evade)
-        pl.addWidget(self.pvp_answer)
+        pl_row.addWidget(self.pvp_evade)
+        pl_row.addWidget(self.pvp_answer)
+        pl.addLayout(pl_row)
+        self.autohunt_before_tp = QCheckBox("Автобой ДО телепорта")
+        self.autohunt_before_tp.setChecked(settings.AUTOHUNT_BEFORE_TP)
+        pl.addWidget(self.autohunt_before_tp)
         pb.setLayout(pl)
         ml.addWidget(pb)
+
+        self.low_hp_box = self._spawn("💔 Уход при малом HP")
+        low_hp_layout = QHBoxLayout()
+        self.low_hp_cb = QCheckBox("Включить")
+        self.low_hp_cb.setChecked(settings.LOW_HP_DODGE)
+        self.low_hp_cb.stateChanged.connect(self._health)  # HEALTH_BACK обновлялка
+        low_hp_layout.addWidget(self.low_hp_cb)
+        self.fast_dodge_cb = QCheckBox("Быстрый додж (не терпеть)")
+        self.fast_dodge_cb.setChecked(settings.FAST_DODGE)
+        low_hp_layout.addWidget(self.fast_dodge_cb)
+        self.low_hp_box.setLayout(low_hp_layout)
+        ml.addWidget(self.low_hp_box)
 
         self.hb = self._spawn("❤️ Пороги для улета (% хп)")
         self.hg = QGridLayout()
@@ -108,15 +119,20 @@ class Editor(QDialog):
 
         self._health() # если включено пвп в ответе то монитор хп над показывать
 
-        pd_box = self._spawn("🏰 Сложность пати данжа (1-4)")
-        pd_layout = QHBoxLayout()
-        self.party_dungeon_hard = SpinBox()
-        self.party_dungeon_hard.setRange(1, 4)
-        self.party_dungeon_hard.setValue(settings.PARTY_DUNGEON_HARD)
-        pd_layout.addWidget(QLabel("Сложность:"))
-        pd_layout.addWidget(self.party_dungeon_hard)
-        pd_box.setLayout(pd_layout)
-        ml.addWidget(pd_box)
+        sb = self._spawn("📍 Споты")
+        sl = QHBoxLayout()
+        self.spot_ot = SpinBox()
+        self.spot_ot.setRange(1, 4)
+        self.spot_ot.setValue(settings.SPOT_OT)
+        self.spot_do = SpinBox()
+        self.spot_do.setRange(1, 4)
+        self.spot_do.setValue(settings.SPOT_DO)
+        sl.addWidget(QLabel("От:"))
+        sl.addWidget(self.spot_ot)
+        sl.addWidget(QLabel("До:"))
+        sl.addWidget(self.spot_do)
+        sb.setLayout(sl)
+        ml.addWidget(sb)
 
         self._add_pack(ml, "🧪 Переключалки", {
             "HP_BANK_CHECKER": settings.HP_BANK_CHECKER,
@@ -150,6 +166,28 @@ class Editor(QDialog):
             "SCHEDULE_PARTY_DUNGEON": settings.SCHEDULE_PARTY_DUNGEON,
         })
 
+        alliance = self._spawn("💥 Кнопка альянса")
+        al = QHBoxLayout()
+        self.alliance_btn = SpinBox()
+        self.alliance_btn.setValue(int(settings.ALLIANCE_BUTTON))
+        self.alliance_btn.setRange(0, 2)
+        al.addWidget(QLabel("Куда жмем? (2 центр)"))
+        al.addWidget(self.alliance_btn)
+        alliance.setLayout(al)
+        ml.addWidget(alliance)
+        self.alliance_box = alliance
+        self.alliance_box.setVisible(settings.REGION == "RU")
+
+        pd_box = self._spawn("🏰 Сложность пати данжа (1-4)")
+        pd_layout = QHBoxLayout()
+        self.party_dungeon_hard = SpinBox()
+        self.party_dungeon_hard.setRange(1, 4)
+        self.party_dungeon_hard.setValue(settings.PARTY_DUNGEON_HARD)
+        pd_layout.addWidget(QLabel("Сложность:"))
+        pd_layout.addWidget(self.party_dungeon_hard)
+        pd_box.setLayout(pd_layout)
+        ml.addWidget(pd_box)
+
         db = self._spawn("💰 Страницы донат шопа")
         dl = QHBoxLayout()
         self.dc = []
@@ -163,53 +201,176 @@ class Editor(QDialog):
         db.setLayout(dl)
         ml.addWidget(db)
 
-        alliance = self._spawn("💥 Кнопка альянса")
-        al = QHBoxLayout()
-        self.alliance_btn = SpinBox()
-        self.alliance_btn.setValue(int(settings.ALLIANCE_BUTTON))
-        self.alliance_btn.setRange(0, 2)
-        al.addWidget(QLabel("Куда жмем? (2 центр)"))
-        al.addWidget(self.alliance_btn)
-        alliance.setLayout(al)
-        ml.addWidget(alliance)
-        self.alliance_box = alliance
-        self.alliance_box.setVisible(settings.REGION == "RU")
+        rl2 = QVBoxLayout()
+        rl2.setAlignment(Qt.AlignTop)
+        rl2.setContentsMargins(10, 10, 10, 10)
+        rl2.setSpacing(8)
 
-        sb = self._spawn("📍 Споты")
-        sl = QHBoxLayout()
-        self.spot_ot = SpinBox()
-        self.spot_ot.setRange(1, 4)
-        self.spot_ot.setValue(settings.SPOT_OT)
-        self.spot_do = SpinBox()
-        self.spot_do.setRange(1, 4)
-        self.spot_do.setValue(settings.SPOT_DO)
-        sl.addWidget(QLabel("От:"))
-        sl.addWidget(self.spot_ot)
-        sl.addWidget(QLabel("До:"))
-        sl.addWidget(self.spot_do)
-        sb.setLayout(sl)
-        ml.addWidget(sb)
+        self._add_pack(rl2, "🎁 Что собирать", {
+            "NEED_CLAIM_DAILY": settings.NEED_CLAIM_DAILY,
+            "NEED_CLAIM_MAIL": settings.NEED_CLAIM_MAIL,
+            "NEED_CLAIM_ACHIV": settings.NEED_CLAIM_ACHIV,
+            "NEED_CLAIM_CLAN": settings.NEED_CLAIM_CLAN,
+            "NEED_CLAIM_ALI": settings.NEED_CLAIM_ALI,
+            "NEED_CLAIM_BATTLE_PASS": settings.NEED_CLAIM_BATTLE_PASS,
+            "NEED_CLAIM_DONATE_SHOP": settings.NEED_CLAIM_DONATE_SHOP,
+        })
+
+        self._add_pack(rl2, "🛒 Магазин по расписанию", {
+            "NEED_SHOP_AFTER_RIP": settings.NEED_SHOP_AFTER_RIP,
+            "NEED_SHOP_AFTER_PVP_EVADE": settings.NEED_SHOP_AFTER_PVP_EVADE,
+            "NEED_BACK_TO_SPOT_PARTY_DUNGEON": settings.NEED_BACK_TO_SPOT_PARTY_DUNGEON,
+        })
+
+        tl = QVBoxLayout()
+        tl.setAlignment(Qt.AlignTop)
+        tl.setContentsMargins(10, 10, 10, 10)
+        tl.setSpacing(8)
+
+        tb1 = self._spawn("⏱ Таймаут ответа на пвп (сек)")
+        tb1_l = QHBoxLayout()
+        self.delay_pvp_answer = SpinBox()
+        self.delay_pvp_answer.setRange(1, 300)
+        self.delay_pvp_answer.setValue(int(settings.DELAY_PVP_ANSWER))
+        tb1_l.addWidget(QLabel("Секунд:"))
+        tb1_l.addWidget(self.delay_pvp_answer)
+        tb1.setLayout(tb1_l)
+        tl.addWidget(tb1)
+
+        tb2 = self._spawn("🔁 Итераций проверки хп после пвп")
+        tb2_l = QHBoxLayout()
+        self.pvp_answer_check = SpinBox()
+        self.pvp_answer_check.setRange(1, 30)
+        self.pvp_answer_check.setValue(int(settings.PVP_ANSWER_CHECK_HP_ITERATIONS))
+        tb2_l.addWidget(QLabel("Кол-во:"))
+        tb2_l.addWidget(self.pvp_answer_check)
+        tb2.setLayout(tb2_l)
+        tl.addWidget(tb2)
+
+        tb3 = self._spawn("💀 Сон после смерти (сек)")
+        tb3_l = QHBoxLayout()
+        self.min_sleep_rip = SpinBox()
+        self.min_sleep_rip.setRange(0, 3600)
+        self.min_sleep_rip.setValue(int(settings.MIN_SLEEP_AFTER_RIP))
+        self.max_sleep_rip = SpinBox()
+        self.max_sleep_rip.setRange(0, 3600)
+        self.max_sleep_rip.setValue(int(settings.MAX_SLEEP_AFTER_RIP))
+        tb3_l.addWidget(QLabel("Мин:"))
+        tb3_l.addWidget(self.min_sleep_rip)
+        tb3_l.addWidget(QLabel("Макс:"))
+        tb3_l.addWidget(self.max_sleep_rip)
+        tb3.setLayout(tb3_l)
+        tl.addWidget(tb3)
+
+        tb4 = self._spawn("💔 Сон после лоу-хп доджа (сек)")
+        tb4_l = QHBoxLayout()
+        self.min_low_hp = SpinBox()
+        self.min_low_hp.setRange(0, 3600)
+        self.min_low_hp.setValue(int(settings.MIN_LOW_HP_DODGE_SLEEP))
+        self.max_low_hp = SpinBox()
+        self.max_low_hp.setRange(0, 3600)
+        self.max_low_hp.setValue(int(settings.MAX_LOW_HP_DODGE_SLEEP))
+        tb4_l.addWidget(QLabel("Мин:"))
+        tb4_l.addWidget(self.min_low_hp)
+        tb4_l.addWidget(QLabel("Макс:"))
+        tb4_l.addWidget(self.max_low_hp)
+        tb4.setLayout(tb4_l)
+        tl.addWidget(tb4)
+
+        tb5 = self._spawn("⚔️ Сон после пвп-доджа (сек)")
+        tb5_l = QHBoxLayout()
+        self.min_pvp_dodge = SpinBox()
+        self.min_pvp_dodge.setRange(0, 3600)
+        self.min_pvp_dodge.setValue(int(settings.MIN_PVP_DODGE_SLEEP))
+        self.max_pvp_dodge = SpinBox()
+        self.max_pvp_dodge.setRange(0, 3600)
+        self.max_pvp_dodge.setValue(int(settings.MAX_PVP_DODGE_SLEEP))
+        tb5_l.addWidget(QLabel("Мин:"))
+        tb5_l.addWidget(self.min_pvp_dodge)
+        tb5_l.addWidget(QLabel("Макс:"))
+        tb5_l.addWidget(self.max_pvp_dodge)
+        tb5.setLayout(tb5_l)
+        tl.addWidget(tb5)
 
         btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btn_box.accepted.connect(self._confirm)
         btn_box.rejected.connect(self.reject)
 
+        tabs = QTabWidget()
+        tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #333;
+                background: #151515;
+                top: -1px;
+            }
+            QTabBar {
+                background: #111217;
+            }
+            QTabBar::tab {
+                background: #1c1c28;
+                color: #bbb;
+                padding: 6px 14px;
+                border: 1px solid #333;
+                border-bottom: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                margin-right: 2px;
+            }
+            QTabBar::tab:hover {
+                background: #252535;
+                color: #ddd;
+            }
+            QTabBar::tab:selected {
+                background: #151515;
+                color: #00ffcc;
+                border: 1px solid #00ffcc;
+                border-bottom: none;
+            }
+        """)
 
-        container = QWidget()
-        container.setLayout(ml)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(container)
-        scroll.setStyleSheet(SCROLL + """
+        tab1 = QWidget()
+        tab1.setLayout(ml)
+        scroll1 = QScrollArea()
+        scroll1.setWidgetResizable(True)
+        scroll1.setWidget(tab1)
+        scroll1.setStyleSheet(SCROLL + """
              QScrollArea {
                  border: none;
                  background-color: #151515;
              }
          """)
 
+        tab2 = QWidget()
+        tab2.setLayout(rl2)
+        scroll2 = QScrollArea()
+        scroll2.setWidgetResizable(True)
+        scroll2.setWidget(tab2)
+        scroll2.setStyleSheet(SCROLL + """
+             QScrollArea {
+                 border: none;
+                 background-color: #151515;
+             }
+         """)
+
+        tab3 = QWidget()
+        tab3.setLayout(tl)
+        scroll3 = QScrollArea()
+        scroll3.setWidgetResizable(True)
+        scroll3.setWidget(tab3)
+        scroll3.setStyleSheet(SCROLL + """
+             QScrollArea {
+                 border: none;
+                 background-color: #151515;
+             }
+         """)
+
+        tabs.addTab(scroll1, "⚙️ Основное")
+        tabs.addTab(scroll2, "🎁 Награды и шоп")
+        tabs.addTab(scroll3, "⏱ Тайминги")
+
         main_layout = QVBoxLayout()
-        main_layout.addWidget(scroll)  # скролл с настрами
-        main_layout.addWidget(btn_box)  # кнопки ок и канцел снизу
+        main_layout.addWidget(tabs)
+        main_layout.addWidget(btn_box)
         self.setLayout(main_layout)
 
         self.setStyleSheet(STYLE)
@@ -218,6 +379,15 @@ class Editor(QDialog):
         self.spot_ot.installEventFilter(self.blocker)
         self.spot_do.installEventFilter(self.blocker)
         self.alliance_btn.installEventFilter(self.blocker)
+        self.party_dungeon_hard.installEventFilter(self.blocker)
+        self.delay_pvp_answer.installEventFilter(self.blocker)
+        self.pvp_answer_check.installEventFilter(self.blocker)
+        self.min_sleep_rip.installEventFilter(self.blocker)
+        self.max_sleep_rip.installEventFilter(self.blocker)
+        self.min_low_hp.installEventFilter(self.blocker)
+        self.max_low_hp.installEventFilter(self.blocker)
+        self.min_pvp_dodge.installEventFilter(self.blocker)
+        self.max_pvp_dodge.installEventFilter(self.blocker)
 
     def _spawn(self, title: str):
         box = QGroupBox(title)
@@ -307,6 +477,8 @@ class Editor(QDialog):
             self.settings.PVP_EVADE = self.pvp_evade.isChecked()
             self.settings.PVP_ANSWER = self.pvp_answer.isChecked()
             self.settings.HEALTH_BACK = [int(cb.text()) for cb in self.hc if cb.isChecked()]
+            self.settings.AUTOHUNT_BEFORE_TP = self.autohunt_before_tp.isChecked()
+            self.settings.FAST_DODGE = self.fast_dodge_cb.isChecked()
 
             for key in ["HP_BANK_CHECKER", "SOSKA_CHECKER", "DEATH_CHECKER", "OVERWEIGHT_CHECKER", "TELEGRAM_NOTIFIES", "BUY_LOOT_TOWN", "BUY_LOOT_RIP"]:
                 self.settings.__dict__[key] = self.widgets[key].isChecked()
@@ -326,6 +498,36 @@ class Editor(QDialog):
                 self.settings.ALLIANCE_BUTTON = self.alliance_btn.value()
             else:
                 self.settings.ALLIANCE_BUTTON = 0
+
+            for key in ["NEED_CLAIM_DAILY", "NEED_CLAIM_MAIL", "NEED_CLAIM_ACHIV",
+                        "NEED_CLAIM_CLAN", "NEED_CLAIM_ALI", "NEED_CLAIM_BATTLE_PASS",
+                        "NEED_CLAIM_DONATE_SHOP", "NEED_SHOP_AFTER_RIP",
+                        "NEED_SHOP_AFTER_PVP_EVADE", "NEED_BACK_TO_SPOT_PARTY_DUNGEON"]:
+                self.settings.__dict__[key] = self.widgets[key].isChecked()
+
+            self.settings.DELAY_PVP_ANSWER = self.delay_pvp_answer.value()
+            self.settings.PVP_ANSWER_CHECK_HP_ITERATIONS = self.pvp_answer_check.value()
+
+            min_rip = self.min_sleep_rip.value()
+            max_rip = self.max_sleep_rip.value()
+            if min_rip > max_rip:
+                min_rip, max_rip = max_rip, min_rip
+            self.settings.MIN_SLEEP_AFTER_RIP = min_rip
+            self.settings.MAX_SLEEP_AFTER_RIP = max_rip
+
+            min_lh = self.min_low_hp.value()
+            max_lh = self.max_low_hp.value()
+            if min_lh > max_lh:
+                min_lh, max_lh = max_lh, min_lh
+            self.settings.MIN_LOW_HP_DODGE_SLEEP = min_lh
+            self.settings.MAX_LOW_HP_DODGE_SLEEP = max_lh
+
+            min_pd = self.min_pvp_dodge.value()
+            max_pd = self.max_pvp_dodge.value()
+            if min_pd > max_pd:
+                min_pd, max_pd = max_pd, min_pd
+            self.settings.MIN_PVP_DODGE_SLEEP = min_pd
+            self.settings.MAX_PVP_DODGE_SLEEP = max_pd
 
             for nick in self.apply_to: # срет в логи сильно потом оптимизирую
                 save_settings(nick, self.settings)

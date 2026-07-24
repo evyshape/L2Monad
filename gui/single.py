@@ -29,12 +29,13 @@ FAVICON = os.path.join(os.path.dirname(__file__), 'images', 'favicon.ico')
 
 class WindowControlDialog(QDialog):
     def __init__(self, gui):
-        super().__init__()
+        super().__init__(gui)
         self.gui = gui
         self.controller = ProfileController()
         self.setWindowTitle("L2Monad | Single")
         self.setWindowIcon(QIcon(FAVICON))
         self.resize(540, 200)
+        self.setMinimumWidth(50)
         self.setStyleSheet(STYLE)
         self.window_buttons = {}
         self.window_status = {}
@@ -93,10 +94,15 @@ class WindowControlDialog(QDialog):
             self.save_window_position()
         except Exception:
             pass
+        try:
+            if hasattr(self, 'timer'):
+                self.timer.stop()
+        except Exception:
+            pass
         super().closeEvent(event)
 
     def _start_timer(self):
-        self.timer = QTimer()
+        self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh_status)
         self.timer.start(100)
 

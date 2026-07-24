@@ -81,6 +81,7 @@ class SettingsChanger(QWidget):
         self.setWindowTitle("L2Monad | Settings Changer")
         self.setWindowIcon(QIcon(FAVICON))
         self.resize(600, 500)
+        self.setMinimumWidth(50)
 
         self.btns: Dict[str, Windowbtnn] = {}
 
@@ -195,6 +196,9 @@ class SettingsChanger(QWidget):
 
         nick = nicks[0]
         settings = load_settings(nick)
+        if settings is None:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить настройки: {nick}")
+            return
         #print(settings)
         #print(nick)
         dlg = Editor(nick, settings, self)
@@ -211,6 +215,9 @@ class SettingsChanger(QWidget):
 
         nick = nicks[0]
         settings = load_settings(nick)
+        if settings is None:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось загрузить настройки: {nick}")
+            return
         dlg = Editor(nick, settings, self, apply_to=nicks)
         dlg.exec_()
         self.load()
