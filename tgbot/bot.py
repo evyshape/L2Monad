@@ -13,17 +13,21 @@ class TgBot:
     _instance = None
 
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.loop = asyncio.get_running_loop()
+        if cls._instance is not None:
+            return cls._instance
 
-            if config.STATE is False:
-                log(
-                    f"TG offed | L2Monad",
-                    context="TG"
-                )
-                return cls._instance
+        inst = super().__new__(cls)
+        inst.loop = asyncio.get_running_loop()
+        inst.bot = None
+        inst.dp = None
+        inst.notifier = None
 
+        if config.STATE is False:
+            log(f"TG offed | L2Monad", context="TG")
+            cls._instance = inst
+            return inst
+
+        try:
             s = None
             if config.proxy_url:
                 try:
@@ -39,48 +43,54 @@ class TgBot:
                     else:
                         log(f"Proxy FAIL: {resp.status_code}")
                         config.PROXY_HOST = None
-
                 except Exception as e:
                     log(f"Proxy ERROR: {e}")
                     config.PROXY_HOST = None
 
-            cls._instance.bot = Bot(
+            inst.bot = Bot(
                 token=config.BOT_TOKEN,
                 default=DefaultBotProperties(parse_mode="HTML"),
                 session=s,
             )
-            asyncio.run_coroutine_threadsafe(
-                setup_bot(cls._instance.bot),
-                cls._instance.loop
-            )
-            cls._instance.dp = Dispatcher()
+            asyncio.run_coroutine_threadsafe(setup_bot(inst.bot), inst.loop)
+            inst.dp = Dispatcher()
             for r in all_routers:
-                cls._instance.dp.include_router(r)
-            cls._instance.notifier = Notifier(cls._instance.bot)
-            log(
-                f"TG started successfully | L2Monad",
-                context="TG"
-            )
+                inst.dp.include_router(r)
+            inst.notifier = Notifier(inst.bot)
+            log(f"TG started successfully | L2Monad", context="TG")
+        except Exception as e:
+            log(f"TG init FAILED: {e} | L2Monad", context="TG", level="ERROR")
+            config.STATE = False
 
-        return cls._instance
+        cls._instance = inst
+        return inst
 
     def send_notification(self, *args, **kwargs):
-        if config.STATE is True:
+        if config.STATE is True and self.notifier is not None:
             asyncio.run_coroutine_threadsafe(
                 self.notifier.send_notification(*args, **kwargs),
                 self.loop
             )
 
     def send_pic(self, *args, **kwargs):
-        if config.STATE is True:
+        if config.STATE is True and self.notifier is not None:
             asyncio.run_coroutine_threadsafe(
                 self.notifier.send_photo(*args, **kwargs),
                 self.loop
             )
 
     def start_polling(self):
-        if config.STATE is True:
-            asyncio.run_coroutine_threadsafe(
+        if config.STATE is True and self.dp is not None and self.bot is not None:
+            fut = asyncio.run_coroutine_threadsafe(
                 self.dp.start_polling(self.bot),
                 self.loop
             )
+            fut.add_done_callback(self._polling_done)
+
+    def _polling_done(self, fut):
+        try:
+            exc = fut.exception()
+            if exc:
+                log(f"TG polling died: {exc}", context="TG", level="ERROR")
+        except Exception:
+            pass
