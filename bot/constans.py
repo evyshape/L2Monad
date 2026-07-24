@@ -1,5 +1,7 @@
 import os
 
+from bot.events.enums import BotState, Region
+
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LOG_DIR = os.path.join(ROOT_DIR, "logs")
 PROFILES_DIR = os.path.join(ROOT_DIR, "profiles")
@@ -20,13 +22,13 @@ NPC_CHECK_BUTTONS = {
 }
 
 PARTY_DUNGEON_CONS = {
-    "RU": {
+    Region.RU: {
         "need": ["163, 166, 171", "78, 83, 90", "153, 155, 157", "65, 68, 72", "190, 193, 197"],
         "x": 174,
         "scroll": [45, 200],
         "portal": ["75-170, 25", "255, 255, 255"],
     },
-    "JP": {
+    Region.JP: {
         "need": ["163, 166, 171", "78, 83, 90", "153, 155, 157", "65, 68, 72", "190, 193, 197"],
         "x": 166,
         "scroll": [45, 200],
@@ -43,7 +45,7 @@ BATTLE_PASS = {
 }
 
 DAILY = {
-    "RU": {
+    Region.RU: {
         "red_dot_clr": ["182, 4, 5"], # красная точка на вкладке
         "y_vkladki": 395,  # ширина окна
 
@@ -61,7 +63,7 @@ DAILY = {
         "end_button_2": 193
     },
 
-    "JP": {
+    Region.JP: {
         "red_dot_clr": ["182, 4, 5"], # красная точка на вкладке
         "y_vkladki": 395,  # ширина окна
 
@@ -80,18 +82,7 @@ DAILY = {
     }
 }
 
-GLOBAL_STATES = [
-    "null",
-    "afk",
-    "combat",
-    "shopping",
-    "stashing",
-    "death",
-    "claiming",
-    "schedule",
-    "pvp",
-    "alchemy"
-]
+GLOBAL_STATES = list(BotState)
 
 #todo мб добавить поддержку других? а надо ли?
 SUPPORTED_REZ = [

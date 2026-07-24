@@ -20,10 +20,12 @@ def load_settings(nickname: str, region: str | None = None) -> BaseSettings | No
             data = json.load(f)
         for key, val in default_values.items():
             data.setdefault(key, val)
+        data = {k: v for k, v in data.items() if k in default_values}
         settings = BaseSettings(**data)
         save_settings(nickname, settings)
         return settings
-    except Exception:
+    except Exception as e:
+        print(f"[settings_loader] {nickname}: {e}")
         return None
 
 

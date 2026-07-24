@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import os
 
 from bot.constans import SCHEDULE_LOG_DIR
+from bot.events.enums import Region, ScheduleAction
 
 @dataclass
 class BaseSettings:
@@ -32,42 +33,79 @@ class BaseSettings:
     SPOT_OT: int # 1 не может быть выше 4
     SPOT_DO: int # 4 не может быть выше 4
     TELEGRAM_NOTIFIES: bool # уведомления от этого окна в тг бота
+    NEED_CLAIM_DAILY: bool
+    NEED_CLAIM_MAIL: bool
+    NEED_CLAIM_ACHIV: bool
+    NEED_CLAIM_CLAN: bool
+    NEED_CLAIM_ALI: bool
+    NEED_CLAIM_BATTLE_PASS: bool
+    NEED_CLAIM_DONATE_SHOP: bool
+    NEED_SHOP_AFTER_RIP: bool
+    NEED_SHOP_AFTER_PVP_EVADE: bool
+    NEED_BACK_TO_SPOT_PARTY_DUNGEON: bool
+    FAST_DODGE: bool
+    PVP_ANSWER_CHECK_HP_ITERATIONS: int
+    DELAY_PVP_ANSWER: int
+    MIN_SLEEP_AFTER_RIP: int
+    MAX_SLEEP_AFTER_RIP: int
+    MIN_LOW_HP_DODGE_SLEEP: int
+    MAX_LOW_HP_DODGE_SLEEP: int
+    MIN_PVP_DODGE_SLEEP: int
+    MAX_PVP_DODGE_SLEEP: int
+    AUTOHUNT_BEFORE_TP: bool
 
 
     def __post_init__(self):
         if any(x > 4 for x in (self.SPOT_OT, self.SPOT_DO)):
             raise ValueError("SPOT_OT и SPOT_DO не могут быть больше 4")
 
-        regions = {"JP", "RU"}
+        regions = {Region.JP, Region.RU}
         if self.REGION not in regions:
             raise ValueError(f"REGION должен быть одним из: {', '.join(regions)}")
 
         if self.PVP_EVADE and self.PVP_ANSWER:
             raise ValueError("PVP_EVADE и PVP_ANSWER не могут быть одновременно True")
 
-        for name, schedule in {
-            "SCHEDULE_BUYING": self.SCHEDULE_BUYING,
-            "SCHEDULE_MAIL": self.SCHEDULE_MAIL,
-            "SCHEDULE_REWARDS": self.SCHEDULE_REWARDS
-        }.items():
-            self._validate_schedule(schedule, name)
+        self.SCHEDULE_BUYING = self._validate_schedule(self.SCHEDULE_BUYING, "SCHEDULE_BUYING")
+        self.SCHEDULE_MAIL = self._validate_schedule(self.SCHEDULE_MAIL, "SCHEDULE_MAIL")
+        self.SCHEDULE_REWARDS = self._validate_schedule(self.SCHEDULE_REWARDS, "SCHEDULE_REWARDS")
+        self.SCHEDULE_AUCTION = self._validate_schedule(self.SCHEDULE_AUCTION, "SCHEDULE_AUCTION")
+        self.SCHEDULE_PARTY_DUNGEON = self._validate_schedule(self.SCHEDULE_PARTY_DUNGEON, "SCHEDULE_PARTY_DUNGEON")
+        self.SCHEDULE_SCHEDULE = self._validate_schedule_range(self.SCHEDULE_SCHEDULE)
 
-    def _validate_schedule(self, schedule_str: str, field_name: str):
+    def _validate_schedule(self, schedule_str: str, field_name: str) -> str:
         if not schedule_str:
-            return
+            return ""
+        valid = []
         for time_str in schedule_str.split("|"):
             try:
-                datetime.strptime(time_str, "%H:%M")
+                datetime.strptime(time_str.strip(), "%H:%M")
+                valid.append(time_str.strip())
             except ValueError:
-                raise ValueError(f"{field_name} содержит некорректное время: '{time_str}'")
+                pass
+        return "|".join(valid)
+
+    @staticmethod
+    def _validate_schedule_range(schedule_str: str) -> str:
+        if not schedule_str:
+            return ""
+        parts = schedule_str.split("-")
+        if len(parts) != 2:
+            return ""
+        try:
+            datetime.strptime(parts[0].strip(), "%H:%M")
+            datetime.strptime(parts[1].strip(), "%H:%M")
+            return f"{parts[0].strip()}-{parts[1].strip()}"
+        except ValueError:
+            return ""
 
     def get_schedule(self) -> Dict[str, list]:
         return {
-            "buying": self.SCHEDULE_BUYING.split('|') if self.SCHEDULE_BUYING else [],
-            "mail": self.SCHEDULE_MAIL.split('|') if self.SCHEDULE_MAIL else [],
-            "rewards": self.SCHEDULE_REWARDS.split('|') if self.SCHEDULE_REWARDS else [],
-            "auction": self.SCHEDULE_AUCTION.split('|') if self.SCHEDULE_AUCTION else [],
-            "party_dungeon": self.SCHEDULE_PARTY_DUNGEON.split('|') if self.SCHEDULE_PARTY_DUNGEON else [],
+            ScheduleAction.BUYING: self.SCHEDULE_BUYING.split('|') if self.SCHEDULE_BUYING else [],
+            ScheduleAction.MAIL: self.SCHEDULE_MAIL.split('|') if self.SCHEDULE_MAIL else [],
+            ScheduleAction.REWARDS: self.SCHEDULE_REWARDS.split('|') if self.SCHEDULE_REWARDS else [],
+            ScheduleAction.AUCTION: self.SCHEDULE_AUCTION.split('|') if self.SCHEDULE_AUCTION else [],
+            ScheduleAction.PARTY_DUNGEON: self.SCHEDULE_PARTY_DUNGEON.split('|') if self.SCHEDULE_PARTY_DUNGEON else [],
         }
 
     def is_schedule(self, action: str, nickname: str) -> bool:
@@ -178,5 +216,25 @@ default_values = {
     "SPOT_OT": 1,
     "SPOT_DO": 1,
     "TELEGRAM_NOTIFIES": True,
+    "NEED_CLAIM_DAILY": True,
+    "NEED_CLAIM_MAIL": True,
+    "NEED_CLAIM_ACHIV": True,
+    "NEED_CLAIM_CLAN": True,
+    "NEED_CLAIM_ALI": True,
+    "NEED_CLAIM_BATTLE_PASS": True,
+    "NEED_CLAIM_DONATE_SHOP": True,
+    "NEED_SHOP_AFTER_RIP": True,
+    "NEED_SHOP_AFTER_PVP_EVADE": True,
+    "NEED_BACK_TO_SPOT_PARTY_DUNGEON": True,
+    "FAST_DODGE": True,
+    "PVP_ANSWER_CHECK_HP_ITERATIONS": 3,
+    "DELAY_PVP_ANSWER": 50,
+    "MIN_SLEEP_AFTER_RIP": 150,
+    "MAX_SLEEP_AFTER_RIP": 300,
+    "MIN_LOW_HP_DODGE_SLEEP": 60,
+    "MAX_LOW_HP_DODGE_SLEEP": 300,
+    "MIN_PVP_DODGE_SLEEP": 120,
+    "MAX_PVP_DODGE_SLEEP": 240,
+    "AUTOHUNT_BEFORE_TP": True,
 }
 

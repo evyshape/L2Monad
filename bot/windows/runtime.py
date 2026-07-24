@@ -2,9 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, Union
 
-from bot.constans import GLOBAL_STATES
 from bot.cbt import CBT_JP, CBT_RU
-from bot.events.enums import OverWeight
+from bot.events.enums import BotState, OverWeight
 
 
 @dataclass
@@ -13,7 +12,7 @@ class RuntimeData:
     Класс для хранения временных данных (за сессию)
     """
 
-    current_state: str = "null"                     # текущий статус (валидные значения в GLOBAL_STATES)
+    current_state: str = BotState.NULL                # текущий статус (валидные значения в GLOBAL_STATES)
     stashing_count: int = 0                         # количество попыток стешнуть шмотки
     buy_count: int = 0                              # количество попыток закупиться
     purc_count: int = 0                             # количество попыток продаться
@@ -35,8 +34,8 @@ class RuntimeData:
     CAPTURE_LIMIT: int = 10
 
     def __post_init__(self):
-        if self.current_state not in GLOBAL_STATES:
-            raise ValueError(f"Невалидный стейт при ините: {self.current_state} / Валидные: {GLOBAL_STATES}")
+        if self.current_state not in list(BotState):
+            raise ValueError(f"Невалидный стейт при ините: {self.current_state} / Валидные: {list(BotState)}")
 
     def update_overweight(self, value: OverWeight) -> None:
         self.last_overweight = self.overweight
@@ -114,8 +113,8 @@ class RuntimeData:
 
     def set_state(self, new_state: str) -> None:
         #todo replace all to set state
-        if new_state not in GLOBAL_STATES:
-            raise ValueError(f"Невалидный стейт: {new_state} / Валидные: {GLOBAL_STATES}")
+        if new_state not in list(BotState):
+            raise ValueError(f"Невалидный стейт: {new_state} / Валидные: {list(BotState)}")
         self.current_state = new_state
 
     def reset(self) -> None:
