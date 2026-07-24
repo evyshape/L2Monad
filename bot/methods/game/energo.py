@@ -7,7 +7,7 @@ from bot.delays import (
     DELAY_CHECK_ENERGO,
     SLEEP_AFTER_UNBLOCK,
 )
-from bot.events.enums import MonitorType
+from bot.events.enums import MonitorType, Region
 from bot.methods.base import parseCBT
 from bot.methods.game._base import GameAction
 
@@ -16,6 +16,8 @@ class Energo(GameAction):
 
     async def is_on(self) -> bool:
         xy, rgb = parseCBT("energomode_center_gui", profile=self.profile)
+        if xy is None:
+            return False
         if not await self.profile.check_pixel(xy, rgb, timeout=DELAY_CHECK_ENERGO):
             log("Не находимся в энерго", self.window_id)
             return False
@@ -24,6 +26,8 @@ class Energo(GameAction):
 
     async def turn_on(self) -> bool:
         button_xy, _ = parseCBT("energo_mode_gui", profile=self.profile)
+        if button_xy is None:
+            return False
         button_x, button_y = button_xy
         window = self.window_info[self.window_id]
         width = window["Width"]
@@ -78,14 +82,17 @@ class Energo(GameAction):
                 self.window_id, self.profile, [MonitorType.HEALTH]
             )
 
+        if ignore:
+            return True
+
         eth_err = await self.profile.errors.has_ethernet1()
         if eth_err:
             await self.profile.errors.close_ethernet1()
             await asyncio.sleep(3)
 
-        thr = 17 if self.settings.REGION == "RU" else 2
+        thr = 17 if self.settings.REGION == Region.RU else 2
         teleported = await self.profile.check_pixel(xy1, rgb1, timeout=10, thr=thr)
-        if teleported or ignore:
+        if teleported:
             return True
 
         if await self.is_on():
@@ -116,6 +123,8 @@ class Energo(GameAction):
         if all(results):
             log("Лвл ап вылез, закрываю", self.window_id)
             xy_close, _ = parseCBT("lvl_up_close", profile=self.profile)
+            if xy_close is None:
+                return False
             await self.mouse.click(self.window_info, *xy_close)
             self.profile.notify("info", "Перс апнул лвл, будь во внимании и качни поинт!")
             await asyncio.sleep(1.3)
