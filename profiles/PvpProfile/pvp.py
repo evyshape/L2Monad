@@ -7,24 +7,9 @@ from random import randint, uniform
 from bot.clogger import log
 
 from profiles.event_driven import EventDrivenProfile
-from bot.events.enums import MonitorType, ErrorTypes
+from bot.events.enums import MonitorType, ErrorTypes, BotState, NotifyLevel
 from bot.methods.base import parseCBT
-from bot.delays import DELAY_PVP_ANSWER, MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP, \
-    MAX_PVP_DODGE_SLEEP, MIN_PVP_DODGE_SLEEP, MAX_LOW_HP_DODGE_SLEEP, MIN_LOW_HP_DODGE_SLEEP
 from bot.methods.other import screenshot_window
-from bot.misc import (
-    FAST_DODGE,
-    NEED_CLAIM_ACHIV,
-    NEED_CLAIM_ALI,
-    NEED_CLAIM_BATTLE_PASS,
-    NEED_CLAIM_CLAN,
-    NEED_CLAIM_DAILY,
-    NEED_CLAIM_DONATE_SHOP,
-    NEED_CLAIM_MAIL,
-    NEED_SHOP_AFTER_PVP_EVADE,
-    NEED_SHOP_AFTER_RIP,
-    PVP_ANSWER_CHECK_HP_ITERATIONS,
-)
 from bot.methods.game import PartyDungeon
 
 
@@ -86,15 +71,18 @@ class PvPDodge(EventDrivenProfile):
             if not rip:
                 to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
                 if to_spot:
-                    self.runtime_data.current_state = "combat"
+                    self.runtime_data.current_state = BotState.COMBAT
         if hunt:
-            self.runtime_data.current_state = "combat"
+            self.runtime_data.current_state = BotState.COMBAT
 
         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
         self._event_worker_task = asyncio.create_task(self._event_worker())
 
         while self.running:
-            await asyncio.sleep(0.1)
+            if self._event_worker_task.done():
+                log("Event worker умер, перезапускаю", window_id)
+                self._event_worker_task = asyncio.create_task(self._event_worker())
+            await asyncio.sleep(1)
 
     async def on_stop(self) -> None:
         window_id = self.window_id
@@ -110,52 +98,47 @@ class PvPDodge(EventDrivenProfile):
     async def respawn_buy(self):
         window_id = self.window_id
         log("Респавнюсь + посплю + выкуплю шмоточки", window_id)
-        respawned = await self.combat.respawn()
-        if respawned:
-            self.events_checker.stop_monitoring(window_id)
-            log("Стопнул мониторинг новых ивентов на время сна", window_id)
-            await asyncio.sleep(10) #todo
-            await self.energo.turn_on()
-            await asyncio.sleep(1)
-
-            await asyncio.sleep(random.uniform(MIN_SLEEP_AFTER_RIP, MAX_SLEEP_AFTER_RIP))
-            log("Поспал, пробую выкупить опыт и шмотки", window_id)
-            if await self.energo.is_on():
-                await self.energo.turn_off()
+        async with self.paused_monitors():
+            respawned = await self.combat.respawn()
+            if respawned:
+                log("Стопнул мониторинг новых ивентов на время сна", window_id)
+                await asyncio.sleep(10) #todo
+                await self.energo.turn_on()
                 await asyncio.sleep(1)
 
-            if self.settings.BUY_LOOT_RIP:
-                buyed = await self.town.buy_loot(clr=False)
-                if buyed:
-                    log("Что-то выкупил..", window_id)
+                await asyncio.sleep(random.uniform(self.settings.MIN_SLEEP_AFTER_RIP, self.settings.MAX_SLEEP_AFTER_RIP))
+                log("Поспал, пробую выкупить опыт и шмотки", window_id)
+                if await self.energo.is_on():
+                    await self.energo.turn_off()
+                    await asyncio.sleep(1)
 
-            if NEED_SHOP_AFTER_RIP:
-                log("Пробую идти к бакалейщику", window_id)
-                stash_ok, in_town, npcs = await self.town.go_stash()
-                shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs)
-                buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
-                if stash_ok:
-                    log("Успешно скупился!", window_id)
+                if self.settings.BUY_LOOT_RIP:
+                    buyed = await self.town.buy_loot(clr=False)
+                    if buyed:
+                        log("Что-то выкупил..", window_id)
 
-            await asyncio.sleep(1)
-            log("Тпаюсь на спот и ставлю автобой", window_id)
-            #todo сунуть проверку телепорт свитков
-            to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
-            if to_spot:
-                self.runtime_data.current_state = "combat"
-                self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
-                return True
+                if self.settings.NEED_SHOP_AFTER_RIP:
+                    log("Пробую идти к бакалейщику", window_id)
+                    stash_ok, in_town, npcs = await self.town.go_stash()
+                    shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs)
+                    buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
+                    if stash_ok:
+                        log("Успешно скупился!", window_id)
+
+                await asyncio.sleep(1)
+                log("Тпаюсь на спот и ставлю автобой", window_id)
+                #todo сунуть проверку телепорт свитков
+                to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
+                if to_spot:
+                    self.runtime_data.current_state = BotState.COMBAT
+                    return True
+                else:
+                    #todo почему автобой не включился?
+                    self.notify_screenshot("Шось пошло не так, не тпнулся на спот либо не включился автобой?")
+                    return
             else:
-                #todo почему автобой не включился?
-                self.notify_screenshot("Шось пошло не так, не тпнулся на спот либо не включился автобой?")
-                self.events_checker.start_monitoring(window_id, self,
-                                                     monitors=self.get_monitors)
-                return
-        else:
-            self.events_checker.stop_monitoring(window_id)
-            path = screenshot_window(self.window_info)
-            log(f"Чини, не трогаю окно 1 час | {path}", window_id)
-            await asyncio.sleep(3600)
+                log("Не респавнулся, жду повторного ивента", window_id)
+                await asyncio.sleep(4)
 
     async def buying(self):
         window_id = self.window_id
@@ -165,7 +148,7 @@ class PvPDodge(EventDrivenProfile):
     async def back_to_spot(self):
 
         window_id = self.window_id
-        if self.runtime_data.current_state == "combat":
+        if self.runtime_data.current_state == BotState.COMBAT:
             return True
         log("Пробую вернуться на спот", window_id)
         self.events_checker.stop_monitoring(window_id)
@@ -173,7 +156,7 @@ class PvPDodge(EventDrivenProfile):
         if energo:
             await self.energo.turn_off()
 
-        if NEED_SHOP_AFTER_PVP_EVADE:
+        if self.settings.NEED_SHOP_AFTER_PVP_EVADE:
             stash_ok, in_town, npcs = await self.town.go_stash()
             shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
             buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
@@ -185,17 +168,17 @@ class PvPDodge(EventDrivenProfile):
         to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
         if to_spot:
-            self.runtime_data.current_state = "combat"
+            self.runtime_data.current_state = BotState.COMBAT
 
             self.runtime_data.update_last_return()
             return True
-        return True
+        return to_spot
 
     async def dodge(self) -> None:
-        self.runtime_data.set_state("pvp")
+        self.runtime_data.set_state(BotState.PVP)
         window_id, window = self.window_id, self.window_info[self.window_id]
         self.events_checker.stop_monitoring(window_id)
-        if not FAST_DODGE and self.settings.LOW_HP_DODGE:
+        if not self.settings.FAST_DODGE and self.settings.LOW_HP_DODGE:
             self.events_checker.start_monitoring(window_id, self, monitors=[MonitorType.HEALTH])
             hb = self.settings.HEALTH_BACK
             m = max(hb or [30])
@@ -255,21 +238,21 @@ class PvPDodge(EventDrivenProfile):
             rip, btn = await self.combat.is_dead()
             if rip:
                 log("rly rip", window_id)
-                self.runtime_data.current_state = "death"
+                self.runtime_data.current_state = BotState.DEATH
                 x = True
                 return
 
         result = await self.tp.wait_arrived()
         if result and not x:
-            sleept = randint(MIN_PVP_DODGE_SLEEP, MAX_PVP_DODGE_SLEEP)
+            sleept = randint(self.settings.MIN_PVP_DODGE_SLEEP, self.settings.MAX_PVP_DODGE_SLEEP)
             await self.energo.turn_on()
-            log(f"Сплю {sleept} мин.", window_id)
+            log(f"Сплю {sleept} сек.", window_id)
             self.runtime_data.update_last_succ_dodge()
-            self.runtime_data.current_state = "afk"
-            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M:%S")
-            self.notify("warning", "Задоджил пвп успешно")
+            self.runtime_data.current_state = BotState.AFK
+            self.runtime_data.spot_time = (datetime.now() + timedelta(seconds=sleept)).strftime("%H:%M:%S")
+            self.notify(NotifyLevel.WARNING, "Задоджил пвп успешно")
         else:
-            self.notify("warning", "Не смог доджнуть пвп, втф?")
+            self.notify(NotifyLevel.WARNING, "Не смог доджнуть пвп, втф?")
             self.notify_screenshot("Не смог доджнуть пвп, #важно")
 
             log(f"bad result? | dodger | pvp tp | rip?", window_id)
@@ -277,156 +260,144 @@ class PvPDodge(EventDrivenProfile):
             rip, btn = await self.combat.is_dead()
             if rip:
                 log("rly rip", window_id)
-                self.runtime_data.current_state = "death"
+                self.runtime_data.current_state = BotState.DEATH
 
     async def bank_restore(self):
         window_id, window = self.window_id, self.window_info[self.window_id]
-        self.events_checker.stop_monitoring(window_id)
-        rip, btn = await self.combat.is_dead()
-        if rip:
-            self.events_checker.start_monitoring(window_id, self,
-                                                 monitors=self.get_monitors)
-            self.runtime_data.current_state = "death"
-            return
-
-        self.runtime_data.current_state = "shopping"
-        xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
-
-        click_x = xy[0]
-        click_y = xy[1]
-        await self.mouse.click(self.window_info, click_x, click_y)
-        result = await self.tp.wait_arrived()
-        if result:
-            stash_ok, in_town, npcs = await self.town.go_stash()
-            shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
-            buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
-
-            if stash_ok:
-                to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
-                if to_spot:
-                    self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
-                    self.runtime_data.current_state = "combat"
-                    self.notify("trash", "Закупился успешно")
-                    return True
-            else:
-                log(f"bad result? {result} / buy", window_id)
-                town = await self.town.is_in()
-                if town:
-                    #todo
-                    to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT,
-                                                            self.settings.SPOT_DO)
-                    if to_spot:
-                        self.events_checker.start_monitoring(window_id, self,
-                                                             monitors=self.get_monitors)
-                        self.runtime_data.current_state = "combat"
-                        return True
-                else:
-                    self.notify_screenshot(f"Шось пошло не так в bank_restore\n\nСтеш: {stash_ok}\nГород: {town}")
-        else:
-            log(f"/ bad result? {result} / else", window_id)
+        async with self.paused_monitors():
             rip, btn = await self.combat.is_dead()
             if rip:
-                log("Помер мгновенно как приехал на спот, бувае...", window_id)
+                self.runtime_data.current_state = BotState.DEATH
+                return
 
-            self.events_checker.start_monitoring(window_id, self,
-                                                 monitors=self.get_monitors)
+            self.runtime_data.current_state = BotState.SHOPPING
+            xy, rgb = parseCBT("home_scroll_button_energomode", profile=self)
+
+            click_x = xy[0]
+            click_y = xy[1]
+            await self.mouse.click(self.window_info, click_x, click_y)
+            result = await self.tp.wait_arrived()
+            if result:
+                stash_ok, in_town, npcs = await self.town.go_stash()
+                shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
+                buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
+
+                if stash_ok:
+                    to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
+                    if to_spot:
+                        self.runtime_data.current_state = BotState.COMBAT
+                        self.notify(NotifyLevel.TRASH, "Закупился успешно")
+                        return True
+                else:
+                    log(f"bad result? {result} / buy", window_id)
+                    town = await self.town.is_in()
+                    if town:
+                        #todo
+                        to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT,
+                                                                self.settings.SPOT_DO)
+                        if to_spot:
+                            self.runtime_data.current_state = BotState.COMBAT
+                            return True
+                    else:
+                        self.notify_screenshot(f"Шось пошло не так в bank_restore\n\nСтеш: {stash_ok}\nГород: {town}")
+            else:
+                log(f"/ bad result? {result} / else", window_id)
+                rip, btn = await self.combat.is_dead()
+                if rip:
+                    log("Помер мгновенно как приехал на спот, бувае...", window_id)
 
 
     async def mail(self):
         window_id, window = self.window_id, self.window_info[self.window_id]
         cstate = self.runtime_data.current_state
-        if cstate == "death":
+        if cstate == BotState.DEATH:
             return
-        self.runtime_data.current_state = "claiming"
-        self.events_checker.stop_monitoring(window_id)
-        log("Не мониторю новые события во время почты", window_id)
-        claimed_mail = await self.claims.mail()
-        if claimed_mail:
-            log(f"Почта успешно собрана", window_id)
-            self.notify("trash", "Собрал почту")
-        else:
-            log(f"Нет новой почты или не удалось собрать", window_id)
-
-        if not await self.energo.is_on():
-            if cstate != "death":
-                await self.energo.turn_on()
-                self.runtime_data.current_state = cstate
-                self.events_checker.start_monitoring(window_id, self,
-                                                     monitors=self.get_monitors)
-                return True
+        self.runtime_data.current_state = BotState.CLAIMING
+        async with self.paused_monitors():
+            log("Не мониторю новые события во время почты", window_id)
+            claimed_mail = await self.claims.mail()
+            if claimed_mail:
+                log(f"Почта успешно собрана", window_id)
+                self.notify(NotifyLevel.TRASH, "Собрал почту")
             else:
-                self.events_checker.start_monitoring(window_id, self,
-                                                     monitors=self.get_monitors)
-                self.runtime_data.set_state("death") #wtf если смерть уже была, ну пох
+                log(f"Нет новой почты или не удалось собрать", window_id)
 
-        await asyncio.sleep(1)
+            if not await self.energo.is_on():
+                if cstate != BotState.DEATH:
+                    await self.energo.turn_on()
+                    self.runtime_data.current_state = cstate
+                    return True
+                else:
+                    self.runtime_data.set_state(BotState.DEATH) #wtf если смерть уже была, ну пох
+
+            await asyncio.sleep(1)
 
     async def rewards(self):
         #print(1)
         window_id, window = self.window_id, self.window_info[self.window_id]
         cstate = self.runtime_data.current_state
         #print(cstate)
-        if cstate == "death":
+        if cstate == BotState.DEATH:
             #print(cstate)
             return
         self.events_checker.stop_monitoring(window_id)
-        self.runtime_data.current_state = "claiming"
+        self.runtime_data.current_state = BotState.CLAIMING
         log("Не мониторю новые события во время сборов", window_id)
         await asyncio.sleep(1)
 
-        if NEED_CLAIM_DAILY:
+        if self.settings.NEED_CLAIM_DAILY:
             claimed_daily = await self.claims.daily()
             if claimed_daily:
                 log(f"Дейлик успешно собран", window_id)
             else:
                 log(f"Нет новых дейликов или не удалось собрать", window_id)
 
-        if NEED_CLAIM_MAIL:
+        if self.settings.NEED_CLAIM_MAIL:
             claimed_mail = await self.claims.mail()
             if claimed_mail:
                 log(f"Почта успешно собрана", window_id)
             else:
                 log(f"Нет новой почты или не удалось собрать", window_id)
 
-        if NEED_CLAIM_ACHIV:
+        if self.settings.NEED_CLAIM_ACHIV:
             claimed_achiv = await self.claims.achievements()
             if claimed_achiv:
                 log(f"Ачивы успешно собраны", window_id)
             else:
                 log(f"Нет новых ачивок или не удалось собрать", window_id)
 
-        if NEED_CLAIM_CLAN:
+        if self.settings.NEED_CLAIM_CLAN:
             claimed_clan = await self.claims.clan()
             if claimed_clan:
                 log(f"Клан успешно собран", window_id)
             else:
                 log(f"Нет новых донатов в клан или не удалось вдонить", window_id)
 
-        if NEED_CLAIM_ALI:
+        if self.settings.NEED_CLAIM_ALI:
             claim_ali = await self.claims.alliance()
             if claim_ali:
                 log(f"Альянс успешно собран", window_id)
             else:
                 log(f"Не смог собрать альянс", window_id)
 
-        if NEED_CLAIM_BATTLE_PASS:
+        if self.settings.NEED_CLAIM_BATTLE_PASS:
             claimed_bp = await self.claims.battle_pass()
             if claimed_bp:
                 log(f"Пасс успешно собран", window_id)
             else:
                 log(f"Не смог собрать пасс", window_id)
 
-        if NEED_CLAIM_DONATE_SHOP:
+        if self.settings.NEED_CLAIM_DONATE_SHOP:
             claimed_shop = await self.claims.donate_shop()
             if claimed_shop:
                 log(f"Шоп успешно собран", window_id)
             else:
                 log(f"Не смог собрать шоп", window_id)
 
-        self.notify("trash", "Собрал награды по расписанию")
+        self.notify(NotifyLevel.TRASH, "Собрал награды по расписанию")
 
         if not await self.energo.is_on():
-            if cstate != "death":
+            if cstate != BotState.DEATH:
                 await self.energo.turn_on()
                 self.runtime_data.current_state = cstate
                 self.events_checker.start_monitoring(window_id, self,
@@ -443,56 +414,51 @@ class PvPDodge(EventDrivenProfile):
         window_id, window = self.window_id, self.window_info[self.window_id]
         cstate = self.runtime_data.current_state
         #print(cstate)
-        if cstate == "death":
+        if cstate == BotState.DEATH:
             #print(cstate)
             return
-        self.events_checker.stop_monitoring(window_id)
-        self.runtime_data.current_state = "schedule"
-        if await self.energo.is_on():
-            await self.energo.turn_off()
-            await asyncio.sleep(1)
-
-        sch = await self.scheduler.start()
-        if sch is None:
-            log("Не смог стартануть расписание, полный инвентарь либо оно не настроено, улетаю на спот.", window_id)
-            to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT,
-                                                    self.settings.SPOT_DO)
-            if to_spot:
-                self.events_checker.start_monitoring(window_id, self,
-                                                     monitors=self.get_monitors)
-                self.runtime_data.current_state = "combat"
-                return True
-            else:
-                self.events_checker.start_monitoring(window_id, self,
-                                                     monitors=self.get_monitors)
-                log("wtf?___", window_id)
-
-        if sch is True:
-            farm = 0
-            log("Расписание началось", window_id)
-            while self.settings.is_schedule_schedule():
-                log(f"Расписание уже идет, прошло {farm} сек.", window_id)
-                farm += 300
-                await asyncio.sleep(300)
-
-            log("Расписание кончилось", window_id)
-            await self.scheduler.stop()
+        async with self.paused_monitors():
+            self.runtime_data.current_state = BotState.SCHEDULE
             if await self.energo.is_on():
                 await self.energo.turn_off()
                 await asyncio.sleep(1)
-            tp = await self.tp.safe_home()
-            if tp:
-                stash_ok, in_town, npcs = await self.town.go_stash()
-                shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs)
-                buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
-                to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
-                if to_spot:
-                    self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
-                    self.runtime_data.current_state = "combat"
-                    return True
 
-            log("wtf?", window_id)
-            self.runtime_data.current_state = "afk"
+            sch = await self.scheduler.start()
+            if sch is None:
+                log("Не смог стартануть расписание, полный инвентарь либо оно не настроено, улетаю на спот.", window_id)
+                to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT,
+                                                        self.settings.SPOT_DO)
+                if to_spot:
+                    self.runtime_data.current_state = BotState.COMBAT
+                    return True
+                else:
+                    log("wtf?___", window_id)
+
+            if sch is True:
+                farm = 0
+                log("Расписание началось", window_id)
+                while self.settings.is_schedule_schedule():
+                    log(f"Расписание уже идет, прошло {farm} сек.", window_id)
+                    farm += 300
+                    await asyncio.sleep(300)
+
+                log("Расписание кончилось", window_id)
+                await self.scheduler.stop()
+                if await self.energo.is_on():
+                    await self.energo.turn_off()
+                    await asyncio.sleep(1)
+                tp = await self.tp.safe_home()
+                if tp:
+                    stash_ok, in_town, npcs = await self.town.go_stash()
+                    shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs)
+                    buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
+                    to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
+                    if to_spot:
+                        self.runtime_data.current_state = BotState.COMBAT
+                        return True
+
+                log("wtf?", window_id)
+                self.runtime_data.current_state = BotState.AFK
 
     async def overweight_check(self):
         window_id, window = self.window_id, self.window_info[self.window_id]
@@ -505,28 +471,28 @@ class PvPDodge(EventDrivenProfile):
             log(f"Перевес изменился: {runtime.last_overweight.value} -> {current_level}",
                 window_id)
             self.notify(
-                "info" if current_level < afk_threshold else "warning",
+                NotifyLevel.INFO if current_level < afk_threshold else NotifyLevel.WARNING,
                 f"Перевес окна: {current_level}",
             )
 
-        if current_level >= afk_threshold and runtime.current_state != "afk":
-            runtime.set_state("afk")
-            self.events_checker.stop_monitoring(window_id)
-            log(f"Перевес достиг порога, переводим в афк: {current_level}", window_id)
-            tped = await self.tp.safe_home()
-            if tped:
-                await self.tp.wait_arrived()
-                await self.energo.turn_on()
-                await asyncio.sleep(4)
-                self.notify_screenshot("Дошли до порога перевеса, стоим в городе афк #важно\nРекомендую сгрузить мусор и перезапустить окно через тг бота")
+        if current_level >= afk_threshold and runtime.current_state != BotState.AFK:
+            runtime.set_state(BotState.AFK)
+            async with self.paused_monitors():
+                log(f"Перевес достиг порога, переводим в афк: {current_level}", window_id)
+                tped = await self.tp.safe_home()
+                if tped:
+                    await self.tp.wait_arrived()
+                    await self.energo.turn_on()
+                    await asyncio.sleep(4)
+                    self.notify_screenshot("Дошли до порога перевеса, стоим в городе афк #важно\nРекомендую сгрузить мусор и перезапустить окно через тг бота")
 
     async def pvp_answer(self):
         window_id, window = self.window_id, self.window_info[self.window_id]
-        wait_d = DELAY_PVP_ANSWER
+        wait_d = self.settings.DELAY_PVP_ANSWER
         log(f"Пробую ответить на пвп, таймаут: {wait_d} сек.", window_id)
 
         self.events_checker.stop_monitoring(window_id)
-        self.runtime_data.set_state("pvp")
+        self.runtime_data.set_state(BotState.PVP)
         xy, rgb = parseCBT("pvp_energo_trigger", profile=self)
         click_x, click_y = xy
         await self.mouse.click(self.window_info, click_x, click_y, fast=True)
@@ -577,13 +543,13 @@ class PvPDodge(EventDrivenProfile):
                             rip, btn = await self.combat.is_dead()
                             if rip:
                                 log("rly rip", window_id)
-                                self.runtime_data.current_state = "death"
+                                self.runtime_data.current_state = BotState.DEATH
                                 return
 
                         tped = await self.tp.wait_arrived()
                         if tped:
                             sleept = randint(3, 5)
-                            self.runtime_data.current_state = "afk"
+                            self.runtime_data.current_state = BotState.AFK
                             self.runtime_data.spot_time = (datetime.now() + timedelta(
                                 minutes=sleept)).strftime("%H:%M:%S")
                             log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
@@ -591,14 +557,14 @@ class PvPDodge(EventDrivenProfile):
                             self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
                             await asyncio.sleep(1)
                             await self.energo.turn_on()
-                            self.notify("warning", "Задоджил пвп успешно (после попытки ответа)")
+                            self.notify(NotifyLevel.WARNING, "Задоджил пвп успешно (после попытки ответа)")
                             return
                     else:
                         log("Вероятно, погиб?", window_id)
                         rip, btn = await self.combat.is_dead()
                         if rip:
                             log("rly rip", window_id)
-                            self.runtime_data.current_state = "death"
+                            self.runtime_data.current_state = BotState.DEATH
                             return
 
             if await self.combat.has_adena():
@@ -617,7 +583,7 @@ class PvPDodge(EventDrivenProfile):
 
         log(f"Мы живы! Посмотрю на хп пару секунд и вернусь на спот.", window_id)
         curr_h = self.runtime_data.health
-        for _ in range(PVP_ANSWER_CHECK_HP_ITERATIONS):
+        for _ in range(self.settings.PVP_ANSWER_CHECK_HP_ITERATIONS):
             hlt = self.runtime_data.health
             hp_diff = curr_h - hlt
             diff = (hp_diff / curr_h) * 100
@@ -626,7 +592,7 @@ class PvPDodge(EventDrivenProfile):
             log(f"data|{curr_h}|{hlt}|{hp_diff}|{rip}", window_id)
             if rip:
                 log("Смерть во время проверок хп, итс овер...", window_id)
-                self.runtime_data.current_state = "death"
+                self.runtime_data.current_state = BotState.DEATH
                 self.events_checker.stop_monitoring(window_id)
                 self.events_checker.start_monitoring(window_id, self,
                                                      monitors=self.get_monitors)
@@ -654,14 +620,14 @@ class PvPDodge(EventDrivenProfile):
                         last_death = self.events_checker.get_last_timestamp(window_id,
                                                                             "death")
                         if last_death is not None and current - last_death <= 20:
-                            self.runtime_data.current_state = "death"
+                            self.runtime_data.current_state = BotState.DEATH
                             log(f"rip!", window_id)
                             return
 
                     tped = await self.tp.wait_arrived()
                     if tped:
                         sleept = randint(3, 5)
-                        self.runtime_data.current_state = "afk"
+                        self.runtime_data.current_state = BotState.AFK
                         self.runtime_data.spot_time = (datetime.now() + timedelta(
                             minutes=sleept)).strftime("%H:%M:%S")
                         log(f"Вроде как ушел от пвп, сплю {sleept} мин.", window_id)
@@ -669,14 +635,14 @@ class PvPDodge(EventDrivenProfile):
                         self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
                         await asyncio.sleep(1)
                         await self.energo.turn_on()
-                        self.notify("warning", "Задоджил пвп успешно (после попытки ответа2)")
+                        self.notify(NotifyLevel.WARNING, "Задоджил пвп успешно (после попытки ответа2)")
                         return
                 else:
                     log("Вероятно, погиб?", window_id)
                     rip, btn = await self.combat.is_dead()
                     if rip:
                         log("rly rip", window_id)
-                        self.runtime_data.current_state = "death"
+                        self.runtime_data.current_state = BotState.DEATH
                         return
 
             await asyncio.sleep(0.1)
@@ -692,9 +658,9 @@ class PvPDodge(EventDrivenProfile):
         to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT,
                                                 self.settings.SPOT_DO)
         if to_spot:
-            self.runtime_data.current_state = "combat"
+            self.runtime_data.current_state = BotState.COMBAT
             self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
-            self.notify("warning", "Успешно завершил пвп, вероятно кого-то убил?")
+            self.notify(NotifyLevel.WARNING, "Успешно завершил пвп, вероятно кого-то убил?")
         else:
             log("Не смог тпнуться на спот, если включено тг - смотри скриншот.")
             await asyncio.sleep(4)
@@ -706,9 +672,9 @@ class PvPDodge(EventDrivenProfile):
     async def handle_auction(self):
         window_id, window = self.window_id, self.window_info[self.window_id]
         cstate = self.runtime_data.current_state
-        if cstate == "death":
+        if cstate == BotState.DEATH:
             return
-        self.runtime_data.current_state = "claiming"
+        self.runtime_data.current_state = BotState.CLAIMING
         self.events_checker.stop_monitoring(window_id)
         log("Не мониторю новые события во время перевыставления аука", window_id)
         if await self.energo.is_on():
@@ -721,7 +687,7 @@ class PvPDodge(EventDrivenProfile):
 
         if rereg:
             log(f"Аук успешно перевыставлен!", window_id)
-            self.notify("trash", "Перевыставил аук")
+            self.notify(NotifyLevel.TRASH, "Перевыставил аук")
         else:
             log(f"Не смог перевыставить аук", window_id)
 
@@ -729,23 +695,30 @@ class PvPDodge(EventDrivenProfile):
         self.events_checker.start_monitoring(window_id, self,
                                              monitors=self.get_monitors)
         if not await self.energo.is_on():
-            if cstate != "death":
+            if cstate != BotState.DEATH:
                 await self.energo.turn_on()
                 return True
 
         await asyncio.sleep(1)
         return True
 
+    _ERROR_METHOD_MAP = {
+        "connect_to_server": "connect",
+        "close_ethernet1_error": "close_ethernet1",
+        "close_ethernet2_error": "close_ethernet2",
+    }
+
     async def handle_error(self, desc):
         window_id = self.window_id
         f = desc.value
-        func = globals().get(f)
+        method_name = self._ERROR_METHOD_MAP.get(f)
+        func = getattr(self.errors, method_name, None) if method_name else None
 
         if func:
             self.events_checker.stop_monitoring(window_id)
-            result = await func(self)
+            result = await func()
             if result:
-                self.runtime_data.set_state("afk")
+                self.runtime_data.set_state(BotState.AFK)
                 if desc == ErrorTypes.ETHERNET2_ERROR:
                     res2 = await self.errors.connect()
                     if res2:
@@ -757,7 +730,7 @@ class PvPDodge(EventDrivenProfile):
                         self.notify_screenshot("Чет супер злое после попытки подрубиться на сервер")
 
                 elif desc == ErrorTypes.ETHERNET_ERROR:
-                    if self.runtime_data.current_state == "combat":
+                    if self.runtime_data.current_state == BotState.COMBAT:
                         await asyncio.sleep(2)
                         await self.energo.turn_on()
 
@@ -772,93 +745,94 @@ class PvPDodge(EventDrivenProfile):
 
     async def party(self):
         window_id, window = self.window_id, self.window_info[self.window_id]
-        self.events_checker.stop_monitoring(window_id)
         try:
-            rip, btn = await self.combat.is_dead()
-            if rip:
-                log("Окно сдохло, пати данжа не буде =(", window_id)
-                self.events_checker.start_monitoring(window_id, self,
-                                                     monitors=self.get_monitors)
-                return
+            async with self.paused_monitors():
+                rip, btn = await self.combat.is_dead()
+                if rip:
+                    log("Окно сдохло, пати данжа не буде =(", window_id)
+                    return
 
-            flaged = False
-            energo = await self.energo.is_on()
-            if energo:
-                flaged = True
-                #await self.energo.turn_off()
-                await asyncio.sleep(0.1)
+                flaged = False
+                energo = await self.energo.is_on()
+                if energo:
+                    flaged = True
+                    #await self.energo.turn_off()
+                    await asyncio.sleep(0.1)
 
-            self.runtime_data.current_state = "afk"
-            await self.tp.safe_home()
-            await asyncio.sleep(1.5)
-            await self.tp.wait_arrived()
-            dungeon = PartyDungeon(self)
-            await dungeon.party_create()
-            await asyncio.sleep(0.5)
-            await dungeon.open_dungeon()
-            await asyncio.sleep(1.5)
-            xy = await dungeon.find_dungeon()
-            if not xy:
-                log("Не нашел данжик, выхожу", window_id)
-                await dungeon.wait_and_click("main_menu_gui")
-                await asyncio.sleep(1.8)
-                await dungeon.party_leave()
-                if flaged:
-                    await self.energo.turn_on()
+                self.runtime_data.current_state = BotState.AFK
+                await self.tp.safe_home()
+                await asyncio.sleep(1.5)
+                await self.tp.wait_arrived()
+                dungeon = PartyDungeon(self)
+                await dungeon.party_create()
+                await asyncio.sleep(0.5)
+                await dungeon.open_dungeon()
+                await asyncio.sleep(1.5)
+                xy = await dungeon.find_dungeon()
+                if not xy:
+                    log("Не нашел данжик, выхожу", window_id)
+                    await dungeon.wait_and_click("main_menu_gui")
+                    await asyncio.sleep(1.8)
+                    await dungeon.party_leave()
+                    if flaged:
+                        await self.energo.turn_on()
 
-                await self.back_to_spot()
+                    await self.back_to_spot()
+                    return
 
-            started = await dungeon.start_dungeon(xy)
-            if started:
-                await self.combat.toggle_autohunt()
-                to_back = await dungeon.no_limit() # энерго включено клики в dungeon.cliks
-                self.events_checker.start_monitoring(window_id, self, monitors=[MonitorType.DEATH])
-                log(to_back, window_id)
-                while True:
-                    hunt = await self.combat.is_autohunt_on()
-                    log(hunt, window_id)
-                    if not hunt:
-                        self.events_checker.stop_monitoring(window_id)
-                        rip, btn = await self.combat.is_dead()
-                        if rip:
-                            log("Анлука, помер во время пати данжа. оффаюсь", window_id)
-                            return
+                started = await dungeon.start_dungeon(xy)
+                if not started:
+                    log("Данж не стартанул, выхожу из пати", window_id)
+                    await dungeon.party_leave()
+                    await self.back_to_spot()
+                    return
 
-                        break
+                if started:
+                    await self.combat.toggle_autohunt()
+                    to_back = await dungeon.no_limit() # энерго включено клики в dungeon.cliks
+                    self.events_checker.start_monitoring(window_id, self, monitors=[MonitorType.DEATH])
+                    log(to_back, window_id)
+                    while True:
+                        hunt = await self.combat.is_autohunt_on()
+                        log(hunt, window_id)
+                        if not hunt:
+                            self.events_checker.stop_monitoring(window_id)
+                            rip, btn = await self.combat.is_dead()
+                            if rip:
+                                log("Анлука, помер во время пати данжа. оффаюсь", window_id)
+                                return
 
-                    await asyncio.sleep(10)
+                            break
 
-                log("Успешно пробежал пати данжик закуплюсь и оффаюсь", window_id)
-                if await self.energo.is_on():
-                    await self.energo.turn_off(ignore=True)
-                    await asyncio.sleep(1)
+                        await asyncio.sleep(10)
 
-                    self.notify_screenshot("Закачал пати данжик, закуплюсь и оффнусь =)")
+                    log("Успешно пробежал пати данжик закуплюсь и оффаюсь", window_id)
+                    if await self.energo.is_on():
+                        await self.energo.turn_off(ignore=True)
+                        await asyncio.sleep(1)
 
-                await self.mouse.click(self.window_info, 200, 100)
+                        self.notify_screenshot("Закачал пати данжик, закуплюсь и оффнусь =)")
 
-                await dungeon.to_start()
-                await dungeon.party_leave()
+                    await self.mouse.click(self.window_info, 200, 100)
 
-                ok, in_town, npcs = await self.town.buy_in_shop()
-                log(f"ok={ok}, town={in_town}", window_id)
-                if not await self.energo.is_on():
-                    await self.energo.turn_on()
-                    await asyncio.sleep(1)
+                    await dungeon.to_start()
+                    await dungeon.party_leave()
 
-                if ok:
-                    self.events_checker.start_monitoring(window_id, self,
-                                                         monitors=self.get_monitors)
+                    ok, in_town, npcs = await self.town.buy_in_shop()
+                    log(f"ok={ok}, town={in_town}", window_id)
+                    if not await self.energo.is_on():
+                        await self.energo.turn_on()
+                        await asyncio.sleep(1)
 
                     rip, btn = await self.combat.is_dead()
                     if not rip:
                         to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT,
                                                                 self.settings.SPOT_DO)
                         if to_spot:
-                            self.runtime_data.current_state = "combat"
-                    return True
+                            self.runtime_data.current_state = BotState.COMBAT
+                            return True
 
-                return False
+                    return False
 
         except asyncio.CancelledError:
             log("Профиль остановлен вручную", window_id)
@@ -875,28 +849,30 @@ class PvPDodge(EventDrivenProfile):
         await self.mouse.click(self.window_info, click_x, click_y)
         result = await self.tp.wait_arrived()
         if result:
-            sleept = uniform(MIN_LOW_HP_DODGE_SLEEP, MAX_LOW_HP_DODGE_SLEEP)
+            sleept = uniform(self.settings.MIN_LOW_HP_DODGE_SLEEP, self.settings.MAX_LOW_HP_DODGE_SLEEP)
             await self.energo.turn_on()
-            log(f"Сплю {sleept} мин.", window_id)
+            log(f"Сплю {sleept} сек.", window_id)
             #self.runtime_data.update_last_succ_dodge()
-            self.runtime_data.current_state = "afk"
-            self.runtime_data.spot_time = (datetime.now() + timedelta(minutes=sleept)).strftime("%H:%M:%S")
-            self.notify("warning", f"Мало хп, улетел со спота\nПосплю {sleept} мин.")
+            self.runtime_data.current_state = BotState.AFK
+            self.runtime_data.spot_time = (datetime.now() + timedelta(seconds=sleept)).strftime("%H:%M:%S")
+            self.notify(NotifyLevel.WARNING, f"Мало хп, улетел со спота\nПосплю {sleept} сек.")
+        else:
+            self.events_checker.start_monitoring(window_id, self, monitors=self.get_monitors)
 
     EVENT_HANDLERS = {
-        "pvp": "_handle_pvp",
-        "low_hp_dodge": "lowhp_zatichka",
-        "hp_bank": "bank_restore",
-        "soska": "bank_restore",
-        "death": "respawn_buy",
-        "spot_back": "back_to_spot",
-        "sell_stash_buy": "buying",
-        "claim_mail": "mail",
-        "claim_rewards": "rewards",
-        "party_dungeon": "party",
-        "schedule": "schedule_schedule",
-        "overweight": "overweight_check",
-        "auction": "handle_auction",
+        MonitorType.PVP: "_handle_pvp",
+        MonitorType.LOW_HP_DODGE: "lowhp_zatichka",
+        MonitorType.HP_BANK: "bank_restore",
+        MonitorType.SOSKA: "bank_restore",
+        MonitorType.DEATH: "respawn_buy",
+        MonitorType.SPOT_BACK: "back_to_spot",
+        MonitorType.SELL_STASH_BUY: "buying",
+        MonitorType.CLAIM_MAIL: "mail",
+        MonitorType.CLAIM_REWARDS: "rewards",
+        MonitorType.PARTY_DUNGEON: "party",
+        MonitorType.SCHEDULE: "schedule_schedule",
+        MonitorType.OVERWEIGHT: "overweight_check",
+        MonitorType.AUCTION: "handle_auction",
     }
 
     async def _handle_pvp(self):
