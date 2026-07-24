@@ -27,6 +27,7 @@ from gui.alch_presets import PresetDialog
 from gui.settings_changer import SettingsChanger
 from gui.styles import STYLE, UPD
 from gui.donate import Donate
+from gui.tiling import TilingDialog
 from gui.windows_selector import WorkAccs
 from gui.windows_selector import load_workaccs
 from gui.region_selector import Selector
@@ -67,6 +68,8 @@ class UpdateChecker(QThread):
         self._running = False
 
 class NedoGui(QWidget):
+    _stop_signal = pyqtSignal()
+
     def __init__(self, kb: str, m: str):
         super().__init__()
         if m is not None:
@@ -76,13 +79,15 @@ class NedoGui(QWidget):
             self.setWindowTitle("L2Monad | Драйвер не найден!")
 
         self.resize(400, 150)
+        self.setMinimumWidth(50)
         self.setWindowIcon(QIcon(FAVICON))
         self.controller = ProfileController()
         self.cache = load_cache()
         self.profiles = self.controller.profiles
         self.load_window_position()
         self.init_ui()
-        keyboard.add_hotkey("F10", self.stop_profile) # это кто-то юзает?
+        self._stop_signal.connect(self.stop_profile)
+        keyboard.add_hotkey("F10", self._stop_signal.emit)
         self.update_checker = UpdateChecker()
         self.update_checker.update_available.connect(self.show_update_button)
         self.update_checker.start()
@@ -121,6 +126,14 @@ class NedoGui(QWidget):
     def closeEvent(self, event):
         try:
             self.save_window_position()
+        except Exception:
+            pass
+        try:
+            self.stop_profile()
+            deadline = time.monotonic() + 3.0
+            while time.monotonic() < deadline and self.controller.bot_manager.bots:
+                time.sleep(0.05)
+            self.controller.loop.call_soon_threadsafe(self.controller.loop.stop)
         except Exception:
             pass
         if hasattr(self, 'update_checker') and self.update_checker.isRunning():
@@ -179,6 +192,12 @@ class NedoGui(QWidget):
         self.don.clicked.connect(self.donate)
         layout_mini.addWidget(self.don, alignment=Qt.AlignLeft)
 
+        self.btn_tiling = QPushButton("📐")
+        self.btn_tiling.setFixedSize(30, 30)
+        self.btn_tiling.setCursor(Qt.PointingHandCursor)
+        self.btn_tiling.clicked.connect(self.open_tiling)
+        layout_mini.addWidget(self.btn_tiling, alignment=Qt.AlignLeft)
+
         version = QLabel(f"v{get_my_version()} | tg: @BotLineage2M | Купил бота = ЛОХ")
         version.setStyleSheet("color: gray; font-size: 8pt;")
         version.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -189,8 +208,13 @@ class NedoGui(QWidget):
         self.setLayout(self.layout_main)
         self.setStyleSheet(STYLE)
 
-        if needs_update():
-            self.show_update_button()
+        def _deferred_check():
+            try:
+                if needs_update():
+                    self.show_update_button()
+            except Exception:
+                pass
+        QTimer.singleShot(0, _deferred_check)
 
     def start_alchemy(self, profile_class):
         dlg = AlchemyDialog(self)
@@ -291,6 +315,10 @@ class NedoGui(QWidget):
         dlg = Donate(self)
         dlg.exec_()
 
+    def open_tiling(self):
+        dlg = TilingDialog(self)
+        dlg.exec_()
+
     def open_otdel(self):
         self.dlg = WindowControlDialog(self)
         self.dlg.show()
@@ -371,9 +399,18 @@ class NedoGui(QWidget):
         process_batch()
 
     def stop_profile(self):
-        self.controller.cancel_batch()
-        nicks = list(self.controller.bot_manager.bots.keys())
-        self.stop_windows(nicks)
+        try:
+            self.controller.cancel_batch()
+            if hasattr(self, '_alchemy_timer') and self._alchemy_timer.isActive():
+                self._alchemy_timer.stop()
+            if hasattr(self, '_alchemy_pending'):
+                self._alchemy_pending.clear()
+            if hasattr(self, '_alchemy_running'):
+                self._alchemy_running.clear()
+            nicks = list(self.controller.bot_manager.bots.copy())
+            self.stop_windows(nicks)
+        except Exception:
+            self.controller.cancel_batch()
 
     def ask_region(self, new_windows: list[str]) -> dict[str, str]:
         dlg = Selector(new_windows, self)
@@ -383,10 +420,13 @@ class NedoGui(QWidget):
         return {nick: "RU" for nick in new_windows}
 
     def update_state(self):
-        active = self.controller.bot_manager.bots
+        try:
+            active = list(self.controller.bot_manager.bots.values())
+        except Exception:
+            return
         running = {}
 
-        for bot in active.values():
+        for bot in active:
             profile_name = type(bot).__name__
             running[profile_name] = running.get(profile_name, 0) + 1
 
