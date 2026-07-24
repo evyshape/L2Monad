@@ -183,9 +183,16 @@ async def check_slots(profile, var, threshold=0.99):
     window_id, window = next(iter(profile.window_info.items()))
     results = {}
     try:
+        if not var:
+            log("var не определен, пропускаю check_slots", window_id)
+            return {}
+
         win = gw.getWindowsWithTitle(window['Title'])[0]
 
         slots = ALCH_SLOTS_FULL.get(var)
+        if not slots:
+            log(f"Нет слотов для варианта {var}", window_id)
+            return {}
         with mss.mss() as sct:
             for slot_name, coords in slots.items():
                 x1, y1 = map(int, coords[0].split(','))
@@ -204,6 +211,8 @@ async def check_slots(profile, var, threshold=0.99):
         return {}
 
 def match_slots(result: dict, bless: str, config: dict) -> bool:
+    if not bless:
+        return False
     alw = {b.strip().lower() for b in config.get("BLESS", "").split(",")}
     if bless.lower() not in alw:
         return False
@@ -295,6 +304,16 @@ async def pre_init(profile):
 
     return None
 
+async def dismiss(profile):
+    xy, rgb = parseAlch("reroll_confirm")
+    if await profile.check_pixel(xy, rgb, timeout=0.1, thr=15, wsize="5x5"):
+        xy_c, _ = parseAlch("reroll_cancel")
+        await profile.mouse.click(profile.window_info, xy_c[0], xy_c[1])
+        await asyncio.sleep(0.3)
+        return True
+    return False
+
+
 async def roll(profile, step=2, kb=None):
 
     async def wait_and_click(tag, timeout=5, thr=2):
@@ -329,7 +348,7 @@ async def get_alch_var(profile):
     for var, value in ALCH_REZ_POSITIONS.items():
         xy = tuple(map(int, value[0].split(", ")))
         rgb = tuple(map(int, value[1].split(", ")))
-        is_true = await profile.check_pixel(xy, rgb)
+        is_true = await profile.check_pixel(xy, rgb, timeout=0.3, thr=15)
         log(f"{var}, {is_true}", window_id)
         if is_true:
             return var

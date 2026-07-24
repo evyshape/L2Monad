@@ -1,16 +1,16 @@
 import random
 import json
 from bot.windows.runtime import RuntimeData
+from bot.events.enums import BotState
 from profiles.base import BaseProfile
 from bot.misc import ALCH_DEBUG
-from bot.alchemy.main_alch import check_slots, roll, check_bless, match_slots, pre_init, get_alch_var
 from bot.clogger import log
 import asyncio
 
 class MainAlchemy(BaseProfile):
     def __init__(self, window_info, settings=None, preset=None):
         super().__init__(window_info, settings=settings)
-        self.runtime_data = RuntimeData(current_state="alchemy")
+        self.runtime_data = RuntimeData(current_state=BotState.ALCHEMY)
         self.alch_cfg = preset
 
     def profile_version(self):
@@ -20,6 +20,7 @@ class MainAlchemy(BaseProfile):
         return "Main Alchemy"
 
     async def main_loop(self):
+        from bot.alchemy.main_alch import check_slots, roll, check_bless, match_slots, pre_init, get_alch_var, dismiss
         window_id, window = self.window_id, self.window_info[self.window_id]
         kb = None
         try:
@@ -48,6 +49,12 @@ class MainAlchemy(BaseProfile):
                     await roll(self, step=1, kb=kb)
                     var = await get_alch_var(self)
                     log(var, window_id)
+                    if not var:
+                        log("Не определил вариант алхимки", window_id)
+                        if hasattr(self, '_saved_pos'):
+                            left, top, w, h = self._saved_pos
+                            await self._resize(w, h, left, top)
+                        return
                     result = await check_slots(self, var)
                     #log(json.dumps(result, indent=4, ensure_ascii=False), window_id)
                     if match_slots(result, bless, self.alch_cfg):
@@ -82,19 +89,28 @@ class MainAlchemy(BaseProfile):
         await super().on_stop()
 
     async def roll_loop(self, iterations=10, kb=None, var=None):
+        from bot.alchemy.main_alch import check_slots, roll, check_bless, match_slots, get_alch_var, dismiss
         window_id, window = self.window_id, self.window_info[self.window_id]
         kb = None
         try:
-            await roll(self, step=1, kb=kb)
+            if not await roll(self, step=1, kb=kb):
+                return
             var = await get_alch_var(self)
             log(var, window_id)
-            await roll(self, step=2, kb=kb)
+            if not var:
+                log("Не определил вариант алхимки, выхожу", window_id)
+                return
+            if not await roll(self, step=2, kb=kb):
+                await dismiss(self)
+                return
             for i in range(1, iterations + 1):
                 try:
                     log(f"{i}/{iterations}", window_id)
                     await asyncio.sleep(random.uniform(0.25, 1))
+                    await dismiss(self)
                     bless = await check_bless(self)
-                    await roll(self, step=1, kb=kb)
+                    if not await roll(self, step=1, kb=kb):
+                        continue
                     await asyncio.sleep(random.uniform(0.35, 0.5))
                     result = await check_slots(self, var)
 
@@ -108,7 +124,8 @@ class MainAlchemy(BaseProfile):
                         await roll(self, step=3, kb=kb)
                         break
                     else:
-                        await roll(self, step=2, kb=kb)
+                        if not await roll(self, step=2, kb=kb):
+                            await dismiss(self)
 
                 except asyncio.CancelledError:
                     log("stoped", window_id)

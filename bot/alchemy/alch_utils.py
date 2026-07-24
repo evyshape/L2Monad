@@ -43,8 +43,8 @@ def get_monitorss():
                 "size": (w.width, w.height)
             }
             for w in l2_w
-            if (monitor.x <= w.left < monitor.x + monitor.width
-                and monitor.y <= w.top < monitor.y + monitor.height)
+            if (monitor.x - 50 <= w.left < monitor.x + monitor.width
+                and monitor.y - 50 <= w.top < monitor.y + monitor.height)
         ]
 
         monitor_info = {
