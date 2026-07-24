@@ -1,7 +1,6 @@
 from profiles.event_driven import EventDrivenProfile
 from bot.methods.game import PartyDungeon
 from bot.events.enums import MonitorType
-from bot.misc import NEED_BACK_TO_SPOT_PARTY_DUNGEON
 from bot.clogger import log
 import asyncio
 
@@ -55,7 +54,7 @@ class Dungeon(EventDrivenProfile):
                 await asyncio.sleep(1.8)
                 await dungeon.party_leave()
 
-                if NEED_BACK_TO_SPOT_PARTY_DUNGEON:
+                if self.settings.NEED_BACK_TO_SPOT_PARTY_DUNGEON:
                     to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
                     if to_spot:
                         return True
@@ -83,9 +82,9 @@ class Dungeon(EventDrivenProfile):
 
                         break
 
-                    await asyncio.sleep(10)
+                    await asyncio.sleep(3)
 
-                await asyncio.sleep(6)
+                await asyncio.sleep(3)
                 rip, btn = await self.combat.is_dead()
                 if rip:
                     log("Анлука, помер во время пати данжа. оффаюсь", window_id)
@@ -98,7 +97,7 @@ class Dungeon(EventDrivenProfile):
 
                     self.notify_screenshot("Закачал пати данжик, закуплюсь и оффнусь =)")
 
-                await self.mouse.click(self.window_info, 200, 100)
+                await self.mouse.click(self.window_info, 200, 188)
 
                 await dungeon.to_start()
                 await dungeon.party_leave()
@@ -106,7 +105,7 @@ class Dungeon(EventDrivenProfile):
                 ok, in_town, npcs = await self.town.buy_in_shop()
                 log(f"ok={ok}, town={in_town}", window_id)
 
-                if NEED_BACK_TO_SPOT_PARTY_DUNGEON:
+                if self.settings.NEED_BACK_TO_SPOT_PARTY_DUNGEON:
                     to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
                     if to_spot:
                         return True

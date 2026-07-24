@@ -417,18 +417,18 @@ class MouseEvents:
                 await asyncio.sleep(0.05)
 
                 await loop.run_in_executor(None, functools.partial(inputs.mouse_down, "left"))
-
-                for x, y in points[1:]:
-                    await loop.run_in_executor(
-                        None,
-                        functools.partial(
-                            move_line if no_curve else move_human,
-                            window_info, x, y
+                try:
+                    for x, y in points[1:]:
+                        await loop.run_in_executor(
+                            None,
+                            functools.partial(
+                                move_line if no_curve else move_human,
+                                window_info, x, y
+                            )
                         )
-                    )
-                    await asyncio.sleep(delay_points)
-
-                await loop.run_in_executor(None, functools.partial(inputs.mouse_up, "left"))
+                        await asyncio.sleep(delay_points)
+                finally:
+                    await loop.run_in_executor(None, functools.partial(inputs.mouse_up, "left"))
         except Exception as e:
             log(f"Ошибка swipe: {e}", self.tname)
         finally:

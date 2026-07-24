@@ -4,21 +4,13 @@ from bot.clogger import log
 
 from profiles.base import BaseProfile
 from bot.windows.runtime import RuntimeData
-from bot.misc import (
-    NEED_CLAIM_ACHIV,
-    NEED_CLAIM_ALI,
-    NEED_CLAIM_BATTLE_PASS,
-    NEED_CLAIM_CLAN,
-    NEED_CLAIM_DAILY,
-    NEED_CLAIM_DONATE_SHOP,
-    NEED_CLAIM_MAIL,
-)
+from bot.events.enums import BotState, NotifyLevel
 
 
 class Rewards(BaseProfile):
     def __init__(self, window_info, settings=None):
         super().__init__(window_info, settings=settings)
-        self.runtime_data = RuntimeData(current_state="afk")
+        self.runtime_data = RuntimeData(current_state=BotState.AFK)
 
     def profile_version(self):
         return "1.0"
@@ -28,13 +20,13 @@ class Rewards(BaseProfile):
 
     async def main_loop(self):
         rewards = [
-            (NEED_CLAIM_DAILY, "Дейлик", self.claims.daily),
-            (NEED_CLAIM_MAIL, "Почта", self.claims.mail),
-            (NEED_CLAIM_ACHIV, "Ачивы", self.claims.achievements),
-            (NEED_CLAIM_CLAN, "Клан", self.claims.clan),
-            (NEED_CLAIM_ALI, "Альянс", self.claims.alliance),
-            (NEED_CLAIM_BATTLE_PASS, "Пасс", self.claims.battle_pass),
-            (NEED_CLAIM_DONATE_SHOP, "Шоп", self.claims.donate_shop),
+            (self.settings.NEED_CLAIM_DAILY, "Дейлик", self.claims.daily),
+            (self.settings.NEED_CLAIM_MAIL, "Почта", self.claims.mail),
+            (self.settings.NEED_CLAIM_ACHIV, "Ачивы", self.claims.achievements),
+            (self.settings.NEED_CLAIM_CLAN, "Клан", self.claims.clan),
+            (self.settings.NEED_CLAIM_ALI, "Альянс", self.claims.alliance),
+            (self.settings.NEED_CLAIM_BATTLE_PASS, "Пасс", self.claims.battle_pass),
+            (self.settings.NEED_CLAIM_DONATE_SHOP, "Шоп", self.claims.donate_shop),
         ]
 
         try:
@@ -49,7 +41,7 @@ class Rewards(BaseProfile):
             if not await self.energo.is_on():
                 await self.energo.turn_on()
 
-            self.notify("info", "Успешно собрал награды")
+            self.notify(NotifyLevel.INFO, "Успешно собрал награды")
 
             await asyncio.sleep(1)
 
