@@ -15,10 +15,11 @@ class EventDrivenProfile(BaseProfile):
         self._event_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
         self._event_worker_task: Optional[asyncio.Task] = None
         self._current_event_task: Optional[asyncio.Task] = None
+        self._event_counter: int = 0
 
     async def _event_worker(self) -> None:
         while self.running:
-            priority, event = await self._event_queue.get()
+            priority, _seq, event = await self._event_queue.get()
 
             if self._current_event_task and not self._current_event_task.done():
                 log(f"Отмена / {priority}", self.window_id)
@@ -34,6 +35,11 @@ class EventDrivenProfile(BaseProfile):
                 await self._current_event_task
             except asyncio.CancelledError:
                 log("Обработка прервана, чини", self.window_id)
+            except Exception as e:
+                log(f"Ошибка обработки: {e}", self.window_id)
+                monitors = getattr(self, "get_monitors", None)
+                if monitors:
+                    self.events_checker.start_monitoring(self.window_id, self, monitors=monitors)
 
             self._event_queue.task_done()
 
@@ -60,9 +66,12 @@ class EventDrivenProfile(BaseProfile):
         log(f"Необработанный error event: {desc}", self.window_id)
 
     def send_event(self, event: dict) -> None:
+        if not self.running:
+            return
         etype = event.get("type")
         priority = PRIORITIES.get(MonitorType(etype), 999)
-        self._event_queue.put_nowait((priority, event))
+        self._event_counter += 1
+        self._event_queue.put_nowait((priority, self._event_counter, event))
         log(f"Ивент {etype} добавлен в очередь с приоритетом {priority}", self.window_id)
 
     def is_running(self):

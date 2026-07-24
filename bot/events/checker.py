@@ -12,7 +12,7 @@ from bot.delays import (
 )
 from bot.misc import CHECK_DISCONNECT_ERROR, CHECK_ETHERNET1_ERROR
 from bot.events.events import EventsManager
-from bot.events.enums import MonitorType, OverWeight, ErrorTypes
+from bot.events.enums import MonitorType, OverWeight, ErrorTypes, ScheduleAction, BotState
 from bot.methods.base import parseCBT
 from profiles.base import BaseProfile
 
@@ -31,19 +31,25 @@ class EventsChecker:
         xy, rgb = parseCBT("pvp_energo_trigger", profile=profile)
 
         while profile.running:
-            found = await profile.check_pixel(xy, rgb, timeout=PVP_CHECK_DELAY, thr=2)
+            try:
+                found = await profile.check_pixel(xy, rgb, timeout=PVP_CHECK_DELAY, thr=2)
 
-            if found:
-                now = time.monotonic()
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("pvp", 0)
+                if found:
+                    now = time.monotonic()
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.PVP, 0)
 
-                if now - last_time >= 20:
-                    EventsManager.send_event(window_id, {"type": "pvp"})
-                    log(f"ПВП ивент отправлен в {window_id}", self.tname)
-                    last_events["pvp"] = now
+                    if now - last_time >= 20:
+                        EventsManager.send_event(window_id, {"type": MonitorType.PVP})
+                        log(f"ПВП ивент отправлен в {window_id}", self.tname)
+                        last_events[MonitorType.PVP] = now
 
-                await asyncio.sleep(3)
+                    await asyncio.sleep(3)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor pvp error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_hp_bank(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
@@ -52,31 +58,39 @@ class EventsChecker:
 
         if profile.runtime_data.has_quiver is True:
             xy, rgb = parseCBT("q_hp_bank_in_energo", profile=profile)
-        if profile.runtime_data.has_quiver is False:
+        elif profile.runtime_data.has_quiver is False:
+            xy, rgb = parseCBT("hp_bank_in_energo", profile=profile)
+        else:
             xy, rgb = parseCBT("hp_bank_in_energo", profile=profile)
 
         while profile.running:
-            checks = 0
-            #print(1)
-            for _ in range(CHECKS_HP_BANK):
-                found = await profile.check_pixel(xy, rgb, timeout=CHECKS_HP_BANK_TIMEOUT, thr=9)
-                if found:
-                    checks += 1
-                    
-                await asyncio.sleep(2)
+            try:
+                checks = 0
+                #print(1)
+                for _ in range(CHECKS_HP_BANK):
+                    found = await profile.check_pixel(xy, rgb, timeout=CHECKS_HP_BANK_TIMEOUT, thr=9)
+                    if found:
+                        checks += 1
 
-            if checks >= CHECKS_HP_BANK_TRIGGER:
-                now = time.monotonic()
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("hp_bank", 0)
-                #print(2)
-                if now - last_time >= 60:
-                    EventsManager.send_event(window_id, {"type": "hp_bank"})
-                    log(f"Хп банка ивент отправлен в {window_id}", self.tname)
-                    last_events["hp_bank"] = now
+                    await asyncio.sleep(2)
+
+                if checks >= CHECKS_HP_BANK_TRIGGER:
+                    now = time.monotonic()
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.HP_BANK, 0)
+                    #print(2)
+                    if now - last_time >= 60:
+                        EventsManager.send_event(window_id, {"type": MonitorType.HP_BANK})
+                        log(f"Хп банка ивент отправлен в {window_id}", self.tname)
+                        last_events[MonitorType.HP_BANK] = now
 
 
-            await asyncio.sleep(3)
+                await asyncio.sleep(3)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor hp_bank error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_soska(self, window_id: str, profile: BaseProfile) -> None:
         if profile.runtime_data.has_quiver is None:
@@ -85,170 +99,226 @@ class EventsChecker:
 
         if profile.runtime_data.has_quiver is True:
             xy, rgb = parseCBT("q_soska_in_energo", profile=profile)
-        if profile.runtime_data.has_quiver is False:
+        elif profile.runtime_data.has_quiver is False:
+            xy, rgb = parseCBT("soska_in_energo", profile=profile)
+        else:
             xy, rgb = parseCBT("soska_in_energo", profile=profile)
 
         while profile.running:
-            checks = 0
-            # print(1)
-            for _ in range(4):
-                found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7, wsize="1x1")
-                # print(found)
-                if found:
-                    checks += 1
+            try:
+                checks = 0
+                # print(1)
+                for _ in range(4):
+                    found = await profile.check_pixel(xy, rgb, timeout=0.3, thr=7, wsize="1x1")
+                    # print(found)
+                    if found:
+                        checks += 1
 
-                await asyncio.sleep(1)
+                    await asyncio.sleep(1)
 
-            if checks >= 3:
-                now = time.monotonic()
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("soska", 0)
-                # print(2)
-                if now - last_time >= 60:
-                    EventsManager.send_event(window_id, {"type": "soska"})
-                    log(f"Соска ивент отправлен в {window_id}", self.tname)
-                    last_events["soska"] = now
+                if checks >= 3:
+                    now = time.monotonic()
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.SOSKA, 0)
+                    # print(2)
+                    if now - last_time >= 60:
+                        EventsManager.send_event(window_id, {"type": MonitorType.SOSKA})
+                        log(f"Соска ивент отправлен в {window_id}", self.tname)
+                        last_events[MonitorType.SOSKA] = now
 
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor soska error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_death(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:
-            death_found, btn = await profile.combat.is_dead()
-            if death_found and btn != "":
-                now_monotonic = time.monotonic()
-                now_ts = int(time.time())
-                now = now_monotonic
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("death", 0)
+            try:
+                death_found, btn = await profile.combat.is_dead()
+                if death_found and btn != "":
+                    now_monotonic = time.monotonic()
+                    now_ts = int(time.time())
+                    now = now_monotonic
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.DEATH, 0)
 
-                if now - last_time >= 60:
-                    #print(death_found)
-                    #print(btn)
-                    EventsManager.send_event(window_id, {"type": "death"})
-                    log(f"DEATH ивент отправлен в {window_id}", self.tname)
-                    last_events["death"] = now_monotonic
-                    self._last_time.setdefault(window_id, {})["death"] = now_ts
+                    if now - last_time >= 60:
+                        #print(death_found)
+                        #print(btn)
+                        EventsManager.send_event(window_id, {"type": MonitorType.DEATH})
+                        log(f"DEATH ивент отправлен в {window_id}", self.tname)
+                        last_events[MonitorType.DEATH] = now_monotonic
+                        self._last_time.setdefault(window_id, {})[MonitorType.DEATH] = now_ts
 
-                await asyncio.sleep(6)
-            else:
-                await asyncio.sleep(3)
+                    await asyncio.sleep(6)
+                else:
+                    await asyncio.sleep(3)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor death error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_spot_back(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:
-            if (
-                    profile.runtime_data.current_state not in ["combat", "death"]
-                    and profile.runtime_data.spot_time
-                    and profile.runtime_data.time_to_back()
-            ):
-                now = time.monotonic()
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("spot_back", 0)
+            try:
+                if (
+                        profile.runtime_data.current_state not in [BotState.COMBAT, BotState.DEATH]
+                        and profile.runtime_data.spot_time
+                        and profile.runtime_data.time_to_back()
+                ):
+                    now = time.monotonic()
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.SPOT_BACK, 0)
 
-                if now - last_time >= 60:
-                    EventsManager.send_event(window_id, {"type": "spot_back"})
-                    profile.runtime_data.spot_time = None
-                    log(f"SPOT_BACK ивент отправлен в {window_id}", self.tname)
-                    last_events["spot_back"] = now
+                    if now - last_time >= 60:
+                        EventsManager.send_event(window_id, {"type": MonitorType.SPOT_BACK})
+                        profile.runtime_data.spot_time = None
+                        log(f"SPOT_BACK ивент отправлен в {window_id}", self.tname)
+                        last_events[MonitorType.SPOT_BACK] = now
 
-            await asyncio.sleep(3)
+                await asyncio.sleep(3)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor spot_back error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_sell_stash_buy(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("sell_stash_buy", 0)
+            try:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(MonitorType.SELL_STASH_BUY, 0)
 
-            buying = profile.settings.is_schedule("buying", window_id)
+                buying = profile.settings.is_schedule(ScheduleAction.BUYING, window_id)
 
-            if buying and now - last_time >= 240:
-                EventsManager.send_event(window_id, {"type": "sell_stash_buy"})
-                log(f"SELL_STASH_BUY ивент отправлен в {window_id}", self.tname)
+                if buying and now - last_time >= 240:
+                    EventsManager.send_event(window_id, {"type": MonitorType.SELL_STASH_BUY})
+                    log(f"SELL_STASH_BUY ивент отправлен в {window_id}", self.tname)
 
-                last_events["sell_stash_buy"] = now
+                    last_events[MonitorType.SELL_STASH_BUY] = now
 
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor sell_stash_buy error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_mail(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("claim_mail", 0)
+            try:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(MonitorType.CLAIM_MAIL, 0)
 
-            mail = profile.settings.is_schedule("mail", window_id)
+                mail = profile.settings.is_schedule(ScheduleAction.MAIL, window_id)
 
-            if mail and now - last_time >= 240:
-                EventsManager.send_event(window_id, {"type": "claim_mail"})
-                log(f"MAIL ивент отправлен в {window_id}", self.tname)
+                if mail and now - last_time >= 240:
+                    EventsManager.send_event(window_id, {"type": MonitorType.CLAIM_MAIL})
+                    log(f"MAIL ивент отправлен в {window_id}", self.tname)
 
-                last_events["claim_mail"] = now
+                    last_events[MonitorType.CLAIM_MAIL] = now
 
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor mail error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_party(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("party_dungeon", 0)
+            try:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(MonitorType.PARTY_DUNGEON, 0)
 
-            party_dungeon = profile.settings.is_schedule("party_dungeon", window_id)
+                party_dungeon = profile.settings.is_schedule(ScheduleAction.PARTY_DUNGEON, window_id)
 
-            if party_dungeon and now - last_time >= 120:
-                EventsManager.send_event(window_id, {"type": "party_dungeon"})
-                log(f"PARTY ивент отправлен в {window_id}", self.tname)
+                if party_dungeon and now - last_time >= 120:
+                    EventsManager.send_event(window_id, {"type": MonitorType.PARTY_DUNGEON})
+                    log(f"PARTY ивент отправлен в {window_id}", self.tname)
 
-                last_events["party_dungeon"] = now
+                    last_events[MonitorType.PARTY_DUNGEON] = now
 
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor party error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_auction(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("auction", 0)
+            try:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(MonitorType.AUCTION, 0)
 
-            auc = profile.settings.is_schedule("auction", window_id)
+                auc = profile.settings.is_schedule(ScheduleAction.AUCTION, window_id)
 
-            if auc and now - last_time >= 240:
-                EventsManager.send_event(window_id, {"type": "auction"})
-                log(f"AUCTION ивент отправлен в {window_id}", self.tname)
+                if auc and now - last_time >= 240:
+                    EventsManager.send_event(window_id, {"type": MonitorType.AUCTION})
+                    log(f"AUCTION ивент отправлен в {window_id}", self.tname)
 
-                last_events["auction"] = now
+                    last_events[MonitorType.AUCTION] = now
 
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor auction error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_rewards(self, window_id: str,
                                       profile: BaseProfile) -> None:
         while profile.running:
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("claim_rewards", 0)
+            try:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(MonitorType.CLAIM_REWARDS, 0)
 
-            rewards = profile.settings.is_schedule("rewards", window_id)
+                rewards = profile.settings.is_schedule(ScheduleAction.REWARDS, window_id)
 
-            if rewards and now - last_time >= 240:
-                EventsManager.send_event(window_id, {"type": "claim_rewards"})
-                log(f"REWARDS ивент отправлен в {window_id}", self.tname)
+                if rewards and now - last_time >= 240:
+                    EventsManager.send_event(window_id, {"type": MonitorType.CLAIM_REWARDS})
+                    log(f"REWARDS ивент отправлен в {window_id}", self.tname)
 
-                last_events["claim_rewards"] = now
+                    last_events[MonitorType.CLAIM_REWARDS] = now
 
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor rewards error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_schedule_schedule(self, window_id: str, profile: BaseProfile) -> None:
         while profile.running:
-            now = time.monotonic()
-            last_events = self._last_event_time.setdefault(window_id, {})
-            last_time = last_events.get("schedule", 0)
-            schedule = profile.settings.get_schedule_schedule()
-            if schedule and now - last_time >= 240:
-                EventsManager.send_event(window_id, {"type": "schedule"})
-                log(f"schedule ивент отправлен в {window_id}", self.tname)
-                last_events["schedule"] = now
+            try:
+                now = time.monotonic()
+                last_events = self._last_event_time.setdefault(window_id, {})
+                last_time = last_events.get(MonitorType.SCHEDULE, 0)
+                schedule = profile.settings.get_schedule_schedule()
+                if schedule and now - last_time >= 240:
+                    EventsManager.send_event(window_id, {"type": MonitorType.SCHEDULE})
+                    log(f"schedule ивент отправлен в {window_id}", self.tname)
+                    last_events[MonitorType.SCHEDULE] = now
 
-            await asyncio.sleep(30)
+                await asyncio.sleep(30)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor schedule error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def _monitor_overweight(self, window_id: str, profile: BaseProfile):
         if profile.runtime_data.has_quiver is None:
@@ -261,32 +331,38 @@ class EventsChecker:
         }
 
         while profile.running:
-            detected_level = OverWeight.ZERO
+            try:
+                detected_level = OverWeight.ZERO
 
-            for level in [OverWeight.EIGHTY, OverWeight.FIFTY,
-                          OverWeight.ZERO]:
+                for level in [OverWeight.EIGHTY, OverWeight.FIFTY,
+                              OverWeight.ZERO]:
 
-                cb_key = coords[level]
-                xy, rgb = parseCBT(cb_key, profile=profile)
-                found = await profile.check_pixel(xy, rgb, timeout=4, thr=0)
-                if found:
-                    detected_level = level
-                    break
+                    cb_key = coords[level]
+                    xy, rgb = parseCBT(cb_key, profile=profile)
+                    found = await profile.check_pixel(xy, rgb, timeout=4, thr=0)
+                    if found:
+                        detected_level = level
+                        break
 
+                    await asyncio.sleep(5)
+
+                profile.runtime_data.update_overweight(detected_level)
+                to_notify = profile.runtime_data.need_notify()
+
+                if to_notify is not None:
+                    now = time.monotonic()
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.OVERWEIGHT, 0)
+                    if now - last_time >= 30:
+                        EventsManager.send_event(window_id, {"type": MonitorType.OVERWEIGHT})
+                        last_events[MonitorType.OVERWEIGHT] = now
+
+                await asyncio.sleep(50)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor overweight error: {e}", self.tname)
                 await asyncio.sleep(5)
-
-            profile.runtime_data.update_overweight(detected_level)
-            to_notify = profile.runtime_data.need_notify()
-
-            if to_notify is not None:
-                now = time.monotonic()
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("overweight", 0)
-                if now - last_time >= 30:
-                    EventsManager.send_event(window_id, {"type": "overweight"})
-                    last_events["overweight"] = now
-
-            await asyncio.sleep(50)
 
     async def _monitor_health(self, window_id: str, profile: BaseProfile) -> None:
         bars = [
@@ -309,61 +385,72 @@ class EventsChecker:
         t4 = np.array([10, 10, 5], dtype=np.int16)
 
         while profile.running:
-            [screenshot] = await profile.capture_multy([rect])
-            img_i16 = screenshot.astype(np.int16)
+            try:
+                [screenshot] = await profile.capture_multy([rect])
+                img_i16 = screenshot.astype(np.int16)
 
-            mask1 = np.all(np.abs(img_i16 - t1) <= t2, axis=-1)
-            mask2 = np.all(np.abs(img_i16 - t3) <= t4, axis=-1)
-            mask = mask1 | mask2
+                mask1 = np.all(np.abs(img_i16 - t1) <= t2, axis=-1)
+                mask2 = np.all(np.abs(img_i16 - t3) <= t4, axis=-1)
+                mask = mask1 | mask2
 
-            re = np.mean(mask, axis=0)
-            red = np.where(re > 0.4)[0]
+                re = np.mean(mask, axis=0)
+                red = np.where(re > 0.4)[0]
 
-            if len(red) > 0:
-                hpe = red[-1]
-                hp = int((hpe / (width - 1)) * 100)
-                profile.runtime_data.health = hp
+                if len(red) > 0:
+                    hpe = red[-1]
+                    hp = int((hpe / (width - 1)) * 100)
+                    profile.runtime_data.health = hp
 
-                now = time.monotonic()
-                last_events = self._last_event_time.setdefault(window_id, {})
-                last_time = last_events.get("health", 0)
-                if now - last_time >= 1:
-                    last_events["health"] = now
+                    now = time.monotonic()
+                    last_events = self._last_event_time.setdefault(window_id, {})
+                    last_time = last_events.get(MonitorType.HEALTH, 0)
+                    if now - last_time >= 1:
+                        last_events[MonitorType.HEALTH] = now
 
-            await asyncio.sleep(0.23)
+                await asyncio.sleep(0.23)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                log(f"Monitor health error: {e}", self.tname)
+                await asyncio.sleep(5)
 
     async def low_hp_dodge(self, window_id: str, profile: BaseProfile):
-        window_id, window = next(iter(profile.window_info.items()))
-        await asyncio.sleep(0.3)
-        if profile.settings.LOW_HP_DODGE:
-            if profile.runtime_data.current_state == "combat":
-                self.start_monitoring(window_id, profile, [MonitorType.HEALTH])
-            else:
-                return '{"errors": 1, "description": "need combat state before calling this func"}'
-
-            await asyncio.sleep(3)
-            hb = profile.settings.HEALTH_BACK
-            m = max(hb or [30])
-            while profile.runtime_data.current_state == "combat":
-                #log(f"{profile.runtime_data.current_state}", window_id)
-                await asyncio.sleep(0.25)
-                hp = profile.runtime_data.health
-                #log(hp, window_id)
-                if hp == 0:
-                    #log(f"[в лоу хп] Хп вероятно еще не получено либо шось сломалось", window_id)
-                    await asyncio.sleep(0.05)
-                    continue
-
-                if hp <= m:
-                    self.stop_once(window_id, MonitorType.HEALTH)
-                    log(f"Больше не терпим, мало хп! | {hp}/{m}", window_id)
-                    EventsManager.send_event(window_id, {"type": "low_hp_dodge"})
-                    self.stop_once(window_id, MonitorType.LOW_HP_DODGE)
+        try:
+            window_id, window = next(iter(profile.window_info.items()))
+            await asyncio.sleep(0.3)
+            if profile.settings.LOW_HP_DODGE:
+                if profile.runtime_data.current_state == BotState.COMBAT:
+                    self.start_monitoring(window_id, profile, [MonitorType.HEALTH])
                 else:
-                    #log(f"Терпим, нас ебут а мы крепчаем... | {hp}/{m}", window_id)
-                    pass
+                    return '{"errors": 1, "description": "need combat state before calling this func"}'
 
-            await asyncio.sleep(20)
+                await asyncio.sleep(3)
+                hb = profile.settings.HEALTH_BACK
+                m = max(hb or [30])
+                while profile.runtime_data.current_state == BotState.COMBAT:
+                    #log(f"{profile.runtime_data.current_state}", window_id)
+                    await asyncio.sleep(0.25)
+                    hp = profile.runtime_data.health
+                    #log(hp, window_id)
+                    if hp == 0:
+                        #log(f"[в лоу хп] Хп вероятно еще не получено либо шось сломалось", window_id)
+                        await asyncio.sleep(0.05)
+                        continue
+
+                    if hp <= m:
+                        self.stop_once(window_id, MonitorType.HEALTH)
+                        log(f"Больше не терпим, мало хп! | {hp}/{m}", window_id)
+                        EventsManager.send_event(window_id, {"type": MonitorType.LOW_HP_DODGE})
+                        self.stop_once(window_id, MonitorType.LOW_HP_DODGE)
+                    else:
+                        #log(f"Терпим, нас ебут а мы крепчаем... | {hp}/{m}", window_id)
+                        pass
+
+                await asyncio.sleep(20)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            log(f"Monitor low_hp_dodge error: {e}", self.tname)
 
     async def _check_ethernet_disc_error(self, window_id: str, profile: BaseProfile):
         while profile.running:
@@ -371,7 +458,7 @@ class EventsChecker:
                 found = await profile.errors.has_ethernet2()
                 if found:
                     EventsManager.send_event(window_id, {
-                        "type": "error",
+                        "type": MonitorType.ERROR,
                         "desc": ErrorTypes.ETHERNET2_ERROR,
                     })
             except asyncio.CancelledError:
@@ -386,7 +473,7 @@ class EventsChecker:
                 found = await profile.errors.has_ethernet1()
                 if found:
                     EventsManager.send_event(window_id, {
-                        "type": "error",
+                        "type": MonitorType.ERROR,
                         "desc": ErrorTypes.ETHERNET_ERROR,
                     })
             except asyncio.CancelledError:
@@ -401,7 +488,7 @@ class EventsChecker:
                 found = await profile.errors.is_disconnected()
                 if found:
                     EventsManager.send_event(window_id, {
-                        "type": "error",
+                        "type": MonitorType.ERROR,
                         "desc": ErrorTypes.DISCONNECT_TO_MENU,
                     })
             except asyncio.CancelledError:
@@ -458,7 +545,9 @@ class EventsChecker:
 
         for mtype in monitors:
             if mtype in ex:
-                continue
+                if not ex[mtype].done():
+                    continue
+                del ex[mtype]
 
             func = checkers.get(mtype)
             if func:
@@ -477,6 +566,7 @@ class EventsChecker:
     # стопает все чекеры для переданного окна
     def stop_monitoring(self, window_id: str) -> None:
         tasks = self.tasks.pop(window_id, {})
+        self._last_event_time.pop(window_id, None)
         if not tasks:
             return
 

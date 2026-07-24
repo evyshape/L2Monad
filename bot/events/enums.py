@@ -33,6 +33,39 @@ class MonitorType(StrEnum):
     PARTY_DUNGEON = "party_dungeon"
 
 
+class BotState(StrEnum):
+    NULL = "null"
+    AFK = "afk"
+    COMBAT = "combat"
+    SHOPPING = "shopping"
+    STASHING = "stashing"
+    DEATH = "death"
+    CLAIMING = "claiming"
+    SCHEDULE = "schedule"
+    PVP = "pvp"
+    ALCHEMY = "alchemy"
+
+
+class ScheduleAction(StrEnum):
+    BUYING = "buying"
+    MAIL = "mail"
+    REWARDS = "rewards"
+    AUCTION = "auction"
+    PARTY_DUNGEON = "party_dungeon"
+
+
+class Region(StrEnum):
+    RU = "RU"
+    JP = "JP"
+
+
+class NotifyLevel(StrEnum):
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+    TRASH = "trash"
+
+
 # приорететы, если одновременно прилетает 2 ивента условный пвп и условный клайм мейл сначала обработается пвп
 PRIORITIES = {
     MonitorType.PVP: 1,
