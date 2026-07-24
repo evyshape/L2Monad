@@ -1,36 +1,21 @@
 import asyncio
 import contextlib
-import threading
 from asyncio import Queue
-import time
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Union, Any, List, Optional
 
-import mss
 import numpy as np
 import pygetwindow as gw
 from screeninfo import get_monitors
+from bot import capture
 from bot.clogger import log
-from bot.limits import pixel_semaphore, thread
 from bot.windows.base import BaseSettings, default_values
 from bot.alchemy.alch_cons import ALCH_REZ
 from bot.alchemy.alch_utils import alch_rects
 from bot.windows.runtime import RuntimeData
+from bot.events.enums import BotState
 
-from concurrent.futures import ThreadPoolExecutor
 import ctypes
-
-_mss_local = threading.local()
-
-
-def _get_thread_mss():
-    sct = getattr(_mss_local, 'sct', None)
-    if sct is None:
-        sct = mss.mss()
-        _mss_local.sct = sct
-    return sct
-
-THREAD_POOL = ThreadPoolExecutor(max_workers=thread, thread_name_prefix="pixel")
 
 HWND_BOTTOM = 1
 SWP_NOMOVE = 0x0002
@@ -42,22 +27,21 @@ class BaseProfile(ABC):
     def __init__(self, window_info: Dict[str, Dict], settings: BaseSettings | None = None):
         from bot.events.checker import EventsChecker
         from bot.methods.other import MouseEvents
-        from tgbot.bot import TgBot
 
         self.window_info = window_info
         self.running = True
         self._task: asyncio.Task | None = None
         self.events_checker = EventsChecker()
-        self.event_queue: Queue = Queue()
+        self.event_queue: Queue = Queue(maxsize=64)
         self._event_task: asyncio.Task | None = None
         self.tname = "-BaseProfile-"
         self.settings = settings or BaseSettings(**default_values)
-        self.runtime_data = RuntimeData(current_state="null")
+        self.runtime_data = RuntimeData(current_state=BotState.NULL)
         self._saved_pos = None
         self._window_id = next(iter(window_info))
         self._child_tasks: List[asyncio.Task] = []
         self.mouse = MouseEvents()
-        self.tgbot = TgBot()
+        self._tgbot_cache = None
 
         from bot.methods.game.errors import ErrorHandler
         from bot.methods.game.energo import Energo
@@ -81,10 +65,20 @@ class BaseProfile(ABC):
     def window_id(self) -> str:
         return self._window_id
 
+    @property
+    def tgbot(self):
+        if self._tgbot_cache is None:
+            try:
+                from tgbot.bot import TgBot
+                self._tgbot_cache = TgBot()
+            except Exception:
+                return None
+        return self._tgbot_cache
+
     def notify(self, level: str, text: str) -> None:
         if not getattr(self.settings, "TELEGRAM_NOTIFIES", False):
             return
-        tg = getattr(self, "tgbot", None)
+        tg = self.tgbot
         if tg is None:
             return
         tg.send_notification(level=level, text=text, nickname=self.window_id)
@@ -92,7 +86,7 @@ class BaseProfile(ABC):
     def notify_screenshot(self, caption: str, level: str = "warning") -> None:
         if not getattr(self.settings, "TELEGRAM_NOTIFIES", False):
             return
-        tg = getattr(self, "tgbot", None)
+        tg = self.tgbot
         if tg is None:
             return
 
@@ -197,7 +191,7 @@ class BaseProfile(ABC):
             task.cancel()
 
         await asyncio.gather(*tasks, return_exceptions=True)
-        self.event_queue = Queue()
+        self.event_queue = Queue(maxsize=64)
 
     async def _save_pos(self):
         window_id, window = next(iter(self.window_info.items()))
@@ -303,7 +297,14 @@ class BaseProfile(ABC):
         Добавляет событие в очередь профиля, может быть 2 сразу и более
         """
         if self.running:
-            self.event_queue.put_nowait(event)
+            try:
+                self.event_queue.put_nowait(event)
+            except asyncio.QueueFull:
+                try:
+                    self.event_queue.get_nowait()
+                    self.event_queue.put_nowait(event)
+                except Exception:
+                    pass
 
     async def handle_event(self, event: Any) -> None:
         """
@@ -316,7 +317,12 @@ class BaseProfile(ABC):
         try:
             while True:
                 event = await self.event_queue.get()
-                await self.handle_event(event)
+                try:
+                    await self.handle_event(event)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    log(f"[{self.tname}] Ошибка в handle_event: {e}")
         except asyncio.CancelledError:
             log(f"[{self.tname}] Остановил слушалку")
 
@@ -332,31 +338,16 @@ class BaseProfile(ABC):
         except Exception:
             width, height = 2, 2
 
-        window_id, window = next(iter(self.window_info.items()))
+        window = self.window_info[self._window_id]
         abs_x = xy[0] + window['Position'][0]
         abs_y = xy[1] + window['Position'][1]
-        target = np.array(rgb, dtype=np.int16)
 
-        def blocking_check():
-            sct = _get_thread_mss()
-            monitor = {"left": abs_x, "top": abs_y, "width": width, "height": height}
-            start = time.time()
-            while True:
-                try:
-                    shot = sct.grab(monitor)
-                except Exception:
-                    return False
-                arr = np.array(shot)[:, :, :3][:, :, ::-1].astype(np.int16)
-                diff = np.abs(arr - target)
-                if np.any(np.all(diff <= thr, axis=-1)):
-                    return True
-                if time.time() - start >= timeout:
-                    return False
-                time.sleep(0.02)
-
-        loop = asyncio.get_running_loop()
-        async with pixel_semaphore:
-            return await loop.run_in_executor(THREAD_POOL, blocking_check)
+        return await capture.wait_for_pixel(
+            abs_x, abs_y, width, height,
+            (int(rgb[0]), int(rgb[1]), int(rgb[2])),
+            int(thr),
+            float(timeout),
+        )
 
     async def capture_multy(
         self,
@@ -364,25 +355,16 @@ class BaseProfile(ABC):
 
     ) -> List[np.ndarray]:
 
-        window_id, window = next(iter(self.window_info.items()))
+        window = self.window_info[self._window_id]
         px, py = window['Position']
 
-        def blocking_grab():
-            sct = _get_thread_mss()
-            results = []
-            for x, y, w, h in rects:
-                monitor = {"left": x + px, "top": y + py, "width": w, "height": h}
-                try:
-                    shot = sct.grab(monitor)
-                    arr = np.array(shot)[:, :, :3][:, :, ::-1]
-                    results.append(arr)
-                except Exception:
-                    results.append(np.zeros((h, w, 3), dtype=np.uint8))
-            return results
+        async def _one(x: int, y: int, w: int, h: int) -> np.ndarray:
+            try:
+                return await capture.capture_region(x + px, y + py, w, h)
+            except Exception:
+                return np.zeros((h, w, 3), dtype=np.uint8)
 
-        loop = asyncio.get_running_loop()
-        async with pixel_semaphore:
-            return await loop.run_in_executor(THREAD_POOL, blocking_grab)
+        return await asyncio.gather(*(_one(x, y, w, h) for x, y, w, h in rects))
 
     def is_running(self) -> bool:
         """

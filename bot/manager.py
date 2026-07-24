@@ -1,4 +1,6 @@
 import asyncio
+import traceback
+from bot.clogger import log
 
 class BotManager:
     def __init__(self):
@@ -28,6 +30,12 @@ class BotManager:
             await bot.on_start()  # await main_loop
         except asyncio.CancelledError:
             pass
+        except Exception as e:
+            log(f"Бот {bot.window_nick} умер: {e}\n{traceback.format_exc()}", level="ERROR")
+            try:
+                await bot.on_stop()
+            except Exception:
+                pass
         finally:
             bot.running = False
             bot._task = None
