@@ -1,5 +1,7 @@
 import asyncio
 import requests
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from aiogram import Bot, Dispatcher
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -28,24 +30,28 @@ class TgBot:
             return inst
 
         try:
-            s = None
+            proxy = None
             if config.proxy_url:
                 try:
                     proxies = {"http": config.proxy_url, "https": config.proxy_url}
                     resp = requests.get(
                         "https://api.telegram.org",
                         proxies=proxies,
-                        timeout=5
+                        timeout=5,
+                        verify=False,
                     )
                     if resp.status_code == 200:
                         log(f"Proxy: {resp.status_code}")
-                        s = AiohttpSession(proxy=config.proxy_url)
+                        proxy = config.proxy_url
                     else:
                         log(f"Proxy FAIL: {resp.status_code}")
                         config.PROXY_HOST = None
                 except Exception as e:
                     log(f"Proxy ERROR: {e}")
                     config.PROXY_HOST = None
+
+            s = AiohttpSession(proxy=proxy) if proxy else AiohttpSession()
+            s._connector_init["ssl"] = False
 
             inst.bot = Bot(
                 token=config.BOT_TOKEN,
