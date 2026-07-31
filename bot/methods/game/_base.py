@@ -40,11 +40,11 @@ class GameAction:
         return True
 
     async def wait_and_click(self, tag: str, *, timeout: float = 5, thr: float = 3,
-                             wsize: str = "2x2") -> bool:
+                             wsize: str = "2x2", dx: int = 0, dy: int = 0) -> bool:
         xy, rgb = parseCBT(tag, profile=self.profile)
         if xy is None:
             return False
         if await self.profile.check_pixel(xy, rgb, timeout=timeout, thr=thr, wsize=wsize):
-            await self.mouse.click(self.window_info, *xy)
+            await self.mouse.click(self.window_info, xy[0] + dx, xy[1] + dy)
             return True
         return False

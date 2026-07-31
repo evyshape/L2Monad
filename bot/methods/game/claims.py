@@ -20,17 +20,17 @@ from bot.methods.game._base import GameAction
 
 class Claims(GameAction):
 
-    async def _menu_open(self) -> bool:
+    async def _menu_open(self, timeout: float = 0.3) -> bool:
         xy, rgb = parseCBT("main_menu_opened", profile=self.profile)
         if xy is None:
             return False
-        return await self.profile.check_pixel(xy, rgb, timeout=0.3, thr=5)
+        return await self.profile.check_pixel(xy, rgb, timeout=timeout, thr=5)
 
     async def _open_menu(self, timeout: float = 5) -> bool:
         if await self._menu_open():
             return True
         await self.wait_and_click("main_menu_gui", timeout=timeout)
-        return await self._menu_open()
+        return await self._menu_open(timeout=3)
 
     async def _close_menu(self):
         if await self._menu_open():
@@ -68,7 +68,7 @@ class Claims(GameAction):
             log("Не удалось открыть главное меню", self.window_id)
             return False
 
-        if not await self.wait_and_click("red_dot_mail_menu", timeout=1, thr=10):
+        if not await self.wait_and_click("red_dot_mail_menu", timeout=1, thr=10, dx=-5, dy=5):
             log("Не найден значок почты", self.window_id)
             return False
         log("Нашел почту", self.window_id)
@@ -257,7 +257,7 @@ class Claims(GameAction):
         if not await self._open_menu(timeout=5):
             log("Не удалось открыть главное меню", self.window_id)
             return False
-        if not await self.wait_and_click("red_dot_daily_rewards", timeout=2):
+        if not await self.wait_and_click("red_dot_daily_rewards", timeout=2, dx=-5, dy=5):
             log("Не нашел красной точки, скипаю", self.window_id)
             return False
 
@@ -327,7 +327,7 @@ class Claims(GameAction):
             log("Не удалось открыть главное меню", self.window_id)
             return False
 
-        if not await self.wait_and_click("red_dot_clan", timeout=2):
+        if not await self.wait_and_click("red_dot_clan", timeout=2, dx=-5, dy=5):
             log("Нет красной точки клана", self.window_id)
             return False
         log("Нашел сбор клана", self.window_id)
