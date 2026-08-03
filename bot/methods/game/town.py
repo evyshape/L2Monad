@@ -24,8 +24,8 @@ class Town(GameAction):
             kw["thr"] = thr
         return xy if await self.profile.check_pixel(xy, rgb, **kw) else None
 
-    async def _smart_click(self, tag, next_tag, wait=10.0, verify=2.0, reclicks=1, pre=0.45):
-        xy = await self._wait_pixel(tag, deadline=wait)
+    async def _smart_click(self, tag, next_tag, wait=10.0, verify=2.0, reclicks=1, pre=0.45, thr=None):
+        xy = await self._wait_pixel(tag, deadline=wait, thr=thr)
         if xy is None:
             return False, None
         for attempt in range(reclicks + 1):
@@ -40,8 +40,39 @@ class Town(GameAction):
                 log(f"{tag}: клик не сработал, реклик {attempt+1}/{reclicks}", self.window_id)
         return False, xy
 
+    async def is_floran(self, thr: int = 14, need: int = 4) -> bool:
+        in_energo = await self.profile.energo.is_on()
+        prefix = "floran_energo_" if in_energo else "floran_no_energo_"
+
+        specs = []
+        rects = []
+        i = 1
+        while True:
+            tag = f"{prefix}{i}"
+            xy, rgb = parseCBT(tag, profile=self.profile)
+            if xy is None:
+                break
+            specs.append((xy, rgb))
+            rects.append((xy[0], xy[1], 1, 1))
+            i += 1
+
+        if not specs:
+            return False
+
+        imgs = await self.profile.capture_multy(rects)
+
+        matched = 0
+        for (xy, rgb), img in zip(specs, imgs):
+            r, g, b = int(img[0, 0, 0]), int(img[0, 0, 1]), int(img[0, 0, 2])
+            if max(abs(r - rgb[0]), abs(g - rgb[1]), abs(b - rgb[2])) <= thr:
+                matched += 1
+
+        floran = matched >= need
+        log(f"is_floran: {floran} ({matched}/{len(specs)})", self.window_id)
+        return floran
+
     async def find_npcs(self, thr: int = THR_CHECK_NPC_POSITIONS,
-                        retries: int = 2) -> Optional[Dict[str, str]]:
+                        retries: int = 2, floran: Optional[bool] = None) -> Optional[Dict[str, str]]:
         npc_batches = [[2, 3]]
         if await self.profile.errors.has_ethernet1():
             await self.profile.errors.close_ethernet1()
@@ -108,19 +139,21 @@ class Town(GameAction):
             await asyncio.sleep(random.uniform(0.1, 0.3))
 
         await asyncio.sleep(random.uniform(0.1, 0.3))
-        if self.settings.REGION == Region.RU:
-            for _ in range(1):
-                await self.mouse.wheel(self.window_info, [(38, 104)], direction="up", times=9)
-                await asyncio.sleep(0.25)
-            return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
 
+        if floran is None:
+            floran = await self.is_floran()
+        if floran:
+            up_times = 7
+        elif self.settings.REGION == Region.RU:
+            up_times = 9
         elif self.settings.REGION == Region.JP:
-            for _ in range(1):
-                await self.mouse.wheel(self.window_info, [(38, 104)], direction="up", times=7)
-                await asyncio.sleep(0.25)
-            return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
+            up_times = 7
+        else:
+            return None
 
-        return None
+        await self.mouse.wheel(self.window_info, [(38, 104)], direction="up", times=up_times)
+        await asyncio.sleep(0.05)
+        return {"stash": "npc_list_3", "shop": "npc_list_1", "buyer": "npc_list_5"}
 
     async def is_in(self) -> tuple[bool, dict | None]:
         timeout = 50
@@ -138,25 +171,35 @@ class Town(GameAction):
             if xy is None or rgb is None:
                 return False, None
 
-            result = await self.profile.check_pixel(xy, rgb, timeout=1)
+            result = await self.profile.check_pixel(xy, rgb, timeout=1, thr=30)
             if result:
-                log("Белый кубик найден, открываю список нпс", self.window_id)
+                log("Белый кубик найден", self.window_id)
                 xy_btn, _ = parseCBT("npc_list_in_town", profile=self.profile)
                 if xy_btn is None:
                     return False, None
 
+                floran = await self.is_floran()
                 x, y = xy_btn
                 click_result = await self.mouse.click(self.window_info, x, y)
                 if click_result:
                     log("Открыл список нпс, получаю позиции", self.window_id)
                     await asyncio.sleep(0.03)
-                    allNPC = await self.find_npcs()
+                    allNPC = await self.find_npcs(floran=floran)
                     if allNPC:
                         log("Нахожусь в городе, список нпс открыт", self.window_id)
                         return True, allNPC
             else:
-                log("Белого кубика не было, карты нет. чекаю позиции в тупую", self.window_id)
-                allNPC = await self.find_npcs()
+                log("Белого кубика не было, чекаю флоран после закрытия списка", self.window_id)
+                xy_btn, _ = parseCBT("npc_list_in_town", profile=self.profile)
+                if xy_btn is None:
+                    return False, None
+                x, y = xy_btn
+                await self.mouse.click(self.window_info, x, y)
+                await asyncio.sleep(0.4)
+                floran = await self.is_floran()
+                await self.mouse.click(self.window_info, x, y)
+                await asyncio.sleep(0.4)
+                allNPC = await self.find_npcs(floran=floran)
                 if allNPC:
                     log("Список нпс уже открыт, мы в городе", self.window_id)
                     return True, allNPC
@@ -206,7 +249,7 @@ class Town(GameAction):
 
         await self.mouse.click(self.window_info, *xy)
 
-        ok, xy_b1 = await self._smart_click("npc_shop_button_1", "npc_shop_button_2", wait=120.0, verify=3.0)
+        ok, xy_b1 = await self._smart_click("npc_shop_button_1", "npc_shop_button_2", wait=120.0, verify=3.0, thr=14)
         if not ok:
             if xy_b1 is None:
                 log("buy_in_shop: button_1 не появилась, меню не открылось", self.window_id)
@@ -268,7 +311,7 @@ class Town(GameAction):
 
         await self.mouse.click(self.window_info, *xy)
 
-        xy_b1 = await self._wait_pixel("npc_stash_button_1", deadline=120.0, thr=7)
+        xy_b1 = await self._wait_pixel("npc_stash_button_1", deadline=120.0, thr=13)
         if xy_b1 is None:
             log("go_stash: stash_button_1 не появилась, меню не открылось", self.window_id)
             return False, in_town, npcs
@@ -312,7 +355,7 @@ class Town(GameAction):
 
         await self.mouse.click(self.window_info, *xy)
 
-        ok, xy_b1 = await self._smart_click("npc_buyer_button_1", "npc_buyer_button_2", wait=120.0, verify=3.0)
+        ok, xy_b1 = await self._smart_click("npc_buyer_button_1", "npc_buyer_button_2", wait=120.0, verify=3.0, thr=15)
         if not ok:
             if xy_b1 is None:
                 log("sell_buyer: button_1 не появилась, меню не открылось", self.window_id)
@@ -368,6 +411,26 @@ class Town(GameAction):
 
         xy, rgb = parseCBT("respawn_icon_in_gui", profile=self.profile)
         if not await self.profile.check_pixel(xy, rgb, timeout=2):
+            xy_del, rgb_del = parseCBT("respawn_icon_in_gui_deleted", profile=self.profile)
+            if xy_del and await self.profile.check_pixel(xy_del, rgb_del, timeout=1):
+                for tab in ("respawn_exp", "respawn_items"):
+                    xy_t, _ = parseCBT(tab, profile=self.profile)
+                    if xy_t is not None:
+                        await self.mouse.click(self.window_info, xy_t[0], xy_t[1])
+                        await asyncio.sleep(0.25)
+
+                    for btn in ("respawn_deleted_btn_1", "respawn_deleted_btn_2", "respawn_deleted_btn_3"):
+                        xy_b, _ = parseCBT(btn, profile=self.profile)
+                        if xy_b is not None:
+                            await self.mouse.click(self.window_info, xy_b[0], xy_b[1])
+                            await asyncio.sleep(0.25)
+
+                xy_exit, _ = parseCBT("respawn_exit_gui_button", profile=self.profile)
+                if xy_exit:
+                    await self.mouse.click(self.window_info, xy_exit[0], xy_exit[1])
+                    await asyncio.sleep(0.25)
+                return False
+
             xy_select_all, rgb_select_all = parseCBT("respawn_select_all", profile=self.profile)
             if await self.profile.check_pixel(xy_select_all, rgb_select_all, timeout=1):
                 await self.mouse.click(self.window_info, xy_select_all[0], xy_select_all[1])

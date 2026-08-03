@@ -81,7 +81,7 @@ class PartyDungeon(GameAction):
     async def party_create(self):
         log("party_create: старт", self.window_id)
         xy, rgb = parseCBT("white_cube_in_minimap", profile=self.profile)
-        result = await self.profile.check_pixel(xy, rgb, timeout=1)
+        result = await self.profile.check_pixel(xy, rgb, timeout=1, thr=30)
         if not result:
             log("party_create: тыкаю npc_list", self.window_id)
             await self.wait_and_click("npc_list_in_town")
@@ -105,7 +105,7 @@ class PartyDungeon(GameAction):
         log("party_leave: старт", self.window_id)
         await asyncio.sleep(2)
         xy, rgb = parseCBT("white_cube_in_minimap", profile=self.profile)
-        result = await self.profile.check_pixel(xy, rgb, timeout=1)
+        result = await self.profile.check_pixel(xy, rgb, timeout=1, thr=30)
         if not result:
             log("party_leave: тыкаю npc_list", self.window_id)
             await self.wait_and_click("npc_list_in_town")
