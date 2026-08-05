@@ -147,7 +147,7 @@ class Town(GameAction):
         elif self.settings.REGION == Region.RU:
             up_times = 9
         elif self.settings.REGION == Region.JP:
-            up_times = 7
+            up_times = 5
         else:
             return None
 
