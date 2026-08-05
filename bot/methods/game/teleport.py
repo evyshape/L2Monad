@@ -116,15 +116,29 @@ class Teleport(GameAction):
 
             await asyncio.sleep(0.5)
 
-        for key in steps:
+        debug = 0
+        xy_open, rgb_open = parseCBT("spot_teleport_window_opened", profile=self.profile)
+
+        for i, key in enumerate(steps):
             xy, rgb = parseCBT(key, profile=self.profile)
             if not await self.profile.check_pixel(xy, rgb, timeout=3):
                 log(f"Не нашел {key} за 3 сек", self.window_id)
+                if debug:
+                    self.profile.notify_screenshot(f"Не нашел {key} за 3 сек")
                 return False
             x, y = xy
             if not await self.mouse.click(self.window_info, x, y):
                 log(f"Не удалось нажать на {key} ({x}, {y})", self.window_id)
                 return False
+
+            if i == 0 and xy_open is not None:
+                if not await self.profile.check_pixel(xy_open, rgb_open, timeout=2):
+                    if debug:
+                        self.profile.notify_screenshot("tp: окно тп не открылось после клика 1")
+                    await self.mouse.click(self.window_info, x, y)
+                    if debug:
+                        self.profile.notify_screenshot("tp: сразу после реклика")
+
             await asyncio.sleep(random.uniform(0.2, 0.5))
 
         if not await self.wait_arrived(need=4):
