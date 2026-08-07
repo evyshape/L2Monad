@@ -8,6 +8,7 @@ from bot.delays import (
     DELAY_CHECK_NPC_POSITIONS,
     THR_CHECK_NPC_POSITIONS,
 )
+from bot.cbt import CBT_JP_PARSED, CBT_RU_PARSED
 from bot.methods.base import parseCBT
 from bot.events.enums import Region
 from bot.methods.game._base import GameAction
@@ -24,8 +25,20 @@ class Town(GameAction):
             kw["thr"] = thr
         return xy if await self.profile.check_pixel(xy, rgb, **kw) else None
 
-    async def _smart_click(self, tag, next_tag, wait=10.0, verify=2.0, reclicks=1, pre=0.45, thr=None):
-        xy = await self._wait_pixel(tag, deadline=wait, thr=thr)
+    async def _wait_all(self, tags, deadline=10.0, thr=None):
+        loop = asyncio.get_running_loop()
+        t0 = loop.time()
+        while loop.time() - t0 < deadline:
+            results = await asyncio.gather(*(
+                self._wait_pixel(t, deadline=0.3, thr=thr) for t in tags
+            ))
+            if all(r is not None for r in results):
+                return results[0]
+            await asyncio.sleep(0.2)
+        return None
+
+    async def _smart_click(self, tag, next_tag, wait=10.0, verify=2.0, reclicks=1, pre=0.45, thr=None, anchors=()):
+        xy = await self._wait_all([tag] + list(anchors), deadline=wait, thr=thr)
         if xy is None:
             return False, None
         for attempt in range(reclicks + 1):
@@ -43,13 +56,16 @@ class Town(GameAction):
     async def is_floran(self, thr: int = 14, need: int = 4) -> bool:
         in_energo = await self.profile.energo.is_on()
         prefix = "floran_energo_" if in_energo else "floran_no_energo_"
+        cbt = CBT_RU_PARSED if self.settings.REGION == Region.RU else CBT_JP_PARSED
 
         specs = []
         rects = []
         i = 1
         while True:
             tag = f"{prefix}{i}"
-            xy, rgb = parseCBT(tag, profile=self.profile)
+            if tag not in cbt:
+                break
+            xy, rgb = cbt[tag]
             if xy is None:
                 break
             specs.append((xy, rgb))
@@ -249,7 +265,11 @@ class Town(GameAction):
 
         await self.mouse.click(self.window_info, *xy)
 
-        ok, xy_b1 = await self._smart_click("npc_shop_button_1", "npc_shop_button_2", wait=120.0, verify=3.0, thr=14)
+        ok, xy_b1 = await self._smart_click(
+            "npc_shop_button_1", "npc_shop_button_2",
+            wait=120.0, verify=3.0, thr=10,
+            anchors=("npc_shop_anchor_1", "npc_shop_anchor_2", "npc_shop_anchor_3"),
+        )
         if not ok:
             if xy_b1 is None:
                 log("buy_in_shop: button_1 не появилась, меню не открылось", self.window_id)
@@ -311,9 +331,12 @@ class Town(GameAction):
 
         await self.mouse.click(self.window_info, *xy)
 
-        xy_b1 = await self._wait_pixel("npc_stash_button_1", deadline=120.0, thr=13)
+        xy_b1 = await self._wait_all(
+            ("npc_stash_button_1", "npc_stash_anchor_1", "npc_stash_anchor_2", "npc_stash_anchor_3"),
+            deadline=120.0, thr=10,
+        )
         if xy_b1 is None:
-            log("go_stash: stash_button_1 не появилась, меню не открылось", self.window_id)
+            log("go_stash: якоря склада не совпали, меню не открылось", self.window_id)
             return False, in_town, npcs
         await asyncio.sleep(0.45)
         await self.mouse.click(self.window_info, *xy_b1)
@@ -355,7 +378,11 @@ class Town(GameAction):
 
         await self.mouse.click(self.window_info, *xy)
 
-        ok, xy_b1 = await self._smart_click("npc_buyer_button_1", "npc_buyer_button_2", wait=120.0, verify=3.0, thr=15)
+        ok, xy_b1 = await self._smart_click(
+            "npc_buyer_button_1", "npc_buyer_button_2",
+            wait=120.0, verify=3.0, thr=10,
+            anchors=("npc_buyer_anchor_1", "npc_buyer_anchor_2", "npc_buyer_anchor_3"),
+        )
         if not ok:
             if xy_b1 is None:
                 log("sell_buyer: button_1 не появилась, меню не открылось", self.window_id)
