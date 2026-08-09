@@ -184,7 +184,7 @@ CBT = {
     'error_ethernet_1_trigger3': ["135, 103", "114, 116, 118"],
     'error_ethernet_1_trigger4': ["265, 107", "104, 106, 109"],
     'party_dungeon_button': {
-        'ru': ["224, 32", "124, 130, 138"],
+        'ru': ["120, 33", "90, 97, 108"],
         'jp': ["175, 34", "104, 112, 123"],
     },  # вкладка после нажатия на dungeon_button_menu
     'party_settings': ["16, 93", "no"], # выше чем energo_mode_gui на 1

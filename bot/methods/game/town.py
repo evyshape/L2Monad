@@ -188,13 +188,14 @@ class Town(GameAction):
                 return False, None
 
             result = await self.profile.check_pixel(xy, rgb, timeout=1, thr=30)
+            is_ru = self.settings.REGION == Region.RU
             if result:
                 log("Белый кубик найден", self.window_id)
                 xy_btn, _ = parseCBT("npc_list_in_town", profile=self.profile)
                 if xy_btn is None:
                     return False, None
 
-                floran = await self.is_floran()
+                floran = await self.is_floran() if is_ru else False
                 x, y = xy_btn
                 click_result = await self.mouse.click(self.window_info, x, y)
                 if click_result:
@@ -205,17 +206,20 @@ class Town(GameAction):
                         log("Нахожусь в городе, список нпс открыт", self.window_id)
                         return True, allNPC
             else:
-                log("Белого кубика не было, чекаю флоран после закрытия списка", self.window_id)
-                xy_btn, _ = parseCBT("npc_list_in_town", profile=self.profile)
-                if xy_btn is None:
-                    return False, None
-                x, y = xy_btn
-                await self.mouse.click(self.window_info, x, y)
-                await asyncio.sleep(0.4)
-                floran = await self.is_floran()
-                await self.mouse.click(self.window_info, x, y)
-                await asyncio.sleep(0.4)
-                allNPC = await self.find_npcs(floran=floran)
+                log("Белого кубика не было", self.window_id)
+                if is_ru:
+                    xy_btn, _ = parseCBT("npc_list_in_town", profile=self.profile)
+                    if xy_btn is None:
+                        return False, None
+                    x, y = xy_btn
+                    await self.mouse.click(self.window_info, x, y)
+                    await asyncio.sleep(0.4)
+                    floran = await self.is_floran()
+                    await self.mouse.click(self.window_info, x, y)
+                    await asyncio.sleep(0.4)
+                    allNPC = await self.find_npcs(floran=floran)
+                else:
+                    allNPC = await self.find_npcs(floran=False)
                 if allNPC:
                     log("Список нпс уже открыт, мы в городе", self.window_id)
                     return True, allNPC
