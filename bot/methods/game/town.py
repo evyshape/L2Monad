@@ -385,7 +385,7 @@ class Town(GameAction):
         ok, xy_b1 = await self._smart_click(
             "npc_buyer_button_1", "npc_buyer_button_2",
             wait=120.0, verify=3.0, thr=10,
-            anchors=("npc_buyer_anchor_1", "npc_buyer_anchor_2", "npc_buyer_anchor_3"),
+            anchors=("npc_buyer_anchor_1", "npc_buyer_anchor_2"),
         )
         if not ok:
             if xy_b1 is None:
