@@ -24,7 +24,7 @@ class PartyDungeon(GameAction):
 
     async def _detect(self) -> bool:
         xy, rgb = parseCBT(self.button_name, profile=self.profile)
-        return await self.profile.check_pixel(xy, rgb, timeout=0.3, thr=2, wsize="1x1")
+        return await self.profile.check_pixel(xy, rgb, timeout=0.3, thr=30, wsize="1x1")
 
     async def _click_button(self, button_name):
         xy, _ = parseCBT(button_name, profile=self.profile)
