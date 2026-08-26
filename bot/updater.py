@@ -49,6 +49,18 @@ def backup():
     log(f"Сделан бэкап текущей версии в {archive_path}")
     return archive_path
 
+def _cleanup(root_dir: str) -> None:
+    for root, dirs, files in os.walk(root_dir):
+        if any(skip in root for skip in ("backups", "logs", "temp_update", ".git")):
+            continue
+        for file in files:
+            if file.endswith(".pyd.old") or file.endswith(".dll.old"):
+                try:
+                    os.remove(os.path.join(root, file))
+                except Exception:
+                    pass
+
+
 def install_req(req_path):
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", req_path])
@@ -129,10 +141,32 @@ def update():
         z.extractall(temp_dir)
         main_repo = os.path.join(temp_dir, "L2Monad-main")
 
+        _cleanup(root_dir)
+
         for root, dirs, files in os.walk(main_repo):
             for file in files:
                 rel_path = os.path.relpath(os.path.join(root, file), main_repo)
                 dst_path = os.path.join(root_dir, rel_path)
+
+                if file.endswith(".pyd") or file.endswith(".dll"):
+                    if os.path.exists(dst_path):
+                        old_path = dst_path + ".old"
+                        try:
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                        except Exception:
+                            pass
+                        try:
+                            os.rename(dst_path, old_path)
+                        except Exception as e:
+                            log(f"pyd rename failed for {rel_path}: {e}")
+                            continue
+                    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+                    try:
+                        shutil.copy2(os.path.join(root, file), dst_path)
+                    except Exception as e:
+                        log(f"pyd copy failed for {rel_path}: {e}")
+                    continue
 
                 if "settings" in rel_path.split(os.sep):
                     if not os.path.exists(dst_path):
