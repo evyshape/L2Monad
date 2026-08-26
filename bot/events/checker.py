@@ -407,7 +407,7 @@ class EventsChecker:
                     if now - last_time >= 1:
                         last_events[MonitorType.HEALTH] = now
 
-                await asyncio.sleep(0.23)
+                await asyncio.sleep(0.5)
             except asyncio.CancelledError:
                 raise
             except Exception as e:

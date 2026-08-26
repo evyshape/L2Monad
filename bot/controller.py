@@ -1,6 +1,7 @@
 import asyncio
 import threading
 import ctypes
+from concurrent.futures import ThreadPoolExecutor
 from bot.clogger import log
 from bot.delays import WAIT_BEFORE_START
 from bot.manager import BotManager
@@ -16,6 +17,8 @@ class ProfileController:
             cls._instance = super().__new__(cls)
             cls._instance.bot_manager = BotManager()
             cls._instance.loop = asyncio.new_event_loop()
+            cls._instance._capture_pool = ThreadPoolExecutor(max_workers=256, thread_name_prefix="cap")
+            cls._instance.loop.set_default_executor(cls._instance._capture_pool)
             cls._instance.profiles = getProfiles()
             cls._instance._batch_cancel = threading.Event()
             threading.Thread(target=cls._instance.loop.run_forever, daemon=True).start()

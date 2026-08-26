@@ -25,8 +25,10 @@ class EventDrivenProfile(BaseProfile):
                 log(f"Отмена / {priority}", self.window_id)
                 self._current_event_task.cancel()
                 try:
-                    await self._current_event_task
-                except asyncio.CancelledError:
+                    await asyncio.wait_for(self._current_event_task, timeout=1.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
+                    pass
+                except Exception:
                     pass
 
             self._current_event_task = asyncio.create_task(self._process_event(event))
