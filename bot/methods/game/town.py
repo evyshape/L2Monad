@@ -159,9 +159,9 @@ class Town(GameAction):
         if floran is None:
             floran = await self.is_floran()
         if floran:
-            up_times = 7
+            up_times = 5
         elif self.settings.REGION == Region.RU:
-            up_times = 9
+            up_times = 7
         elif self.settings.REGION == Region.JP:
             up_times = 5
         else:
