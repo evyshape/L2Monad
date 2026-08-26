@@ -337,7 +337,7 @@ class Town(GameAction):
 
         xy_b1 = await self._wait_all(
             ("npc_stash_button_1", "npc_stash_anchor_1", "npc_stash_anchor_2", "npc_stash_anchor_3"),
-            deadline=120.0, thr=10,
+            deadline=120.0, thr=15,
         )
         if xy_b1 is None:
             log("go_stash: якоря склада не совпали, меню не открылось", self.window_id)
