@@ -193,6 +193,11 @@ class BaseProfile(ABC):
         await asyncio.gather(*tasks, return_exceptions=True)
         self.event_queue = Queue(maxsize=64)
 
+        try:
+            capture.release(self._window_id)
+        except Exception:
+            pass
+
     async def _save_pos(self):
         window_id, window = next(iter(self.window_info.items()))
         try:
@@ -343,6 +348,7 @@ class BaseProfile(ABC):
         abs_y = xy[1] + window['Position'][1]
 
         return await capture.wait_for_pixel(
+            self._window_id,
             abs_x, abs_y, width, height,
             (int(rgb[0]), int(rgb[1]), int(rgb[2])),
             int(thr),
@@ -357,14 +363,17 @@ class BaseProfile(ABC):
 
         window = self.window_info[self._window_id]
         px, py = window['Position']
-
-        async def _one(x: int, y: int, w: int, h: int) -> np.ndarray:
-            try:
-                return await capture.capture_region(x + px, y + py, w, h)
-            except Exception:
-                return np.zeros((h, w, 3), dtype=np.uint8)
-
-        return await asyncio.gather(*(_one(x, y, w, h) for x, y, w, h in rects))
+        abs_rects = [(x + px, y + py, w, h) for x, y, w, h in rects]
+        nick = self._window_id
+        try:
+            return await capture.capture_regions(nick, abs_rects)
+        except Exception:
+            async def _one(x: int, y: int, w: int, h: int) -> np.ndarray:
+                try:
+                    return await capture.capture_region(nick, x, y, w, h)
+                except Exception:
+                    return np.zeros((h, w, 3), dtype=np.uint8)
+            return await asyncio.gather(*(_one(x, y, w, h) for x, y, w, h in abs_rects))
 
     def is_running(self) -> bool:
         """

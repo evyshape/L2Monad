@@ -35,7 +35,7 @@ class MssBackend(CaptureBackend):
         self._pool = ThreadPoolExecutor(max_workers=thread, thread_name_prefix="mss")
         self._semaphore = pixel_semaphore
 
-    def check_pixel(self, x: int, y: int, w: int, h: int, rgb: Rgb, thr: int) -> bool:
+    def check_pixel(self, nick, x: int, y: int, w: int, h: int, rgb: Rgb, thr: int) -> bool:
         arr = self._grab_bgr(x, y, w, h)
         target = np.array(rgb, dtype=np.int16)
         diff = np.abs(arr.astype(np.int16) - target)
@@ -43,6 +43,7 @@ class MssBackend(CaptureBackend):
 
     async def wait_for_pixel(
         self,
+        nick,
         x: int,
         y: int,
         w: int,
@@ -73,10 +74,10 @@ class MssBackend(CaptureBackend):
         async with self._semaphore:
             return await loop.run_in_executor(self._pool, _run)
 
-    def capture_region(self, x: int, y: int, w: int, h: int) -> np.ndarray:
+    def capture_region(self, nick, x: int, y: int, w: int, h: int) -> np.ndarray:
         return self._grab_rgb(x, y, w, h)
 
-    async def capture_region_async(self, x: int, y: int, w: int, h: int) -> np.ndarray:
+    async def capture_region_async(self, nick, x: int, y: int, w: int, h: int) -> np.ndarray:
         loop = asyncio.get_running_loop()
         async with self._semaphore:
             return await loop.run_in_executor(self._pool, self._grab_rgb, x, y, w, h)
