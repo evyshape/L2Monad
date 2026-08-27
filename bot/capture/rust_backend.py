@@ -33,7 +33,7 @@ class RustBackend(CaptureBackend):
     _MONITOR_KEY = "__monitor__"
     _UNHEALTHY_RECREATE_AFTER = 1.5
 
-    def __init__(self, prefer: str | None = "wgc"):
+    def __init__(self, prefer: str | None = "dxgi"):
         try:
             import capture_rs
         except ImportError as e:
@@ -49,7 +49,7 @@ class RustBackend(CaptureBackend):
         env_prefer = os.environ.get("L2M_CAPTURE_BACKEND")
         if env_prefer:
             env_prefer = env_prefer.strip().lower() or None
-        self._prefer = env_prefer if env_prefer else (prefer or "wgc")
+        self._prefer = env_prefer if env_prefer else (prefer or "dxgi")
 
         self._captures: Dict[str, _CaptureEntry] = {}
         self._lock = threading.RLock()
