@@ -24,7 +24,7 @@ class Claims(GameAction):
         xy, rgb = parseCBT("main_menu_opened", profile=self.profile)
         if xy is None:
             return False
-        return await self.profile.check_pixel(xy, rgb, timeout=timeout, thr=5, wsize="3x3")
+        return await self.profile.check_pixel(xy, rgb, timeout=timeout, thr=7, wsize="3x3")
 
     async def _open_menu(self, timeout: float = 5) -> bool:
         if await self._menu_open():
