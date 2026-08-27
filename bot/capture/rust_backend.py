@@ -123,6 +123,8 @@ class RustBackend(CaptureBackend):
     def _get_capture(self, nick: Optional[str]) -> _CaptureEntry:
         if nick is None:
             return self._monitor_capture()
+        if self._prefer not in ("wgc", "auto", None):
+            return self._monitor_capture()
         with self._lock:
             entry = self._captures.get(nick)
             if entry is not None:
