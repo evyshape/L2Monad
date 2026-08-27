@@ -271,7 +271,7 @@ class Town(GameAction):
 
         ok, xy_b1 = await self._smart_click(
             "npc_shop_button_1", "npc_shop_button_2",
-            wait=120.0, verify=3.0, thr=10,
+            wait=120.0, verify=3.0, thr=20,
             anchors=("npc_shop_anchor_1", "npc_shop_anchor_2", "npc_shop_anchor_3"),
         )
         if not ok:
@@ -337,7 +337,7 @@ class Town(GameAction):
 
         xy_b1 = await self._wait_all(
             ("npc_stash_button_1", "npc_stash_anchor_1", "npc_stash_anchor_2", "npc_stash_anchor_3"),
-            deadline=120.0, thr=15,
+            deadline=120.0, thr=20,
         )
         if xy_b1 is None:
             log("go_stash: якоря склада не совпали, меню не открылось", self.window_id)
@@ -384,7 +384,7 @@ class Town(GameAction):
 
         ok, xy_b1 = await self._smart_click(
             "npc_buyer_button_1", "npc_buyer_button_2",
-            wait=120.0, verify=3.0, thr=10,
+            wait=120.0, verify=3.0, thr=20,
             anchors=("npc_buyer_anchor_1", "npc_buyer_anchor_2"),
         )
         if not ok:
