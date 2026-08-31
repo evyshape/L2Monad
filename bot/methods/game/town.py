@@ -47,7 +47,7 @@ class Town(GameAction):
             await self.mouse.click(self.window_info, *xy)
             if next_tag is None:
                 return True, xy
-            if await self._wait_pixel(next_tag, deadline=verify):
+            if await self._wait_pixel(next_tag, deadline=verify, thr=thr):
                 return True, xy
             if attempt < reclicks:
                 log(f"{tag}: клик не сработал, реклик {attempt+1}/{reclicks}", self.window_id)
