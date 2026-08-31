@@ -128,7 +128,7 @@ class BaseSettings:
                 for line in f:
                     line = line.strip()
                     if line.startswith(f"{today_str}:{action.lower()}:"):
-                        parts = line.split(":")
+                        parts = line.split(":", 2)
                         if len(parts) == 3:
                             ex.add(parts[2])
 
