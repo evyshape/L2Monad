@@ -220,6 +220,9 @@ class Editor(QDialog):
             "NEED_SHOP_AFTER_RIP": settings.NEED_SHOP_AFTER_RIP,
             "NEED_SHOP_AFTER_PVP_EVADE": settings.NEED_SHOP_AFTER_PVP_EVADE,
             "NEED_BACK_TO_SPOT_PARTY_DUNGEON": settings.NEED_BACK_TO_SPOT_PARTY_DUNGEON,
+            "USE_STASH": settings.USE_STASH,
+            "USE_SHOP": settings.USE_SHOP,
+            "USE_SELLER": settings.USE_SELLER,
         })
 
         tl = QVBoxLayout()
@@ -502,7 +505,8 @@ class Editor(QDialog):
             for key in ["NEED_CLAIM_DAILY", "NEED_CLAIM_MAIL", "NEED_CLAIM_ACHIV",
                         "NEED_CLAIM_CLAN", "NEED_CLAIM_ALI", "NEED_CLAIM_BATTLE_PASS",
                         "NEED_CLAIM_DONATE_SHOP", "NEED_SHOP_AFTER_RIP",
-                        "NEED_SHOP_AFTER_PVP_EVADE", "NEED_BACK_TO_SPOT_PARTY_DUNGEON"]:
+                        "NEED_SHOP_AFTER_PVP_EVADE", "NEED_BACK_TO_SPOT_PARTY_DUNGEON",
+                        "USE_STASH", "USE_SHOP", "USE_SELLER"]:
                 self.settings.__dict__[key] = self.widgets[key].isChecked()
 
             self.settings.DELAY_PVP_ANSWER = self.delay_pvp_answer.value()

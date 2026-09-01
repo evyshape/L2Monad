@@ -43,6 +43,9 @@ class BaseSettings:
     NEED_SHOP_AFTER_RIP: bool
     NEED_SHOP_AFTER_PVP_EVADE: bool
     NEED_BACK_TO_SPOT_PARTY_DUNGEON: bool
+    USE_STASH: bool
+    USE_SHOP: bool
+    USE_SELLER: bool
     FAST_DODGE: bool
     PVP_ANSWER_CHECK_HP_ITERATIONS: int
     DELAY_PVP_ANSWER: int
@@ -226,6 +229,9 @@ default_values = {
     "NEED_SHOP_AFTER_RIP": True,
     "NEED_SHOP_AFTER_PVP_EVADE": True,
     "NEED_BACK_TO_SPOT_PARTY_DUNGEON": True,
+    "USE_STASH": True,
+    "USE_SHOP": True,
+    "USE_SELLER": True,
     "FAST_DODGE": True,
     "PVP_ANSWER_CHECK_HP_ITERATIONS": 3,
     "DELAY_PVP_ANSWER": 50,

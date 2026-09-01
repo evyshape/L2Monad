@@ -16,7 +16,7 @@ from bot.methods.game._base import GameAction
 
 class Town(GameAction):
 
-    async def _wait_pixel(self, tag, deadline=10.0, thr=None):
+    async def _wait_pixel(self, tag, deadline=10.0, thr=20):
         xy, rgb = parseCBT(tag, profile=self.profile)
         if xy is None:
             return None
@@ -271,7 +271,7 @@ class Town(GameAction):
 
         ok, xy_b1 = await self._smart_click(
             "npc_shop_button_1", "npc_shop_button_2",
-            wait=120.0, verify=3.0, thr=40,
+            wait=120.0, verify=3.0, thr=10,
             anchors=("npc_shop_anchor_1", "npc_shop_anchor_2", "npc_shop_anchor_3"),
         )
         if not ok:
@@ -315,6 +315,37 @@ class Town(GameAction):
 
         log("buy_in_shop: quit не найден, меню видимо залипло", self.window_id)
         return False, in_town, npcs
+
+    async def visit_chain(
+        self,
+        in_town=None,
+        npcs=None,
+        check_loot: bool = False,
+    ) -> tuple[bool, bool, bool]:
+        stash_ok = shop_ok = buyer_ok = True
+
+        if self.settings.USE_STASH:
+            stash_ok, in_town, npcs = await self.go_stash(in_town, npcs)
+        else:
+            log("visit_chain: склад отключен настройкой USE_STASH", self.window_id)
+
+        if self.settings.USE_SHOP:
+            shop_ok, in_town, npcs = await self.buy_in_shop(
+                in_town=in_town, npcs=npcs, check_loot=check_loot,
+            )
+        else:
+            log("visit_chain: бакалея отключена настройкой USE_SHOP", self.window_id)
+
+        if self.settings.USE_SELLER:
+            buyer_ok, _, _ = await self.sell_to_buyer(in_town=in_town, npcs=npcs)
+        else:
+            log("visit_chain: скупщик отключен настройкой USE_SELLER", self.window_id)
+
+        log(
+            f"visit_chain: stash={stash_ok} shop={shop_ok} buyer={buyer_ok}",
+            self.window_id,
+        )
+        return stash_ok, shop_ok, buyer_ok
 
     async def go_stash(self, in_town=None, npcs=None) -> tuple[bool, bool, dict]:
         log("go_stash: старт", self.window_id)

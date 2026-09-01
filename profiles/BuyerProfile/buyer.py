@@ -22,11 +22,8 @@ class Buyer(BaseProfile):
             if tp:
                 wait = await self.tp.wait_arrived()
                 if wait:
-                    stash_ok, in_town, npcs = await self.town.go_stash()
-                    shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
-                    buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
-                    if stash_ok:
-                        log(f"{stash_ok}", window_id)
+                    stash_ok, shop_ok, buyer_ok = await self.town.visit_chain(check_loot=True)
+                    if stash_ok or shop_ok or buyer_ok:
                         await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
                     else:
                         log(f"Не смог закупиться", window_id)

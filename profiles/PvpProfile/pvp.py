@@ -119,11 +119,7 @@ class PvPDodge(EventDrivenProfile):
 
                 if self.settings.NEED_SHOP_AFTER_RIP:
                     log("Пробую идти к бакалейщику", window_id)
-                    stash_ok, in_town, npcs = await self.town.go_stash()
-                    shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs)
-                    buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
-                    if stash_ok:
-                        log("Успешно скупился!", window_id)
+                    await self.town.visit_chain()
 
                 await asyncio.sleep(1)
                 log("Тпаюсь на спот и ставлю автобой", window_id)
@@ -157,12 +153,7 @@ class PvPDodge(EventDrivenProfile):
             await self.energo.turn_off()
 
         if self.settings.NEED_SHOP_AFTER_PVP_EVADE:
-            stash_ok, in_town, npcs = await self.town.go_stash()
-            shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
-            buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
-
-            if stash_ok:
-                log("Закупился успешно, вероятно...", window_id)
+            await self.town.visit_chain(check_loot=True)
 
         await asyncio.sleep(2.5)
         to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
@@ -278,9 +269,7 @@ class PvPDodge(EventDrivenProfile):
             await self.mouse.click(self.window_info, click_x, click_y)
             result = await self.tp.wait_arrived()
             if result:
-                stash_ok, in_town, npcs = await self.town.go_stash()
-                shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs, check_loot=True)
-                buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
+                stash_ok, shop_ok, buyer_ok = await self.town.visit_chain(check_loot=True)
 
                 if stash_ok:
                     to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
@@ -449,9 +438,7 @@ class PvPDodge(EventDrivenProfile):
                     await asyncio.sleep(1)
                 tp = await self.tp.safe_home()
                 if tp:
-                    stash_ok, in_town, npcs = await self.town.go_stash()
-                    shop_ok, _, _ = await self.town.buy_in_shop(in_town=in_town, npcs=npcs)
-                    buyer_ok, _, _ = await self.town.sell_to_buyer(in_town=in_town, npcs=npcs)
+                    await self.town.visit_chain()
                     to_spot = await self.tp.to_random_spot(self.settings.SPOT_OT, self.settings.SPOT_DO)
                     if to_spot:
                         self.runtime_data.current_state = BotState.COMBAT
